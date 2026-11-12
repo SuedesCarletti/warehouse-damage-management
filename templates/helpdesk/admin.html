@@ -1,0 +1,403 @@
+<!-- templates/admin.html - CORRIGIDO -->
+{% extends "base.html" %}
+
+{% block title %}Administração - Sistema de Chamados TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-cog me-2"></i>Painel Administrativo
+        </h2>
+    </div>
+</div>
+
+<!-- Status do Google Sheets -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Status do Google Sheets</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshSheetsStatus()">
+                    <i class="fas fa-sync-alt"></i> Atualizar
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row" id="sheetsStatus">
+                    <!-- Status será carregado via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estatísticas Gerais -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ stats.total_tickets }}</h3>
+                    <p class="mb-0 text-muted">Total de Chamados</p>
+                </div>
+                <i class="fas fa-ticket-alt fa-2x text-info"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ stats.total_users }}</h3>
+                    <p class="mb-0 text-muted">Usuários Cadastrados</p>
+                </div>
+                <i class="fas fa-users fa-2x text-success"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ stats.total_categories }}</h3>
+                    <p class="mb-0 text-muted">Categorias Ativas</p>
+                </div>
+                <i class="fas fa-tags fa-2x text-warning"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ "%.1f"|format((stats.resolved_tickets / stats.total_tickets * 100) if stats.total_tickets > 0 else 0) }}%</h3>
+                    <p class="mb-0 text-muted">Taxa de Resolução</p>
+                </div>
+                <i class="fas fa-chart-line fa-2x text-primary"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Links Rápidos -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Links de Gestão</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        {% if SPREADSHEET_ID %}
+                        <a href="https://docs.google.com/spreadsheets/d/{{ SPREADSHEET_ID }}" 
+                           target="_blank" class="btn btn-outline-success w-100 mb-2">
+                            <i class="fas fa-table me-2"></i>Gerenciar Usuários
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary w-100 mb-2" disabled>
+                            <i class="fas fa-table me-2"></i>Planilha não configurada
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        {% if SPREADSHEET_ID %}
+                        <a href="https://docs.google.com/spreadsheets/d/{{ SPREADSHEET_ID }}" 
+                           target="_blank" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-tags me-2"></i>Gerenciar Categorias
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary w-100 mb-2" disabled>
+                            <i class="fas fa-tags me-2"></i>Planilha não configurada
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-info w-100 mb-2" onclick="retrySheetsConnection()">
+                            <i class="fas fa-redo me-2"></i>Reconectar Sheets
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-warning w-100 mb-2" onclick="refreshData()">
+                            <i class="fas fa-sync-alt me-2"></i>Atualizar Sistema
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuração Rápida -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Configuração Rápida</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>Como configurar Google Sheets:</h6>
+                    <ol class="mb-0">
+                        <li>Execute: <code>python setup_sheets.py</code></li>
+                        <li>Siga as instruções para configurar credenciais</li>
+                        <li>Reinicie a aplicação</li>
+                    </ol>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Sem Google Sheets?</h6>
+                    <p class="mb-0">O sistema funciona com dados padrão (fallback) quando o Google Sheets não está disponível.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chamados Recentes para Admin -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Chamados Recentes - Visão Administrativa</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Assunto</th>
+                                <th>Solicitante</th>
+                                <th>Categoria</th>
+                                <th>Status</th>
+                                <th>Terceiro</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in tickets %}
+                            <tr>
+                                <td><strong>#{{ ticket.ticket_number }}</strong></td>
+                                <td>{{ ticket.subject[:40] }}{{ '...' if ticket.subject|length > 40 else '' }}</td>
+                                <td>
+                                    <div>{{ ticket.user_name }}</div>
+                                    <small class="text-muted">{{ ticket.department }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ ticket.category }}</span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ ticket.status.lower().replace(' ', '-') }}">
+                                        {{ ticket.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if ticket.third_party_email %}
+                                    <i class="fas fa-external-link-alt text-info" 
+                                       title="{{ ticket.third_party_email }}"></i>
+                                    {% if ticket.email_opened %}
+                                    <i class="fas fa-envelope-open text-success ms-1" title="E-mail aberto"></i>
+                                    {% else %}
+                                    <i class="fas fa-envelope text-muted ms-1" title="E-mail não aberto"></i>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ format_date_br(ticket.created_at) }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('tickets.view_ticket', ticket_number=ticket.ticket_number) }}" 
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if ticket.status not in ['Resolvido', 'Fechado'] %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" 
+                                                    type="button" 
+                                                    data-bs-toggle="dropdown">
+                                                <i class="fas fa-cog"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" 
+                                                       onclick="updateStatus('{{ ticket.ticket_number }}', 'Em Andamento')">
+                                                    <i class="fas fa-play me-2"></i>Em Andamento
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" 
+                                                       onclick="updateStatus('{{ ticket.ticket_number }}', 'Resolvido')">
+                                                    <i class="fas fa-check me-2"></i>Resolver
+                                                </a></li>
+                                            </ul>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">
+                                    Nenhum chamado encontrado
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/helpdesk-common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ui-helpers.js') }}"></script>
+<script>
+    // Carregar status do Google Sheets na inicialização
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshSheetsStatus();
+    });
+
+    function refreshSheetsStatus() {
+        const statusDiv = document.getElementById('sheetsStatus');
+        statusDiv.innerHTML = '<div class="col-12 text-center"><i class="fas fa-spinner fa-spin"></i> Verificando status...</div>';
+        
+        // CORREÇÃO: Usar url_for para gerar a URL correta da API
+        fetch('{{ url_for("api.sheets_status") }}')
+            .then(response => response.json())
+            .then(data => {
+                let statusHtml = '';
+                
+                // Status da conexão
+                if (data.connected) {
+                    statusHtml += `
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                                <h6>Conectado</h6>
+                                <small class="text-success">Google Sheets ativo</small>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    statusHtml += `
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                                <h6>Desconectado</h6>
+                                <small class="text-danger">${data.message}</small>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Status das credenciais
+                statusHtml += `
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <i class="fas fa-key fa-2x ${data.credentials_available ? 'text-success' : 'text-warning'} mb-2"></i>
+                            <h6>Credenciais</h6>
+                            <small class="${data.credentials_available ? 'text-success' : 'text-warning'}">
+                                ${data.credentials_available ? 'Configuradas' : 'Não configuradas'}
+                            </small>
+                        </div>
+                    </div>
+                `;
+                
+                // Status do ID da planilha
+                statusHtml += `
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <i class="fas fa-table fa-2x ${data.spreadsheet_id_available ? 'text-success' : 'text-warning'} mb-2"></i>
+                            <h6>Planilha</h6>
+                            <small class="${data.spreadsheet_id_available ? 'text-success' : 'text-warning'}">
+                                ${data.spreadsheet_id_available ? 'ID configurado' : 'ID não configurado'}
+                            </small>
+                        </div>
+                    </div>
+                `;
+                
+                // Ações disponíveis
+                let actionsHtml = '<div class="col-md-3"><div class="text-center">';
+                
+                if (!data.connected && (data.credentials_available && data.spreadsheet_id_available)) {
+                    actionsHtml += `
+                        <button class="btn btn-sm btn-warning" onclick="retrySheetsConnection()">
+                            <i class="fas fa-redo"></i> Reconectar
+                        </button>
+                    `;
+                } else if (!data.credentials_available || !data.spreadsheet_id_available) {
+                    actionsHtml += `
+                        <small class="text-muted">Execute:<br>
+                        <code>python setup_sheets.py</code></small>
+                    `;
+                } else {
+                    actionsHtml += `
+                        <i class="fas fa-thumbs-up fa-2x text-success mb-2"></i>
+                        <h6>OK</h6>
+                    `;
+                }
+                
+                actionsHtml += '</div></div>';
+                statusHtml += actionsHtml;
+                
+                statusDiv.innerHTML = statusHtml;
+            })
+            .catch(error => {
+                statusDiv.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Erro ao verificar status: ${error.message}
+                        </div>
+                    </div>
+                `;
+            });
+    }
+
+    function retrySheetsConnection() {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        showLoading(btn);
+        
+        // CORREÇÃO: Usar url_for para gerar a URL correta da API
+        fetch('{{ url_for("api.retry_sheets_connection") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading(btn, originalText);
+            
+            if (data.success) {
+                _alertaCritico('Sucesso', 'Reconexão bem-sucedida!');
+                refreshSheetsStatus();
+            } else {
+                _alertaCritico('Erro', traduzirErroTecnico(data.error || 'Erro desconhecido'));
+            }
+        })
+        .catch(error => {
+            hideLoading(btn, originalText);
+            _alertaCritico('Erro', traduzirErroTecnico(error.message));
+        });
+    }
+
+    function refreshData() {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        showLoading(btn);
+        
+        // Simular refresh (você pode implementar uma rota específica)
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+</script>
+{% endblock %}

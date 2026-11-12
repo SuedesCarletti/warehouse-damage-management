@@ -1,0 +1,23 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+# ⚡ CORREÇÃO COLD START:
+#   --preload → App inicializa UMA VEZ no master, todos os workers herdam caches quentes
+#   --workers 1 → Evita estado fragmentado entre workers (cada worker tinha cache próprio vazio)
+#   --threads 4 → Mantém concorrência via threads dentro do único worker
+startCommand = "gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --worker-class gthread --preload --access-logfile - --error-logfile - --log-level info app:app"
+
+# Healthcheck tolerante para inicialização
+healthcheckPath = "/health"
+healthcheckTimeout = 400
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[env]
+PYTHONPATH = "/app"
+FLASK_ENV = "production"
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+PYTHONHASHSEED = "random"
+GUNICORN_TIMEOUT = "120"

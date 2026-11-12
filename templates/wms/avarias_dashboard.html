@@ -1,0 +1,3463 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Analítico — WMS{% endblock %}
+
+{% block main_content_class %}main-content{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── VARIÁVEIS ── */
+  :root {
+    --dash-bg: #0d0f14;
+    --dash-surface: #151821;
+    --dash-surface2: #1c2030;
+    --dash-border: #252a3a;
+    --dash-accent: #3b82f6;
+    --dash-green: #10b981;
+    --dash-amber: #f59e0b;
+    --dash-red: #ef4444;
+    --dash-purple: #8b5cf6;
+    --dash-text: #e2e8f0;
+    --dash-muted: #64748b;
+    --dash-mono: 'Courier New', monospace;
+  }
+
+  /* ── CONTAINER GERAL ── */
+  .dash-wrapper { background: var(--dash-bg); min-height: 100vh; padding-bottom: 40px; overflow-x: hidden; max-width: 100%; }
+
+  /* ── FILTROS GLOBAIS ── */
+  .dash-filters {
+    background: var(--dash-surface);
+    border-bottom: 1px solid var(--dash-border);
+    padding: 12px 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .dash-filters label {
+    font-size: 11px;
+    color: var(--dash-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+  .dash-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dash-input {
+    background: var(--dash-surface2);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: var(--dash-mono);
+    min-width: 130px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .dash-input:focus { border-color: var(--dash-accent); }
+  .dash-select {
+    background: var(--dash-surface2);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+  .btn-aplicar {
+    background: var(--dash-accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+    white-space: nowrap;
+  }
+  .btn-aplicar:hover { background: #2563eb; }
+  .btn-periodo {
+    background: var(--dash-surface2);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-muted);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: var(--dash-mono);
+  }
+  .btn-periodo:hover, .btn-periodo.active {
+    border-color: var(--dash-accent);
+    color: var(--dash-accent);
+    background: rgba(59,130,246,.08);
+  }
+  .filter-separator {
+    width: 1px;
+    height: 28px;
+    background: var(--dash-border);
+    flex-shrink: 0;
+  }
+
+  /* ── TABS ── */
+  .dash-tabs {
+    background: var(--dash-surface);
+    border-bottom: 1px solid var(--dash-border);
+    padding: 0 24px;
+    display: flex;
+    overflow-x: auto;
+  }
+  .dash-tab {
+    padding: 13px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--dash-muted);
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    transition: all .2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: inherit;
+    outline: none;
+  }
+  .dash-tab:hover { color: var(--dash-text); }
+  .dash-tab.active { color: var(--dash-text); border-bottom-color: var(--dash-accent); }
+
+  /* ── PAINEL ── */
+  .dash-panel { display: none; padding: 24px; }
+  .dash-panel.active { display: block; }
+
+  /* ── KPI GRID ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-top: 3px solid var(--kpi-color, var(--dash-accent));
+    border-radius: 8px;
+    padding: 22px 20px;
+    min-height: 120px;
+    transition: border-color .2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .kpi-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--dash-muted);
+    margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-family: var(--dash-mono);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--dash-text);
+    line-height: 1;
+  }
+  .kpi-value.sm { font-size: 16px; }
+  .kpi-sub { font-size: 11px; color: var(--dash-muted); margin-top: 6px; font-family: var(--dash-mono); }
+  .kpi-up { color: var(--dash-green); }
+  .kpi-down { color: var(--dash-red); }
+
+  /* ── CHART GRID ── */
+  .chart-row { display: grid; gap: 14px; margin-bottom: 14px; }
+  .chart-row.col-2 { grid-template-columns: 1fr 1fr; }
+  .chart-row.col-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .chart-row.col-1 { grid-template-columns: 1fr; }
+  .chart-box {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    min-width: 0;        /* impede expansão além do 1fr no CSS Grid */
+    box-sizing: border-box;
+  }
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--dash-text); margin-bottom: 2px; }
+  .chart-sub { font-size: 11px; color: var(--dash-muted); margin-bottom: 14px; font-family: var(--dash-mono); }
+
+  /* ── LOADING ── */
+  .dash-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--dash-muted);
+    font-size: 13px;
+  }
+
+  /* ── INTERATIVIDADE POWER BI ── */
+  .chart-row-click:hover {
+    background: rgba(59,130,246,0.08) !important;
+    border-radius: 4px;
+  }
+  .chart-row-click:active {
+    transform: scale(0.995);
+  }
+
+  .interactive-cell {
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 4px;
+    padding: 2px 4px !important;
+  }
+  .interactive-cell:hover {
+    background: rgba(59,130,246,0.15) !important;
+    color: var(--dash-accent) !important;
+  }
+  .interactive-cell.selected {
+    background: rgba(59,130,246,0.2) !important;
+    color: var(--dash-accent) !important;
+    font-weight: bold;
+    box-shadow: inset 0 0 0 1px var(--dash-accent);
+  }
+
+  .spinner {
+    width: 20px;
+ height: 20px;
+    border: 2px solid var(--dash-border);
+    border-top-color: var(--dash-accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── TABLE ── */
+  .dash-table-wrap {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .dash-table-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--dash-border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dash-text);
+  }
+  .dash-table { width: 100%; border-collapse: collapse; }
+  .dash-table th {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--dash-muted);
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--dash-border);
+  }
+  .dash-table td {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--dash-text);
+    border-bottom: 1px solid rgba(37,42,58,.5);
+  }
+  .dash-table tr:last-child td { border-bottom: none; }
+  .dash-table tr:hover td { background: rgba(255,255,255,.02); }
+  .dash-table .mono { font-family: var(--dash-mono); }
+
+  /* ── PILL ── */
+  .pill {
+    display: inline-block; font-size: 10px; font-family: var(--dash-mono);
+    padding: 2px 8px; border-radius: 100px; font-weight: 600;
+  }
+  .pill-green  { background: rgba(16,185,129,.15); color: #34d399; }
+  .pill-yellow { background: rgba(245,158,11,.15);  color: #fbbf24; }
+  .pill-red    { background: rgba(239,68,68,.15);   color: #f87171; }
+  .pill-blue   { background: rgba(59,130,246,.15);  color: #60a5fa; }
+  .pill-gray   { background: rgba(100,116,139,.15); color: #94a3b8; }
+
+  /* ── Tabela vencidas ── */
+  .dash-table th { overflow: hidden; }
+  .tv-resize-handle {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 5px;
+    cursor: col-resize; background: transparent;
+  }
+  .tv-resize-handle:hover { background: rgba(59,130,246,.4); }
+  .tv-filter-row th { padding: 0 4px 4px !important; background: var(--dash-surface); }
+  .tv-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 5px; font-size: 10px; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent; text-decoration: none; white-space: nowrap;
+  }
+  .tv-btn-blue  { background: rgba(59,130,246,.15);  color: #60a5fa; border-color: rgba(59,130,246,.3); }
+  .tv-btn-blue:hover  { background: rgba(59,130,246,.3); }
+  .tv-btn-green { background: rgba(16,185,129,.15);  color: #34d399; border-color: rgba(16,185,129,.3); }
+  .tv-btn-green:hover { background: rgba(16,185,129,.3); }
+  .tv-btn-gray  { background: rgba(100,116,139,.15); color: #94a3b8; border-color: rgba(100,116,139,.3); }
+  .tv-btn-gray:hover  { background: rgba(100,116,139,.3); }
+
+  /* ── FUNIL ── */
+  .funil-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .funil-step {
+    flex: 1; min-width: 110px;
+    background: var(--dash-surface2);
+    border: 1px solid var(--dash-border);
+    border-radius: 8px; padding: 14px 16px; position: relative;
+  }
+  .funil-step::after {
+    content: '›'; position: absolute; right: -10px; top: 50%;
+    transform: translateY(-50%); font-size: 18px; color: var(--dash-muted); z-index: 2;
+  }
+  .funil-step:last-child::after { display: none; }
+  .funil-step-label { font-size: 10px; color: var(--dash-muted); margin-bottom: 5px; font-family: var(--dash-mono); text-transform: uppercase; }
+  .funil-step-qtd { font-family: var(--dash-mono); font-size: 22px; font-weight: 700; }
+  .funil-step-val { font-size: 11px; color: var(--dash-muted); margin-top: 3px; }
+
+  /* ── CAMPO DATA CONFIG ── */
+  .campo-data-selector {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--dash-muted);
+  }
+  .campo-data-selector select {
+    background: var(--dash-surface2); border: 1px solid var(--dash-border);
+    color: var(--dash-text); border-radius: 4px; padding: 3px 8px;
+    font-size: 11px; cursor: pointer; outline: none;
+  }
+  /* ── FILTRO STATUS (multi-select visual) ── */
+  .status-filter-wrap {
+    position: relative;
+  }
+  .status-filter-btn {
+    background: var(--dash-surface2);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: var(--dash-mono);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: border-color .2s;
+    min-width: 130px;
+    outline: none;
+  }
+  .status-filter-btn:hover,
+  .status-filter-btn.open { border-color: var(--dash-accent); }
+  .status-filter-btn .sfb-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-filter-btn .sfb-count {
+    background: var(--dash-accent);
+    color: #fff;
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: auto;
+  }
+  .status-filter-btn .sfb-caret {
+    margin-left: 4px;
+    font-size: 9px;
+    color: var(--dash-muted);
+    transition: transform .2s;
+  }
+  .status-filter-btn.open .sfb-caret { transform: rotate(180deg); }
+
+  .status-filter-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 999;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    min-width: 220px;
+    overflow: hidden;
+  }
+  .status-filter-dropdown.open { display: block; }
+  .sfd-header {
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--dash-muted);
+    border-bottom: 1px solid var(--dash-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sfd-clear {
+    font-size: 10px;
+    color: var(--dash-accent);
+    cursor: pointer;
+    font-weight: 600;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .sfd-clear:hover { text-decoration: underline; }
+  .sfd-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--dash-text);
+    transition: background .15s;
+  }
+  .sfd-item:hover { background: rgba(255,255,255,.04); }
+  .sfd-item.selected { background: rgba(59,130,246,.08); }
+  .sfd-item input[type=checkbox] {
+    width: 14px; height: 14px;
+    accent-color: var(--dash-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .sfd-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .sfd-label { flex: 1; font-family: var(--dash-mono); font-size: 11px; }
+  .sfd-footer {
+    padding: 8px 12px;
+    border-top: 1px solid var(--dash-border);
+    display: flex;
+    gap: 6px;
+  }
+  .sfd-btn-apply {
+    flex: 1;
+    background: var(--dash-accent);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .sfd-btn-apply:hover { background: #2563eb; }
+
+  /* Tags de status selecionados inline */
+  .status-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+  .status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-family: var(--dash-mono);
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: opacity .15s;
+  }
+  .status-tag:hover { opacity: .75; }
+  .status-tag .st-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag .st-x { font-size: 9px; margin-left: 2px; opacity: .7; }
+
+  /* ── FILTRO STATUS (multi-select visual) ── */
+  .status-filter-wrap {
+    position: relative;
+  }
+  .status-filter-btn {
+    background: var(--dash-surface2);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: var(--dash-mono);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: border-color .2s;
+    min-width: 130px;
+    outline: none;
+  }
+  .status-filter-btn:hover,
+  .status-filter-btn.open { border-color: var(--dash-accent); }
+  .status-filter-btn .sfb-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-filter-btn .sfb-count {
+    background: var(--dash-accent);
+    color: #fff;
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: auto;
+  }
+  .status-filter-btn .sfb-caret {
+    margin-left: 4px;
+    font-size: 9px;
+    color: var(--dash-muted);
+    transition: transform .2s;
+  }
+  .status-filter-btn.open .sfb-caret { transform: rotate(180deg); }
+
+  .status-filter-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 999;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    min-width: 220px;
+    overflow: hidden;
+  }
+  .status-filter-dropdown.open { display: block; }
+  .sfd-header {
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--dash-muted);
+    border-bottom: 1px solid var(--dash-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sfd-clear {
+    font-size: 10px;
+    color: var(--dash-accent);
+    cursor: pointer;
+    font-weight: 600;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .sfd-clear:hover { text-decoration: underline; }
+  .sfd-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--dash-text);
+    transition: background .15s;
+  }
+  .sfd-item:hover { background: rgba(255,255,255,.04); }
+  .sfd-item.selected { background: rgba(59,130,246,.08); }
+  .sfd-item input[type=checkbox] {
+    width: 14px; height: 14px;
+    accent-color: var(--dash-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .sfd-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .sfd-label { flex: 1; font-family: var(--dash-mono); font-size: 11px; }
+  .sfd-footer {
+    padding: 8px 12px;
+    border-top: 1px solid var(--dash-border);
+    display: flex;
+    gap: 6px;
+  }
+  .sfd-btn-apply {
+    flex: 1;
+    background: var(--dash-accent);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .sfd-btn-apply:hover { background: #2563eb; }
+
+  /* Tags de status selecionados inline */
+  .status-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+  .status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-family: var(--dash-mono);
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: opacity .15s;
+  }
+  .status-tag:hover { opacity: .75; }
+  .status-tag .st-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag .st-x { font-size: 9px; margin-left: 2px; opacity: .7; }
+
+  /* ── ERRO ── */
+  .dash-error {
+    padding: 20px; text-align: center; color: var(--dash-red); font-size: 13px;
+  }
+
+  @media (max-width: 900px) {
+    .chart-row.col-2, .chart-row.col-3 { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .dash-filters { padding: 10px 14px; }
+    .dash-panel { padding: 16px 14px; }
+  }
+
+  /* ── FIX: chart-box no CSS Grid — garante que não expanda além do 1fr ── */
+  .chart-row > .chart-box { min-width: 0; box-sizing: border-box; }
+
+  /* ── FIX: tabelas com altura máxima ── */
+  .dash-table-wrap > div[style*="overflow-x"] {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .dash-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--dash-surface);
+    z-index: 2;
+  }
+
+  /* ── OVERRIDE: remove padding do base.html para dashboard full-width ── */
+  .main-content { padding: 0 !important; }
+  .main-content-wrapper { padding-left: 0 !important; padding-right: 0 !important; }
+
+  /* ── FIX: Plotly container ocupa 100% do chart-box ── */
+  .chart-box > div[id] { width: 100% !important; max-width: 100%; }
+
+/* FIX CRÍTICO: .col-2 e .col-3 colidem com Bootstrap grid
+   Bootstrap define width:16.67% e width:25% respectivamente
+   — precisamos sobrescrever para o dashboard funcionar */
+.chart-row.col-1,
+.chart-row.col-2,
+.chart-row.col-3 {
+  width: 100% !important;
+  flex: none !important;
+}  
+  
+</style>
+{% endblock %}{# extra_head #}
+
+{% block content %}
+<div class="dash-wrapper">
+
+  {# ── FILTROS GLOBAIS ── #}
+  <div class="dash-filters" id="dashFilters">
+
+    {# Período rápido #}
+    <div class="dash-filter-group">
+      <label>Período</label>
+      <button class="btn-periodo" id="btn-tudo" onclick="setPeriodo(0, this)">Tudo</button>
+    </div>
+
+    <div class="filter-separator"></div>
+
+    {# Intervalo personalizado #}
+    <div class="dash-filter-group">
+      <label>De</label>
+      <input type="date" id="filtroDataInicio" class="dash-input" style="min-width:140px">
+    </div>
+    <div class="dash-filter-group">
+      <label>Até</label>
+      <input type="date" id="filtroDataFim" class="dash-input" style="min-width:140px">
+    </div>
+
+    <div class="filter-separator"></div>
+
+    {# Filtro cod_empresa #}
+    {% if cod_empresas_disponiveis %}
+    <div class="dash-filter-group">
+      <label>Empresa</label>
+      <select id="filtroEmpresa" class="dash-select">
+        <option value="__todos__">Todas</option>
+        {% for cod in cod_empresas_disponiveis %}
+        <option value="{{ cod }}">{{ cod }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-separator"></div>
+    {% endif %}
+
+    {# ── Filtro Status Indenização ── #}
+    {% if status_indenizacao_list %}
+    <div class="dash-filter-group">
+      <label>Status Indenização</label>
+      <div class="status-filter-wrap" id="wrap-ind">
+        <button class="status-filter-btn" id="btn-ind" onclick="toggleStatusFilter('ind')">
+          <i class="fas fa-hand-holding-usd" style="font-size:10px;color:var(--dash-muted)"></i>
+          <span id="lbl-ind">Todos</span>
+          <span class="sfb-count" id="cnt-ind" style="display:none"></span>
+          <span class="sfb-caret">▼</span>
+        </button>
+        <div class="status-filter-dropdown" id="drop-ind">
+          <div class="sfd-header">
+            Status Indenização
+            <button class="sfd-clear" onclick="limparStatusFilter('ind')">Limpar</button>
+          </div>
+          {% for st in status_indenizacao_list %}
+          <div class="sfd-item" id="sfd-ind-{{ loop.index }}" onclick="toggleStatusItem('ind', '{{ st.status }}', '{{ st.cor }}', this)">
+            <input type="checkbox" id="chk-ind-{{ loop.index }}" value="{{ st.status }}">
+            <span class="sfd-dot" style="background:{{ st.cor }}"></span>
+            <span class="sfd-label">{{ st.status }}</span>
+          </div>
+          {% endfor %}
+          <div class="sfd-footer">
+            <button class="sfd-btn-apply" onclick="aplicarStatusFilter('ind')">
+              <i class="fas fa-check" style="margin-right:4px"></i>Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-separator"></div>
+    {% endif %}
+
+    {# ── Filtro Status Estoque (Operacional) ── #}
+    {% if status_estoque_list %}
+    <div class="dash-filter-group">
+      <label>Status Estoque</label>
+      <div class="status-filter-wrap" id="wrap-est">
+        <button class="status-filter-btn" id="btn-est" onclick="toggleStatusFilter('est')">
+          <i class="fas fa-boxes" style="font-size:10px;color:var(--dash-muted)"></i>
+          <span id="lbl-est">Todos</span>
+          <span class="sfb-count" id="cnt-est" style="display:none"></span>
+          <span class="sfb-caret">▼</span>
+        </button>
+        <div class="status-filter-dropdown" id="drop-est">
+          <div class="sfd-header">
+            Status Estoque
+            <button class="sfd-clear" onclick="limparStatusFilter('est')">Limpar</button>
+          </div>
+          {% for st in status_estoque_list %}
+          <div class="sfd-item" id="sfd-est-{{ loop.index }}" onclick="toggleStatusItem('est', '{{ st.status }}', '{{ st.cor }}', this)">
+            <input type="checkbox" id="chk-est-{{ loop.index }}" value="{{ st.status }}">
+            <span class="sfd-dot" style="background:{{ st.cor }}"></span>
+            <span class="sfd-label">{{ st.status }}</span>
+          </div>
+          {% endfor %}
+          <div class="sfd-footer">
+            <button class="sfd-btn-apply" onclick="aplicarStatusFilter('est')">
+              <i class="fas fa-check" style="margin-right:4px"></i>Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-separator"></div>
+    {% endif %}
+
+    {# ── Filtro Transportadora ── #}
+    {% if transportadoras_list %}
+    <div class="dash-filter-group">
+      <label>Transportadora</label>
+      <div class="status-filter-wrap" id="wrap-transp">
+        <button class="status-filter-btn" id="btn-transp" onclick="toggleStatusFilter('transp')">
+          <i class="fas fa-truck" style="font-size:10px;color:var(--dash-muted)"></i>
+          <span id="lbl-transp">Todas</span>
+          <span class="sfb-count" id="cnt-transp" style="display:none"></span>
+          <span class="sfb-caret">▼</span>
+        </button>
+        <div class="status-filter-dropdown" id="drop-transp" style="min-width:220px;max-height:280px;overflow-y:auto">
+          <div class="sfd-header">
+            Transportadora
+            <button class="sfd-clear" onclick="limparStatusFilter('transp')">Limpar</button>
+          </div>
+          {% for t in transportadoras_list %}
+          <div class="sfd-item" id="sfd-transp-{{ loop.index }}" onclick="toggleTranspItem('{{ t|replace("'","\\'") }}', this)">
+            <input type="checkbox" id="chk-transp-{{ loop.index }}" value="{{ t }}">
+            <span class="sfd-label">{{ t }}</span>
+          </div>
+          {% endfor %}
+          <div class="sfd-footer">
+            <button class="sfd-btn-apply" onclick="aplicarStatusFilter('transp')">
+              <i class="fas fa-check" style="margin-right:4px"></i>Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-separator"></div>
+    {% endif %}
+
+    <button class="btn-aplicar" onclick="aplicarFiltros()">
+      <i class="fas fa-filter" style="margin-right:5px"></i>Aplicar
+    </button>
+
+    {# Tags de status selecionados (exibição compacta) #}
+    <div class="status-tags" id="status-tags-ind"></div>
+    <div class="status-tags" id="status-tags-est"></div>
+    <div class="status-tags" id="status-tags-transp"></div>
+  </div>
+
+  {# ── TABS ── #}
+  <div class="dash-tabs">
+    {% if paineis_permitidos.financeiro %}
+    <button class="dash-tab active" id="tab-financeiro" onclick="switchTab('financeiro', this)">
+      <i class="fas fa-dollar-sign"></i> Financeiro
+    </button>
+    {% endif %}
+    {% if paineis_permitidos.operacional %}
+    <button class="dash-tab {% if not paineis_permitidos.financeiro %}active{% endif %}" id="tab-operacional" onclick="switchTab('operacional', this)">
+      <i class="fas fa-cogs"></i> Operacional
+    </button>
+    {% endif %}
+    {% if paineis_permitidos.qualidade %}
+    <button class="dash-tab" id="tab-qualidade" onclick="switchTab('qualidade', this)">
+      <i class="fas fa-search"></i> Qualidade
+    </button>
+    {% endif %}
+    {% if paineis_permitidos.cobranca %}
+    <button class="dash-tab" id="tab-cobranca" onclick="switchTab('cobranca', this)">
+      <i class="fas fa-file-invoice-dollar"></i> Cobrança
+    </button>
+    {% endif %}
+    {% if paineis_permitidos.produtividade %}
+    <button class="dash-tab" id="tab-produtividade" onclick="switchTab('produtividade', this)">
+      <i class="fas fa-user-clock"></i> Produtividade
+    </button>
+    {% endif %}
+  </div>
+
+  {# ══════════════ PAINEL: FINANCEIRO ══════════════ #}
+  {% if paineis_permitidos.financeiro %}
+  <div id="panel-financeiro" class="dash-panel active">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--dash-text)">Financeiro · Indenizações</div>
+        <div style="font-size:12px;color:var(--dash-muted)">Valores, pagamentos e pendências de indenização</div>
+      </div>
+      <div class="campo-data-selector">
+        <span>Campo de data:</span>
+        <select id="campoDtFinanceiro" onchange="recarregarPainel('financeiro')">
+          <option value="data_registro" {{ 'selected' if campo_data_por_painel.financeiro == 'data_registro' }}>Data de Registro</option>
+          <option value="prazo_pagamento" {{ 'selected' if campo_data_por_painel.financeiro == 'prazo_pagamento' }}>Prazo Pagamento</option>
+          <option value="data_pagamento" {{ 'selected' if campo_data_por_painel.financeiro == 'data_pagamento' }}>Data Baixa / Pgto</option>
+          <option value="data_entrega" {{ 'selected' if campo_data_por_painel.financeiro == 'data_entrega' }}>Data Entrega</option>
+          <option value="data_protocolo_mkt" {{ 'selected' if campo_data_por_painel.financeiro == 'data_protocolo_mkt' }}>Data Protocolo MKT</option>
+          <option value="data_coleta" {{ 'selected' if campo_data_por_painel.financeiro == 'data_coleta' }}>Data Coleta</option>
+          <option value="data_finalizacao" {{ 'selected' if campo_data_por_painel.financeiro == 'data_finalizacao' }}>Data Finalização</option>
+          <option value="data_triagem" {{ 'selected' if campo_data_por_painel.financeiro == 'data_triagem' }}>Data Triagem (Item)</option>
+          <option value="data_identificacao" {{ 'selected' if campo_data_por_painel.financeiro == 'data_identificacao' }}>Data Identificação (Item)</option>
+          <option value="data_alteracao" {{ 'selected' if campo_data_por_painel.financeiro == 'data_alteracao' }}>Data Alteração</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="fin-loading" class="dash-loading"><div class="spinner"></div> Carregando...</div>
+    <div id="fin-content" style="display:none">
+
+      {# KPIs #}
+      <div class="kpi-grid" id="fin-kpis"></div>
+
+      {# Gráficos linha 1 #}
+      <div class="chart-row col-2">
+        <div class="chart-box">
+          <div class="chart-title">Indenizações por Transportadora</div>
+          <div class="chart-sub">valor total do período</div>
+          <div id="fin-chart-transp"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Distribuição de Status</div>
+          <div class="chart-sub">indenizações por situação</div>
+          <div id="fin-chart-status" style="height:320px"></div>
+        </div>
+      </div>
+
+      {# Gráfico fluxo #}
+      <div class="chart-row col-1">
+        <div class="chart-box">
+          <div style="display:flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div class="chart-title">Fluxo de Caixa</div>
+              <div class="chart-sub">Valores pagos, pendentes e em atraso por período</div>
+            </div>
+            <div id="fluxo-controls" class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn-periodo" data-period="day" onclick="updateFluxoChart('day')">Diário</button>
+              <button type="button" class="btn-periodo" data-period="week" onclick="updateFluxoChart('week')">Semanal</button>
+              <button type="button" class="btn-periodo active" data-period="month" onclick="updateFluxoChart('month')">Mensal</button>
+              <button type="button" class="btn-periodo" data-period="year" onclick="updateFluxoChart('year')">Anual</button>
+            </div>
+          </div>
+          <div id="fin-chart-fluxo" style="height:340px"></div>
+        </div>
+      </div>
+
+      {# Evolução de Estoque #}
+      <div class="chart-row col-1">
+        <div class="chart-box">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+            <div>
+              <div class="chart-title" id="evolucao-titulo">Evolução do Saldo de Estoque WMS</div>
+              <div class="chart-sub" id="evolucao-sub">fechamento mensal — quantidade (barras) e valor (linha)</div>
+              <div id="evolucao-atualizado" style="font-size:10px;color:var(--dash-muted);margin-top:2px"></div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button id="btn-snap-grafico" onclick="atualizarSnapshotGrafico()" style="background:var(--dash-surface2);border:1px solid var(--dash-border);color:var(--dash-muted);border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer;white-space:nowrap;transition:border-color .2s" onmouseover="this.style.borderColor='var(--dash-accent)'" onmouseout="this.style.borderColor='var(--dash-border)'">↻ Atualizar</button>
+              <button onclick="abrirModalEstoque()" style="background:var(--dash-surface2);border:1px solid var(--dash-border);color:var(--dash-muted);border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer;white-space:nowrap;transition:border-color .2s" onmouseover="this.style.borderColor='var(--dash-accent)'" onmouseout="this.style.borderColor='var(--dash-border)'">Ver Dados</button>
+            </div>
+          </div>
+          <div id="fin-chart-evolucao" style="height:320px"></div>
+        </div>
+      </div>
+    </div>
+    <div id="fin-error" class="dash-error" style="display:none"></div>
+  </div>
+  {% endif %}
+
+  {# ══════════════ PAINEL: OPERACIONAL ══════════════ #}
+  {% if paineis_permitidos.operacional %}
+  <div id="panel-operacional" class="dash-panel {% if not paineis_permitidos.financeiro %}active{% endif %}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--dash-text)">Operacional</div>
+        <div style="font-size:12px;color:var(--dash-muted)">Status de estoque, triagem e movimentação</div>
+      </div>
+      <div class="campo-data-selector">
+        <span>Campo de data:</span>
+        <select id="campoDtOperacional" onchange="recarregarPainel('operacional')">
+          <option value="data_registro" {{ 'selected' if campo_data_por_painel.operacional == 'data_registro' }}>Data de Registro</option>
+          <option value="prazo_pagamento" {{ 'selected' if campo_data_por_painel.operacional == 'prazo_pagamento' }}>Prazo Pagamento</option>
+          <option value="data_pagamento" {{ 'selected' if campo_data_por_painel.operacional == 'data_pagamento' }}>Data Baixa / Pgto</option>
+          <option value="data_entrega" {{ 'selected' if campo_data_por_painel.operacional == 'data_entrega' }}>Data Entrega</option>
+          <option value="data_protocolo_mkt" {{ 'selected' if campo_data_por_painel.operacional == 'data_protocolo_mkt' }}>Data Protocolo MKT</option>
+          <option value="data_coleta" {{ 'selected' if campo_data_por_painel.operacional == 'data_coleta' }}>Data Coleta</option>
+          <option value="data_finalizacao" {{ 'selected' if campo_data_por_painel.operacional == 'data_finalizacao' }}>Data Finalização</option>
+          <option value="data_triagem" {{ 'selected' if campo_data_por_painel.operacional == 'data_triagem' }}>Data Triagem (Item)</option>
+          <option value="data_identificacao" {{ 'selected' if campo_data_por_painel.operacional == 'data_identificacao' }}>Data Identificação (Item)</option>
+          <option value="data_alteracao" {{ 'selected' if campo_data_por_painel.operacional == 'data_alteracao' }}>Data Alteração</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="op-loading" class="dash-loading"><div class="spinner"></div> Carregando...</div>
+    <div id="op-content" style="display:none">
+      <div class="kpi-grid" id="op-kpis"></div>
+      <div class="chart-row col-2">
+        <div class="chart-box">
+          <div class="chart-title">Status do Estoque</div>
+          <div class="chart-sub">distribuição atual</div>
+          <div id="op-chart-status" style="height:260px"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Volume por Transportadora</div>
+          <div class="chart-sub">quantidade de avarias</div>
+          <div id="op-chart-vol" style="height:260px"></div>
+        </div>
+      </div>
+
+      <div class="chart-row col-2">
+        <div class="chart-box">
+          <div class="chart-title">Estoque por Localização</div>
+          <div class="chart-sub">valor das notas por localização</div>
+          <div id="op-chart-local" style="height:220px"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Notas Pendentes de Entrega</div>
+          <div class="chart-sub">por transportadora (atraso vs. no prazo)</div>
+          <div id="op-chart-entrega" style="height:220px"></div>
+        </div>
+      </div>
+
+      <div class="chart-row col-2">
+        <div class="dash-table-wrap">
+          <div class="dash-table-head">⚠️ Pendentes de Ação</div>
+          <div style="overflow-x:auto">
+            <table class="dash-table" id="op-tabela"></table>
+          </div>
+        </div>
+        <div class="dash-table-wrap">
+          <div class="dash-table-head">🚛 Pendentes de Entrega</div>
+          <div style="overflow-x:auto">
+            <table class="dash-table" id="op-tabela-entrega"></table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="op-error" class="dash-error" style="display:none"></div>
+  </div>
+  {% endif %}
+
+  {# ══════════════ PAINEL: QUALIDADE ══════════════ #}
+  {% if paineis_permitidos.qualidade %}
+  <div id="panel-qualidade" class="dash-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--dash-text)">Qualidade</div>
+        <div style="font-size:12px;color:var(--dash-muted)">Motivos, produtos críticos e divergências</div>
+      </div>
+      <div class="campo-data-selector">
+        <span>Campo de data:</span>
+        <select id="campoDtQualidade" onchange="recarregarPainel('qualidade')">
+          <option value="data_registro" {{ 'selected' if campo_data_por_painel.qualidade == 'data_registro' }}>Data de Registro</option>
+          <option value="prazo_pagamento" {{ 'selected' if campo_data_por_painel.qualidade == 'prazo_pagamento' }}>Prazo Pagamento</option>
+          <option value="data_pagamento" {{ 'selected' if campo_data_por_painel.qualidade == 'data_pagamento' }}>Data Baixa / Pgto</option>
+          <option value="data_entrega" {{ 'selected' if campo_data_por_painel.qualidade == 'data_entrega' }}>Data Entrega</option>
+          <option value="data_protocolo_mkt" {{ 'selected' if campo_data_por_painel.qualidade == 'data_protocolo_mkt' }}>Data Protocolo MKT</option>
+          <option value="data_coleta" {{ 'selected' if campo_data_por_painel.qualidade == 'data_coleta' }}>Data Coleta</option>
+          <option value="data_finalizacao" {{ 'selected' if campo_data_por_painel.qualidade == 'data_finalizacao' }}>Data Finalização</option>
+          <option value="data_triagem" {{ 'selected' if campo_data_por_painel.qualidade == 'data_triagem' }}>Data Triagem (Item)</option>
+          <option value="data_identificacao" {{ 'selected' if campo_data_por_painel.qualidade == 'data_identificacao' }}>Data Identificação (Item)</option>
+          <option value="data_alteracao" {{ 'selected' if campo_data_por_painel.qualidade == 'data_alteracao' }}>Data Alteração</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="ql-loading" class="dash-loading"><div class="spinner"></div> Carregando...</div>
+    <div id="ql-content" style="display:none">
+      <div class="kpi-grid" id="ql-kpis"></div>
+      <div class="chart-row col-2">
+        <div class="chart-box" style="display:flex;flex-direction:column;height:420px">
+          <div class="chart-title">Top Produtos Avariados</div>
+          <div class="chart-sub">por quantidade de ocorrências</div>
+          <div class="dash-table-wrap" style="flex:1;overflow-y:auto;border:none;margin-bottom:0">
+            <table class="dash-table">
+              <thead style="position:sticky;top:0;background:var(--dash-surface);z-index:2">
+                <tr>
+                  <th>Produto</th>
+                  <th style="text-align:center">Qtd</th>
+                  <th style="text-align:right">Valor</th>
+                </tr>
+              </thead>
+              <tbody id="ql-lista-produtos">
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-box" style="display:flex;flex-direction:column;height:420px">
+          <div class="chart-title">Motivos de Devolução</div>
+          <div class="chart-sub">distribuição por tipo</div>
+          <div id="ql-chart-motivos" style="flex:1;min-height:0"></div>
+        </div>
+      </div>
+      <div class="chart-row col-2">
+        <div class="chart-box" style="display:flex;flex-direction:column;height:420px">
+          <div class="chart-title">Divergências: Motivo Inicial → Final</div>
+          <div class="chart-sub">casos onde o motivo mudou após triagem</div>
+          <div class="dash-table-wrap" style="flex:1;overflow-y:auto;border:none;margin-bottom:0">
+            <table class="dash-table">
+              <thead style="position:sticky;top:0;background:var(--dash-surface);z-index:2">
+                <tr>
+                  <th>Motivo Inicial</th>
+                  <th>Motivo Final</th>
+                  <th style="text-align:center">Qtd</th>
+                </tr>
+              </thead>
+              <tbody id="ql-lista-diverg">
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-box" style="display:flex;flex-direction:column;height:420px">
+          <div class="chart-title">Principais Motivos por Transportadora</div>
+          <div class="chart-sub">top 3 motivos de cada transportadora</div>
+          <div id="ql-chart-reembolso" style="flex:1;min-height:0"></div>
+        </div>
+      </div>
+
+
+    </div>
+    <div id="ql-error" class="dash-error" style="display:none"></div>
+  </div>
+  {% endif %}
+
+  {# ══════════════ PAINEL: COBRANÇA ══════════════ #}
+  {% if paineis_permitidos.cobranca %}
+  <div id="panel-cobranca" class="dash-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--dash-text)">Funil de Cobrança</div>
+        <div style="font-size:12px;color:var(--dash-muted)">Ciclo de indenização do registro ao recebimento</div>
+      </div>
+      <div class="campo-data-selector">
+        <span>Campo de data:</span>
+        <select id="campoDtCobranca" onchange="recarregarPainel('cobranca')">
+          <option value="data_registro" {{ 'selected' if campo_data_por_painel.cobranca == 'data_registro' }}>Data de Registro</option>
+          <option value="prazo_pagamento" {{ 'selected' if campo_data_por_painel.cobranca == 'prazo_pagamento' }}>Prazo Pagamento</option>
+          <option value="data_pagamento" {{ 'selected' if campo_data_por_painel.cobranca == 'data_pagamento' }}>Data Baixa / Pgto</option>
+          <option value="data_entrega" {{ 'selected' if campo_data_por_painel.cobranca == 'data_entrega' }}>Data Entrega</option>
+          <option value="data_protocolo_mkt" {{ 'selected' if campo_data_por_painel.cobranca == 'data_protocolo_mkt' }}>Data Protocolo MKT</option>
+          <option value="data_coleta" {{ 'selected' if campo_data_por_painel.cobranca == 'data_coleta' }}>Data Coleta</option>
+          <option value="data_finalizacao" {{ 'selected' if campo_data_por_painel.cobranca == 'data_finalizacao' }}>Data Finalização</option>
+          <option value="data_triagem" {{ 'selected' if campo_data_por_painel.cobranca == 'data_triagem' }}>Data Triagem (Item)</option>
+          <option value="data_identificacao" {{ 'selected' if campo_data_por_painel.cobranca == 'data_identificacao' }}>Data Identificação (Item)</option>
+          <option value="data_alteracao" {{ 'selected' if campo_data_por_painel.cobranca == 'data_alteracao' }}>Data Alteração</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="cb-loading" class="dash-loading"><div class="spinner"></div> Carregando...</div>
+    <div id="cb-content" style="display:none">
+      <div class="kpi-grid" id="cb-kpis"></div>
+      <div class="chart-box" style="margin-bottom:14px">
+        <div class="chart-title">Funil de Indenizações</div>
+        <div class="chart-sub">da avaria registrada ao recebimento</div>
+        <div class="funil-row" id="cb-funil"></div>
+      </div>
+      <div class="chart-row col-2">
+        <div class="chart-box">
+          <div class="chart-title">Aging de Pendências</div>
+          <div class="chart-sub">dias em aberto sem pagamento</div>
+          <div id="cb-chart-aging" style="height:240px"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Inadimplência por Transportadora</div>
+          <div class="chart-sub">valor em atraso</div>
+          <div id="cb-chart-inadimp" style="height:320px"></div>
+        </div>
+      </div>
+      <div class="dash-table-wrap">
+        <div class="dash-table-head">⚠️ Pendentes de Pagamento</div>
+        <div style="overflow-x:auto">
+          <table class="dash-table" id="cb-tabela"></table>
+        </div>
+      </div>
+    </div>
+    <div id="cb-error" class="dash-error" style="display:none"></div>
+  </div>
+  {% endif %}
+
+  {# ══════════════ PAINEL: PRODUTIVIDADE ══════════════ #}
+  {% if paineis_permitidos.produtividade %}
+  <div id="panel-produtividade" class="dash-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--dash-text)">Produtividade</div>
+        <div style="font-size:12px;color:var(--dash-muted)">Performance de operadores — registros e finalizações</div>
+      </div>
+      <div class="campo-data-selector">
+        <span>Campo de data:</span>
+        <select id="campoDtProdutividade" onchange="recarregarPainel('produtividade')">
+          <option value="data_registro" {{ 'selected' if campo_data_por_painel.produtividade == 'data_registro' }}>Data de Registro</option>
+          <option value="prazo_pagamento" {{ 'selected' if campo_data_por_painel.produtividade == 'prazo_pagamento' }}>Prazo Pagamento</option>
+          <option value="data_pagamento" {{ 'selected' if campo_data_por_painel.produtividade == 'data_pagamento' }}>Data Baixa / Pgto</option>
+          <option value="data_entrega" {{ 'selected' if campo_data_por_painel.produtividade == 'data_entrega' }}>Data Entrega</option>
+          <option value="data_protocolo_mkt" {{ 'selected' if campo_data_por_painel.produtividade == 'data_protocolo_mkt' }}>Data Protocolo MKT</option>
+          <option value="data_coleta" {{ 'selected' if campo_data_por_painel.produtividade == 'data_coleta' }}>Data Coleta</option>
+          <option value="data_finalizacao" {{ 'selected' if campo_data_por_painel.produtividade == 'data_finalizacao' }}>Data Finalização</option>
+          <option value="data_triagem" {{ 'selected' if campo_data_por_painel.produtividade == 'data_triagem' }}>Data Triagem (Item)</option>
+          <option value="data_identificacao" {{ 'selected' if campo_data_por_painel.produtividade == 'data_identificacao' }}>Data Identificação (Item)</option>
+          <option value="data_alteracao" {{ 'selected' if campo_data_por_painel.produtividade == 'data_alteracao' }}>Data Alteração</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="pr-loading" class="dash-loading"><div class="spinner"></div> Carregando...</div>
+    <div id="pr-content" style="display:none">
+      <div class="kpi-grid" id="pr-kpis"></div>
+      <div class="chart-row col-2">
+        <div class="chart-box">
+          <div class="chart-title">Registros por Operador — Esta Semana</div>
+          <div class="chart-sub">total de avarias registradas</div>
+          <div id="pr-chart-operador" style="height:280px"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Performance Diária do Time</div>
+          <div class="chart-sub">registros e finalizações por dia (últimos 30 dias)</div>
+          <div id="pr-chart-diaria" style="height:280px"></div>
+        </div>
+      </div>
+      <div class="dash-table-wrap">
+        <div class="dash-table-head">🏆 Ranking de Operadores — Mês Atual</div>
+        <div style="overflow-x:auto">
+          <table class="dash-table" id="pr-tabela"></table>
+        </div>
+      </div>
+    </div>
+    <div id="pr-error" class="dash-error" style="display:none"></div>
+  </div>
+  {% endif %}
+
+</div><!-- /dash-wrapper -->
+
+{# ── Modal de Cobranças ── #}
+<div id="modal-cobranca" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
+  <div style="background:var(--dash-surface,#1e2130);border:1px solid var(--dash-border,#2d3550);border-radius:12px;width:min(560px,95vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--dash-border,#2d3550);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:700;font-size:14px">Registrar Cobrança</div>
+        <div id="mc-avaria-info" style="font-size:11px;color:var(--dash-muted,#94a3b8);margin-top:2px"></div>
+      </div>
+      <button onclick="fecharModalCobranca()" style="background:none;border:none;color:var(--dash-muted,#94a3b8);font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 20px">
+      <div style="font-size:12px;font-weight:600;color:var(--dash-muted,#94a3b8);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Histórico de Cobranças</div>
+      <div id="mc-historico" style="margin-bottom:16px">
+        <div style="color:var(--dash-muted);font-size:13px">Carregando...</div>
+      </div>
+      <div style="border-top:1px solid var(--dash-border,#2d3550);padding-top:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--dash-muted,#94a3b8);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Nova Tentativa</div>
+        <textarea id="mc-obs" rows="3" placeholder="Observação (opcional)" style="width:100%;background:var(--dash-bg,#0f1117);border:1px solid var(--dash-border,#2d3550);border-radius:6px;color:var(--dash-text,#e2e8f0);padding:8px 10px;font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+        <button id="mc-btn-salvar" onclick="salvarCobranca()" style="margin-top:10px;background:#10b981;border:none;color:#fff;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;width:100%">
+          <i class="fas fa-plus me-1"></i>Registrar Cobrança
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal de Pagamento ── #}
+<div id="modal-pagamento" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);align-items:center;justify-content:center">
+  <div style="background:var(--dash-surface,#1e2130);border:1px solid var(--dash-border,#2d3550);border-radius:12px;width:min(420px,95vw);overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--dash-border,#2d3550);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:700;font-size:14px"><i class="fas fa-check-circle" style="color:#10b981;margin-right:6px"></i>Confirmar Pagamento</div>
+        <div id="mp-avaria-info" style="font-size:11px;color:var(--dash-muted,#94a3b8);margin-top:2px"></div>
+      </div>
+      <button onclick="fecharModalPagamento()" style="background:none;border:none;color:var(--dash-muted,#94a3b8);font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="padding:20px">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--dash-muted,#94a3b8);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Data de Pagamento *</label>
+      <input type="date" id="mp-data" style="width:100%;box-sizing:border-box;background:var(--dash-bg,#0f1117);border:1px solid var(--dash-border,#2d3550);border-radius:6px;color:var(--dash-text,#e2e8f0);padding:8px 12px;font-size:14px">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--dash-muted,#94a3b8);margin-top:14px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Observação</label>
+      <textarea id="mp-obs" rows="2" placeholder="Opcional" style="width:100%;box-sizing:border-box;background:var(--dash-bg,#0f1117);border:1px solid var(--dash-border,#2d3550);border-radius:6px;color:var(--dash-text,#e2e8f0);padding:8px 10px;font-size:13px;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="fecharModalPagamento()" style="flex:1;background:transparent;border:1px solid var(--dash-border,#2d3550);color:var(--dash-muted,#94a3b8);border-radius:6px;padding:8px;font-size:13px;cursor:pointer">Cancelar</button>
+        <button id="mp-btn-confirmar" onclick="confirmarPagamento()" style="flex:2;background:#10b981;border:none;color:#fff;border-radius:6px;padding:8px;font-size:13px;font-weight:700;cursor:pointer">
+          <i class="fas fa-check me-1"></i>Confirmar Pagamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal Validação de Estoque ── #}
+<div id="modal-estoque" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:flex-start;justify-content:center;padding-top:40px;overflow-y:auto">
+  <div style="background:var(--dash-surface,#151821);border:1px solid var(--dash-border,#252a3a);border-radius:12px;width:min(860px,97vw);max-height:82vh;display:flex;flex-direction:column;overflow:hidden;margin-bottom:40px">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--dash-border,#252a3a);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <div>
+        <div style="font-weight:700;font-size:14px" id="me-titulo">Dados de Estoque</div>
+        <div style="font-size:11px;color:var(--dash-muted,#64748b);margin-top:2px" id="me-subtitulo">Snapshots diários salvos no Sheets</div>
+      </div>
+      <button onclick="fecharModalEstoque()" style="background:none;border:none;color:var(--dash-muted,#64748b);font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div style="padding:12px 20px;border-bottom:1px solid var(--dash-border,#252a3a);display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;flex-shrink:0">
+      <div>
+        <label style="display:block;font-size:10px;color:var(--dash-muted);text-transform:uppercase;margin-bottom:3px">De</label>
+        <input type="date" id="me-data-ini" class="dash-input" style="min-width:130px">
+      </div>
+      <div>
+        <label style="display:block;font-size:10px;color:var(--dash-muted);text-transform:uppercase;margin-bottom:3px">Até</label>
+        <input type="date" id="me-data-fim" class="dash-input" style="min-width:130px">
+      </div>
+      <div>
+        <label style="display:block;font-size:10px;color:var(--dash-muted);text-transform:uppercase;margin-bottom:3px">Local</label>
+        <input type="text" id="me-local" class="dash-input" placeholder="código do local" style="min-width:120px">
+      </div>
+      <button onclick="carregarDadosEstoque(1)" style="background:var(--dash-accent,#3b82f6);border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;align-self:flex-end">Filtrar Sheets</button>
+      <button id="me-btn-sankhya" onclick="buscarDoSankhya()" style="background:var(--dash-green,#10b981);border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;align-self:flex-end">Buscar Sankhya</button>
+      <span id="me-total" style="font-size:11px;color:var(--dash-muted);align-self:flex-end;margin-left:4px"></span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:0">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--dash-surface2,#1c2030);position:sticky;top:0;z-index:1">
+            <th style="padding:8px 12px;text-align:left;color:var(--dash-muted);font-weight:600;border-bottom:1px solid var(--dash-border);white-space:nowrap">Cód. Local</th>
+            <th style="padding:8px 12px;text-align:left;color:var(--dash-muted);font-weight:600;border-bottom:1px solid var(--dash-border)">Local</th>
+            <th style="padding:8px 12px;text-align:left;color:var(--dash-muted);font-weight:600;border-bottom:1px solid var(--dash-border);white-space:nowrap">Mês Ref</th>
+            <th style="padding:8px 12px;text-align:right;color:var(--dash-muted);font-weight:600;border-bottom:1px solid var(--dash-border);white-space:nowrap">Saldo</th>
+            <th style="padding:8px 12px;text-align:right;color:var(--dash-muted);font-weight:600;border-bottom:1px solid var(--dash-border);white-space:nowrap">Valor Total</th>
+          </tr>
+        </thead>
+        <tbody id="me-tbody">
+          <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-muted)">Carregando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="me-paginacao" style="padding:10px 20px;border-top:1px solid var(--dash-border,#252a3a);display:flex;gap:8px;justify-content:center;flex-shrink:0"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/ui-helpers.js') }}"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// UTILITÁRIOS
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * Garante que um valor seja um float válido.
+ * Trata strings no formato BR (15.201,00) e inglês (152.01).
+ */
+function parseFloat_br(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  var s = String(val).replace(/R\$\s*/g, '').replace(/\s/g, '').trim();
+  if (!s) return 0;
+  var temVirgula = s.indexOf(',') !== -1;
+  var temPonto   = s.indexOf('.') !== -1;
+  if (temVirgula && temPonto) {
+    // BR com milhar: 15.201,00
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (temVirgula && !temPonto) {
+    // BR simples: 201,00
+    s = s.replace(',', '.');
+  } else if (temPonto && !temVirgula) {
+    var partes = s.split('.');
+    if (partes.length > 2) {
+      // Múltiplos pontos → milhar BR: 1.500.000
+      s = s.replace(/\./g, '');
+    }
+    // Caso contrário é decimal inglês: 152.01 — não mexer
+  }
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function fmt_r(val) {
+  var n = parseFloat_br(val);
+  return 'R\u00a0' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmt_n(val) { return (parseInt(val) || 0).toLocaleString('pt-BR'); }
+function fmt_d(val) {
+  if (!val) return '—';
+  const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : String(val).slice(0,10);
+}
+
+/**
+ * Garante que arrays de valores para o Plotly nunca contenham NaN.
+ * Converte cada elemento usando parseFloat_br.
+ */
+function sanitize_values(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(function(v) { return parseFloat_br(v); });
+}
+
+/**
+ * Retorna true se o array tiver pelo menos 1 elemento com valor > 0.
+ * Usado como guard antes de chamar Plotly.newPlot.
+ */
+function has_data(labels, values) {
+  if (!labels || !labels.length) return false;
+  if (!values || !values.length) return false;
+  return values.some(function(v) { return parseFloat_br(v) > 0; });
+}
+
+function empty_chart(elId, msg) {
+  var el = document.getElementById(elId);
+  if (el) el.innerHTML = '<div class="dash-loading" style="height:160px;color:var(--dash-muted)">' + (msg || 'Sem dados no período') + '</div>';
+}
+
+/**
+ * Agrupa labels e valores por chave normalizada (UPPERCASE) para evitar duplicados por case-sensitivity.
+ */
+function aggregateChartData(labels, values, filterKeys) {
+  if (!labels || !labels.length) return { labels: [], values: [], keys: [] };
+  var agg = {};
+  labels.forEach(function(l, i) {
+    var originalLabel = (l || 'N/D').toString().trim();
+    var aggKey = originalLabel.toUpperCase();
+    if (!agg[aggKey]) {
+      agg[aggKey] = { val: 0, label: originalLabel, key: (filterKeys ? filterKeys[i] : null) };
+    }
+    agg[aggKey].val += (values[i] || 0);
+  });
+  var sortedKeys = Object.keys(agg).sort(function(a, b) { return agg[b].val - agg[a].val; });
+  return {
+    labels: sortedKeys.map(function(k) { return agg[k].label; }),
+    values: sortedKeys.map(function(k) { return agg[k].val; }),
+    keys: sortedKeys.map(function(k) { return agg[k].key; })
+  };
+}
+
+/**
+ * Força a destruição completa do estado do Plotly recriando a div do zero.
+ * Isso simula um "recarregamento da página" exclusivamente para o gráfico,
+ * prevenindo bugs de barras esmagadas/linhas finas ao atualizar os filtros.
+ */
+function renderizarGrafico_limpo(elId, data, layout, config) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  Plotly.purge(el);
+  var clone = el.cloneNode(false);
+  el.parentNode.replaceChild(clone, el);
+  Plotly.newPlot(elId, data, layout, config);
+}
+
+/**
+ * Renderiza um gráfico de barras customizado (estilo Financeiro/Indenizações).
+ * Suporta múltiplas séries (empilhadas).
+ */
+function renderCustomBarChart(elId, labels, datasets, options) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  if (!labels || !labels.length || !datasets || !datasets.length) {
+    empty_chart(elId);
+    return;
+  }
+  options = options || {};
+  var opt = {
+    formatValue: options.formatValue || function(v) { return v.toLocaleString('pt-BR'); },
+    barHeight: options.barHeight || 32,
+    gap: options.gap || 12,
+    labelWidth: options.labelWidth || 140,
+    valueWidth: options.valueWidth || 100,
+    maxHeight: options.maxHeight || '300px',
+    showLegend: options.showLegend !== undefined ? options.showLegend : true,
+    sortByTotal: options.sortByTotal !== undefined ? options.sortByTotal : true,
+    filterType: options.filterType || null,
+    filterValues: options.filterValues || null
+  };
+  var numItems = labels.length;
+  var totals = labels.map(function(_, i) {
+    return datasets.reduce(function(acc, ds) {
+      return acc + (parseFloat_br(ds.data[i]) || 0);
+    }, 0);
+  });
+  var maxTotal = Math.max.apply(null, totals) || 1;
+  var indices = labels.map(function(_, i) { return i; });
+  if (opt.sortByTotal) {
+    indices.sort(function(a, b) { return totals[b] - totals[a]; });
+  }
+  var rows = indices.map(function(i) {
+    var total = totals[i];
+    var label = labels[i];
+    var barSegments = datasets.map(function(ds) {
+      var val = parseFloat_br(ds.data[i]) || 0;
+      if (val <= 0) return '';
+      var pct = (val / maxTotal * 100).toFixed(2);
+      
+      var filterVal = (opt.filterValues && opt.filterValues[i] != null) ? opt.filterValues[i] : label;
+      var segmentCtx = {};
+      if (opt.filterType) segmentCtx[opt.filterType] = filterVal;
+      // Se o dataset representa uma categoria (ex: Motivo), adiciona ao contexto
+      if (ds.filterKey) segmentCtx[ds.filterKey] = ds.label;
+
+      var clickSegment = Object.keys(segmentCtx).length > 0
+        ? ' data-fctx="' + _fctxEncode(segmentCtx) + '" style="cursor:pointer;width:' + pct + '%;background:' + ds.color + ';height:100%;transition:width .3s"'
+        : ' style="width:' + pct + '%;background:' + ds.color + ';height:100%;transition:width .3s"';
+
+      return '<div ' + clickSegment + ' title="' + ds.label + ': ' + opt.formatValue(val) + '"></div>';
+    }).join('');
+
+    var filterVal = (opt.filterValues && opt.filterValues[i] != null) ? opt.filterValues[i] : label;
+    var rowCtx = {};
+    if (opt.filterType) rowCtx[opt.filterType] = filterVal;
+    var dataRow      = opt.filterType ? ' data-fctx="' + _fctxEncode(rowCtx) + '"' : '';
+    var dataRowLabel = opt.filterType ? ' data-fctx="' + _fctxEncode(rowCtx) + '"' : '';
+
+    var isSelected = false;
+    if (opt.filterType) {
+      var campo = _campoFiltro(opt.filterType);
+      if (filtros[campo] && filtros[campo].includes(filterVal)) isSelected = true;
+    }
+
+    var rowStyle = 'display:flex;align-items:center;gap:12px;margin-bottom:' + opt.gap + 'px;cursor:' + (opt.filterType ? 'pointer' : 'default') + ';padding:2px 4px;transition:background .2s';
+    if (isSelected) {
+      rowStyle += ';background:rgba(59,130,246,0.15);border-radius:4px;box-shadow:inset 0 0 0 1px var(--dash-accent)';
+    }
+
+    return '<div style="' + rowStyle + '"' + dataRow + ' class="chart-row-click">' +
+             '<div' + dataRowLabel + ' style="width:' + opt.labelWidth + 'px;flex-shrink:0;font-size:12px;color:var(--dash-text);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--dash-mono);cursor:' + (opt.filterType ? 'pointer' : 'default') + '" title="' + label + '">' + label + '</div>' +
+             '<div style="flex:1;min-width:0;height:' + opt.barHeight + 'px;display:flex;border-radius:3px;overflow:hidden;background:var(--dash-surface2)">' + barSegments + '</div>' +
+             '<div style="width:' + opt.valueWidth + 'px;flex-shrink:0;font-size:12px;font-family:var(--dash-mono);color:#fff;white-space:nowrap;margin-left:4px">' + opt.formatValue(total) + '</div>' +
+           '</div>';
+  }).join('');
+  
+  var legendHtml = '';
+  if (opt.showLegend && datasets.length > 1) {
+    legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;font-size:11px;font-family:var(--dash-mono);padding-left:' + (opt.labelWidth + 8) + 'px">' +
+      datasets.map(function(ds) {
+        if (ds.filterKey) {
+          var lCtx = {}; lCtx[ds.filterKey] = ds.label;
+          return '<span data-fctx="' + _fctxEncode(lCtx) + '" style="cursor:pointer;user-select:none" title="Filtrar por ' + ds.label + '"><span style="display:inline-block;width:8px;height:8px;background:' + ds.color + ';border-radius:2px;margin-right:4px"></span>' + ds.label + '</span>';
+        }
+        return '<span><span style="display:inline-block;width:8px;height:8px;background:' + ds.color + ';border-radius:2px;margin-right:4px"></span>' + ds.label + '</span>';
+      }).join('') +
+    '</div>';
+  }
+
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  var scrollStyle = (opt.maxHeight === 'none') ? 'flex:1' : 'max-height:' + opt.maxHeight;
+  el.innerHTML = legendHtml + '<div style="overflow-y:auto;padding-right:4px;' + scrollStyle + '">' + rows + '</div>';
+
+  // Event delegation: single listener on container finds closest [data-fctx] target.
+  el.onclick = function(e) {
+    var t = e.target.closest('[data-fctx]');
+    if (!t) return;
+    e.stopPropagation();
+    var raw = t.getAttribute('data-fctx');
+    console.log('[BAR CHART] click id=' + elId + ' fctx=' + raw);
+    try { applyContextFilters(JSON.parse(raw)); } catch(x) { console.warn('[BAR CHART] fctx parse error', x, raw); }
+  };
+}
+
+
+function renderTranspChart(elId, labels, pago, pendente, atraso) {
+  renderCustomBarChart(elId, labels, [
+    { label: 'Pago', data: pago, color: '#10b981', filterKey: 'ind' },
+    { label: 'Pendente', data: pendente, color: '#f59e0b', filterKey: 'ind' },
+    { label: 'Em Atraso', data: atraso, color: '#ef4444', filterKey: 'ind' }
+  ], {
+    formatValue: fmt_r,
+    barHeight: 48,
+    gap: 16,
+    labelWidth: 160,
+    valueWidth: 120,
+    maxHeight: '280px',
+    filterType: 'transp'
+  });
+}
+
+
+// ════════════════════════════════════════════════════════════════════════
+// CONFIG BASE PLOTLY
+// ════════════════════════════════════════════════════════════════════════
+const PLY_CFG = { responsive: true, displayModeBar: false };
+const PLY_LAYOUT = {
+  paper_bgcolor: 'transparent',
+  plot_bgcolor: 'transparent',
+  font: { family: "'Courier New', monospace", color: '#e2e8f0', size: 10 },
+  margin: { t: 10, r: 10, b: 36, l: 56 },
+  xaxis: { gridcolor: '#1c2030', zerolinecolor: '#252a3a', tickfont: { size: 10 } },
+  yaxis: { gridcolor: '#1c2030', zerolinecolor: '#252a3a', tickfont: { size: 10 } },
+  showlegend: false,
+  autosize: true,
+};
+const CORES = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#6366f1','#ec4899','#14b8a6','#f97316','#84cc16'];
+
+// ════════════════════════════════════════════════════════════════════════
+// UTILITÁRIOS DATA-FCTX (event delegation para filtros de gráficos)
+// ════════════════════════════════════════════════════════════════════════
+
+/** Codifica contexto de filtro como atributo HTML data-fctx (safe para qualquer char). */
+function _fctxEncode(ctx) {
+  return JSON.stringify(ctx)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** Lê data-fctx do elemento e aplica o filtro. Chamado via onclick inline. */
+function _dashFctxClick(el) {
+  try { applyContextFilters(JSON.parse(el.getAttribute('data-fctx'))); } catch(x) { console.warn('data-fctx error', x); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ESTADO DOS FILTROS
+// ════════════════════════════════════════════════════════════════════════
+let filtros = {
+  data_inicio: '', data_fim: '', cod_empresa: '__todos__',
+  status_indenizacao: [],
+  status_estoque: [],
+  transportadora: [],
+  motivo: [],
+  operador: [],
+  codprod: [],
+  nota: [],
+  codlocal: [],
+};
+
+// Mapa cor por status (populado via Jinja abaixo)
+const STATUS_CORES = {
+  ind: {},   // { "Indenização Pendente": "#d35400", ... }
+  est: {},
+};
+
+{% if status_indenizacao_list %}
+{% for st in status_indenizacao_list %}
+STATUS_CORES.ind["{{ st.status }}"] = "{{ st.cor }}";
+{% endfor %}
+{% endif %}
+{% if status_estoque_list %}
+{% for st in status_estoque_list %}
+STATUS_CORES.est["{{ st.status }}"] = "{{ st.cor }}";
+{% endfor %}
+{% endif %}
+
+// ──────────────────────────────────────────────────────────────────────
+// HELPERS DOS FILTROS DE STATUS
+// ──────────────────────────────────────────────────────────────────────
+function toggleStatusFilter(key) {
+  const btn  = document.getElementById('btn-'  + key);
+  const drop = document.getElementById('drop-' + key);
+  if (!drop || !btn) return;
+  const isOpen = drop.classList.contains('open');
+  // Fecha todos os dropdowns abertos
+  document.querySelectorAll('.status-filter-dropdown.open').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.status-filter-btn.open').forEach(b => b.classList.remove('open'));
+  if (!isOpen) {
+    drop.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+
+function toggleStatusItem(key, valor, cor, itemEl) {
+  const chk = itemEl.querySelector('input[type=checkbox]');
+  if (event.target !== chk) chk.checked = !chk.checked;
+  itemEl.classList.toggle('selected', chk.checked);
+}
+
+function applyFunilFilter(label, rawStatuses) {
+  let arr = rawStatuses ? rawStatuses.split(',').filter(x => x) : [];
+  if (arr.length === 0) {
+    filtros.status_indenizacao = []; 
+  } else {
+    const allSelected = arr.every(s => filtros.status_indenizacao.includes(s));
+    filtros.status_indenizacao = allSelected ? [] : arr;
+  }
+  
+  // Atualiza as tags visuais e o botão
+  const coresMap = STATUS_CORES['ind'] || {};
+  _atualizarTagsStatus('ind', filtros.status_indenizacao, coresMap);
+  _atualizarBotaoStatus('ind', filtros.status_indenizacao);
+  
+  // Sincroniza os checkboxes do dropdown
+  document.querySelectorAll('#drop-ind input[type=checkbox]').forEach(c => {
+    c.checked = filtros.status_indenizacao.includes(c.value);
+  });
+  document.querySelectorAll('#drop-ind .sfd-item').forEach(i => {
+    const val = i.querySelector('input').value;
+    if (filtros.status_indenizacao.includes(val)) i.classList.add('selected');
+    else i.classList.remove('selected');
+  });
+  
+  aplicarFiltros();
+}
+
+
+function removeFilter(key, valor) {
+  const campo = _campoFiltro(key);
+  if (!campo) return;
+  filtros[campo] = filtros[campo].filter(v => v !== valor);
+  aplicarFiltros();
+}
+
+function _campoFiltro(key) {
+  if (key === 'ind') return 'status_indenizacao';
+  if (key === 'est') return 'status_estoque';
+  if (key === 'transp') return 'transportadora';
+  if (key === 'motivo') return 'motivo';
+  if (key === 'operador') return 'operador';
+  if (key === 'codprod') return 'codprod';
+  if (key === 'nota') return 'nota';
+  if (key === 'codlocal') return 'codlocal';
+  return null;
+}
+
+function limparStatusFilter(key) {
+  document.querySelectorAll(`#drop-${key} input[type=checkbox]`).forEach(c => { c.checked = false; });
+  document.querySelectorAll(`#drop-${key} .sfd-item`).forEach(i => i.classList.remove('selected'));
+  const campo = _campoFiltro(key);
+  if (campo) filtros[campo] = [];
+  _atualizarTagsStatus(key, [], {});
+  _atualizarBotaoStatus(key, []);
+  aplicarFiltros();
+}
+
+function aplicarStatusFilter(key) {
+  const campo = _campoFiltro(key);
+  if (!campo) return;
+  const selecionados = [];
+  const coresMap = STATUS_CORES[key] || {};
+  document.querySelectorAll(`#drop-${key} input[type=checkbox]:checked`).forEach(c => {
+    selecionados.push(c.value);
+  });
+  filtros[campo] = selecionados;
+  _atualizarTagsStatus(key, selecionados, coresMap);
+  _atualizarBotaoStatus(key, selecionados);
+  const drop = document.getElementById('drop-' + key);
+  if (drop) drop.classList.remove('open');
+  const btn = document.getElementById('btn-' + key);
+  if (btn) btn.classList.remove('open');
+  aplicarFiltros();
+}
+
+// Transportadora toggle (sem cor associada)
+function toggleTranspItem(valor, itemEl) {
+  const chk = itemEl.querySelector('input[type=checkbox]');
+  if (event.target !== chk) chk.checked = !chk.checked;
+  itemEl.classList.toggle('selected', chk.checked);
+}
+
+function _atualizarBotaoStatus(key, selecionados) {
+  const lbl = document.getElementById('lbl-' + key);
+  const cnt = document.getElementById('cnt-' + key);
+  if (!lbl) return;
+  if (!selecionados || selecionados.length === 0) {
+    lbl.textContent = key === 'transp' ? 'Todas' : 'Todos';
+    if (cnt) cnt.style.display = 'none';
+  } else if (selecionados.length === 1) {
+    lbl.textContent = selecionados[0];
+    if (cnt) cnt.style.display = 'none';
+  } else {
+    lbl.textContent = selecionados[0];
+    if (cnt) {
+      cnt.textContent = '+' + (selecionados.length - 1);
+      cnt.style.display = 'inline';
+    }
+  }
+}
+
+function _atualizarTagsStatus(key, selecionados, coresMap) {
+  const container = document.getElementById('status-tags-' + key);
+  if (!container) return;
+  container.innerHTML = '';
+  if (!selecionados || selecionados.length === 0) return;
+  selecionados.forEach(val => {
+    const cor = (coresMap && coresMap[val]) ? coresMap[val] : '#64748b';
+    const tag = document.createElement('span');
+    tag.className = 'status-tag';
+    tag.style.background = cor + '22';
+    tag.style.borderColor = cor + '55';
+    tag.style.color = cor;
+    tag.innerHTML = `<span class="st-dot" style="background:${cor}"></span>${val}<span class="st-x" onclick="removerStatusTag('${key}','${val.replace(/'/g,"\\\\'")}')">✕</span>`;
+    container.appendChild(tag);
+  });
+}
+
+function removerStatusTag(key, valor) {
+  const campo = _campoFiltro(key);
+  if (!campo) return;
+  filtros[campo] = filtros[campo].filter(v => v !== valor);
+  // Desmarca o checkbox correspondente
+  document.querySelectorAll(`#drop-${key} input[type=checkbox]`).forEach(c => {
+    if (c.value === valor) { c.checked = false; }
+  });
+  document.querySelectorAll(`#drop-${key} .sfd-item`).forEach(i => {
+    const chk = i.querySelector('input');
+    if (chk && chk.value === valor) i.classList.remove('selected');
+  });
+  _atualizarTagsStatus(key, filtros[campo], STATUS_CORES[key] || {});
+  _atualizarBotaoStatus(key, filtros[campo]);
+  aplicarFiltros();
+}
+
+/**
+ * Aplica um filtro contextual ao dashboard (Power BI style).
+ * Suporta múltiplas dimensões simultâneas.
+ * @param {Object} ctx Objeto com dimensões: { transp, est, ind, motivo, operador, codprod, date }
+ */
+function applyContextFilters(ctx) {
+  let changed = false;
+
+  for (let key in ctx) {
+    let valor = ctx[key];
+    if (!valor || valor === '—') continue;
+
+    if (key === 'date') {
+      let ini = '', fim = '';
+      if (valor.includes('/') && valor.split('/').length === 3) {
+        const p = valor.split('/');
+        ini = `${p[2]}-${p[1]}-${p[0]}`;
+        fim = ini;
+      }
+      else if (valor.includes('/') && valor.split('/').length === 2) {
+        const p = valor.split('/');
+        const mes = p[0], ano = p[1];
+        ini = `${ano}-${mes}-01`;
+        const lastDay = new Date(ano, parseInt(mes), 0).getDate();
+        fim = `${ano}-${mes}-${lastDay}`;
+      }
+      else if (/^\d{4}$/.test(valor)) {
+        // Year only: "2024"
+        ini = `${valor}-01-01`;
+        fim = `${valor}-12-31`;
+      }
+      else if (/^\d{4}-\d{2}$/.test(valor)) {
+        // ISO Month: "2024-01"
+        const [ano, mes] = valor.split('-');
+        ini = `${valor}-01`;
+        const lastDay = new Date(parseInt(ano), parseInt(mes), 0).getDate();
+        fim = `${valor}-${String(lastDay).padStart(2,'0')}`;
+      }
+      else {
+        // Tenta parse de mês/ano em português: "Jan/24", "jan. 24", "jan 24"
+        const PT_MESES = { jan:1, fev:2, mar:3, abr:4, mai:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12 };
+        const mMatch = valor.toLowerCase().replace(/\./g,'').trim().match(/^([a-zà-ÿ]{3})[\/\s]+(\d{2,4})$/);
+        if (mMatch && PT_MESES[mMatch[1]]) {
+          const mesNum = PT_MESES[mMatch[1]];
+          const anoShort = mMatch[2];
+          const anoFull = anoShort.length === 2 ? (parseInt(anoShort) < 50 ? `20${anoShort}` : `19${anoShort}`) : anoShort;
+          const mesStr = String(mesNum).padStart(2,'0');
+          ini = `${anoFull}-${mesStr}-01`;
+          const lastDay = new Date(parseInt(anoFull), mesNum, 0).getDate();
+          fim = `${anoFull}-${mesStr}-${String(lastDay).padStart(2,'0')}`;
+        } else {
+          ini = valor.slice(0, 10);
+          fim = ini;
+        }
+      }
+
+      if (filtros.data_inicio === ini && filtros.data_fim === fim) {
+        filtros.data_inicio = ''; filtros.data_fim = '';
+      } else {
+        filtros.data_inicio = ini; filtros.data_fim = fim;
+      }
+      document.getElementById('filtroDataInicio').value = filtros.data_inicio;
+      document.getElementById('filtroDataFim').value = filtros.data_fim;
+      changed = true;
+    } else if (key === 'ind') {
+      // Como o backend agora possui a inteligência virtual de classificação por data,
+      // enviamos apenas o nome do balde (virtual) para que ele processe corretamente,
+      // em vez de expandir para os status brutos.
+      const STATUS_FALLBACK = {
+        'Pago': 'pago', 
+        'Pendente': 'pendente de pagamento',
+        'Atrasado': 'em atraso', 
+        'Pendente Pgto': 'todos os pendentes', 
+        'Em Atraso': 'em atraso'
+      };
+      const mapped = STATUS_FALLBACK[valor] || valor;
+      
+      if (filtros.status_indenizacao.length === 1 && filtros.status_indenizacao[0] === mapped) {
+        filtros.status_indenizacao = [];
+      } else {
+        filtros.status_indenizacao = [mapped];
+      }
+      changed = true;
+    } else {
+      const campo = _campoFiltro(key);
+      if (!campo) continue;
+
+      if (filtros[campo].length === 1 && filtros[campo][0] === valor) {
+        filtros[campo] = [];
+      } else {
+        filtros[campo] = [valor];
+      }
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    _syncAllFilterUI();
+    aplicarFiltros();
+  }
+}
+
+/** Sincroniza todos os elementos de UI com o estado global de filtros */
+function _syncAllFilterUI() {
+  ['ind', 'est', 'transp'].forEach(key => {
+    const campo = _campoFiltro(key);
+    const vals = filtros[campo] || [];
+    
+    document.querySelectorAll(`#drop-${key} input[type=checkbox]`).forEach(c => {
+      c.checked = vals.includes(c.value);
+    });
+    document.querySelectorAll(`#drop-${key} .sfd-item`).forEach(i => {
+      const chk = i.querySelector('input');
+      if (chk) i.classList.toggle('selected', chk.checked);
+    });
+    
+    _atualizarTagsStatus(key, vals, STATUS_CORES[key] || {});
+    _atualizarBotaoStatus(key, vals);
+  });
+}
+
+function applyChartFilter(key, valor) {
+  const ctx = {};
+  ctx[key] = valor;
+  applyContextFilters(ctx);
+}
+
+function applyDateFilter(dateStr) {
+  applyContextFilters({ date: dateStr });
+}
+
+/**
+ * Helper para capturar contexto de clique em gráficos Plotly.
+ * @param {string} elId ID da div do gráfico
+ * @param {Object} keyMap Mapeamento de dimensões { x: 'date', legend: 'transp', label: 'ind', legendIgnore: ['Registros'] }
+ */
+function setupPlotlyClick(elId, keyMap) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  // Limpa listeners antigos para evitar duplicação
+  el.removeAllListeners && el.removeAllListeners('plotly_click');
+  el.removeAllListeners && el.removeAllListeners('plotly_afterplot');
+
+  el.on('plotly_click', function(data) {
+    if (!data.points || !data.points[0]) return;
+    const pt = data.points[0];
+    const ctx = {};
+
+    // Dimensão X (Geralmente Data ou Categoria)
+    if (keyMap.x && pt.x !== undefined && pt.x !== null) {
+      const xVal = (keyMap.xMapping && keyMap.xMapping[pt.x]) ? keyMap.xMapping[pt.x] : String(pt.x);
+      ctx[keyMap.x] = xVal;
+    }
+
+    // Dimensão Label (Pie charts)
+    if (keyMap.label && pt.label) ctx[keyMap.label] = pt.label;
+
+    // Dimensão Legenda (Trace Name)
+    if (keyMap.legend && pt.fullData && pt.fullData.name) {
+       if (!keyMap.legendIgnore || !keyMap.legendIgnore.includes(pt.fullData.name)) {
+         ctx[keyMap.legend] = pt.fullData.name;
+       }
+    }
+
+    if (Object.keys(ctx).length > 0) applyContextFilters(ctx);
+  });
+
+  // Cliques nos ticks do eixo X/Y.
+  // Plotly tem um drag layer SVG com pointer-events:all que bloqueia cliques nos ticks.
+  // Solução: sobrepor divs HTML posicionados absolutamente sobre cada tick label.
+  const attachAxisOverlays = function() {
+    // Remove overlays anteriores deste chart
+    el.querySelectorAll('._pltick').forEach(function(d) { d.remove(); });
+    if (el.style.position === '' || el.style.position === 'static') el.style.position = 'relative';
+
+    const buildOverlay = function(textEl, dimKey, mapping) {
+      const elRect  = el.getBoundingClientRect();
+      const txtRect = textEl.getBoundingClientRect();
+      if (!txtRect.width && !txtRect.height) return; // oculto
+      const div = document.createElement('div');
+      div.className = '_pltick';
+      div.style.cssText =
+        'position:absolute;z-index:5;cursor:pointer;' +
+        'left:' + (txtRect.left - elRect.left - 3) + 'px;' +
+        'top:'  + (txtRect.top  - elRect.top  - 2) + 'px;' +
+        'width:'  + (txtRect.width  + 6) + 'px;' +
+        'height:' + (txtRect.height + 4) + 'px;';
+      div.title = textEl.textContent.trim();
+      const tickVal = textEl.textContent.trim();
+      const isoKey  = (mapping && mapping[tickVal]) ? mapping[tickVal] : tickVal;
+      div.onclick = function(e) {
+        e.stopPropagation();
+        if (isoKey) applyContextFilters({ [dimKey]: isoKey });
+      };
+      el.appendChild(div);
+    };
+
+    if (keyMap.x) {
+      el.querySelectorAll('.xtick text').forEach(function(t) { buildOverlay(t, keyMap.x, keyMap.xMapping); });
+    }
+    if (keyMap.y) {
+      el.querySelectorAll('.ytick text').forEach(function(t) { buildOverlay(t, keyMap.y, keyMap.yMapping); });
+    }
+  };
+
+  el.on('plotly_afterplot', attachAxisOverlays);
+  setTimeout(attachAxisOverlays, 200);
+}
+
+// Fecha dropdowns ao clicar fora
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.status-filter-wrap')) {
+    document.querySelectorAll('.status-filter-dropdown.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.status-filter-btn.open').forEach(b => b.classList.remove('open'));
+  }
+});
+
+// Restaura datas da última sessão (ou inicia sem filtro de data)
+(function() {
+  const saved_ini = localStorage.getItem('wms_dash_data_inicio') || '';
+  const saved_fim = localStorage.getItem('wms_dash_data_fim')    || '';
+  filtros.data_inicio = saved_ini;
+  filtros.data_fim    = saved_fim;
+  document.getElementById('filtroDataInicio').value = saved_ini;
+  document.getElementById('filtroDataFim').value    = saved_fim;
+  if (!saved_ini && !saved_fim) {
+    document.getElementById('btn-tudo')?.classList.add('active');
+  }
+})();
+
+function setPeriodo(dias, btn) {
+  document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (dias === 0) {
+    filtros.data_inicio = '';
+    filtros.data_fim    = '';
+    document.getElementById('filtroDataInicio').value = '';
+    document.getElementById('filtroDataFim').value    = '';
+  } else {
+    const hoje = new Date();
+    const ini  = new Date(); ini.setDate(hoje.getDate() - dias);
+    filtros.data_inicio = ini.toISOString().slice(0, 10);
+    filtros.data_fim    = hoje.toISOString().slice(0, 10);
+    document.getElementById('filtroDataInicio').value = filtros.data_inicio;
+    document.getElementById('filtroDataFim').value    = filtros.data_fim;
+  }
+  localStorage.setItem('wms_dash_data_inicio', filtros.data_inicio);
+  localStorage.setItem('wms_dash_data_fim',    filtros.data_fim);
+}
+
+function aplicarFiltros() {
+  filtros.data_inicio = document.getElementById('filtroDataInicio').value;
+  filtros.data_fim    = document.getElementById('filtroDataFim').value;
+  const selEmp = document.getElementById('filtroEmpresa');
+  filtros.cod_empresa = selEmp ? selEmp.value : '__todos__';
+  localStorage.setItem('wms_dash_data_inicio', filtros.data_inicio);
+  localStorage.setItem('wms_dash_data_fim',    filtros.data_fim);
+  // Atualiza o botão Tudo quando as datas são limpas
+  if (!filtros.data_inicio && !filtros.data_fim) {
+    document.getElementById('btn-tudo')?.classList.add('active');
+  } else {
+    document.getElementById('btn-tudo')?.classList.remove('active');
+  }
+  // status_indenizacao, status_estoque e transportadora já estão em filtros[] via aplicarStatusFilter
+
+  // Invalida o cache de todas as abas para que sejam recarregadas ao navegar com os novos filtros
+  for (let key in _carregado) {
+    _carregado[key] = false;
+  }
+
+  const tabAtiva = document.querySelector('.dash-panel.active');
+  if (tabAtiva) {
+    const id = tabAtiva.id.replace('panel-', '');
+    carregarPainel(id);
+  }
+}
+
+function recarregarPainel(id) { carregarPainel(id); }
+
+// ════════════════════════════════════════════════════════════════════════
+// NAVEGAÇÃO DE TABS
+// ════════════════════════════════════════════════════════════════════════
+const _carregado = {};
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (!_carregado[id]) {
+    carregarPainel(id);
+  } else {
+    // Painel já carregado mas estava oculto — Plotly não sabia o tamanho real
+    setTimeout(() => {
+      document.querySelectorAll('#panel-' + id + ' .js-plotly-plot').forEach(el => {
+        Plotly.Plots.resize(el);
+      });
+    }, 50);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FETCH GENÉRICO
+// ════════════════════════════════════════════════════════════════════════
+function buildParams(campo_data) {
+  const p = new URLSearchParams({
+    data_inicio: filtros.data_inicio,
+    data_fim:    filtros.data_fim,
+    campo_data:  campo_data,
+  });
+  if (filtros.cod_empresa && filtros.cod_empresa !== '__todos__')
+    p.set('cod_empresa', filtros.cod_empresa);
+  if (filtros.status_indenizacao && filtros.status_indenizacao.length)
+    p.set('status_indenizacao', filtros.status_indenizacao.join(','));
+  if (filtros.status_estoque && filtros.status_estoque.length)
+    p.set('status_estoque', filtros.status_estoque.join(','));
+  if (filtros.transportadora && filtros.transportadora.length)
+    p.set('transportadora', filtros.transportadora.join('|'));
+  if (filtros.motivo && filtros.motivo.length)
+    p.set('motivo', filtros.motivo.join(','));
+  if (filtros.operador && filtros.operador.length)
+    p.set('operador', filtros.operador.join(','));
+  if (filtros.codprod && filtros.codprod.length)
+    p.set('codprod', filtros.codprod.join(','));
+  if (filtros.nota && filtros.nota.length)
+    p.set('nota', filtros.nota.join(','));
+  if (filtros.codlocal && filtros.codlocal.length)
+    p.set('codlocal', filtros.codlocal.join(','));
+  return p.toString();
+}
+
+async function fetchPainel(endpoint, campo_data) {
+  const resp = await fetch(`/wms/api/dashboard/${endpoint}?${buildParams(campo_data)}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const json = await resp.json();
+  if (!json.success) throw new Error(json.error || 'Erro desconhecido');
+  return json.data;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// CARREGADORES POR PAINEL
+// ════════════════════════════════════════════════════════════════════════
+async function carregarPainel(id) {
+  _carregado[id] = true;
+  if (id === 'financeiro')    return carregarFinanceiro();
+  if (id === 'operacional')   return carregarOperacional();
+  if (id === 'qualidade')     return carregarQualidade();
+  if (id === 'cobranca')      return carregarCobranca();
+  if (id === 'produtividade') return carregarProdutividade();
+}
+
+function showLoading(prefix) {
+  const content = document.getElementById(`${prefix}-content`);
+  const loading = document.getElementById(`${prefix}-loading`);
+  
+  // Se o painel já está visível (ex: aplicando filtro), apenas escurecemos.
+  // Isso impede que o CSS Grid colapse a largura para 0 e esmague os gráficos!
+  if (content && content.style.display === 'block') {
+    content.style.opacity = '0.3';
+    content.style.pointerEvents = 'none';
+    document.body.style.cursor = 'wait';
+  } else {
+    if (loading) loading.style.display = 'flex';
+    if (content) content.style.display = 'none';
+  }
+  document.getElementById(`${prefix}-error`).style.display = 'none';
+}
+
+function showContent(prefix) {
+  document.body.style.cursor = 'default';
+  document.getElementById(`${prefix}-loading`).style.display = 'none';
+  const content = document.getElementById(`${prefix}-content`);
+  if (content) {
+    content.style.display = 'block';
+    content.style.opacity = '1';
+    content.style.pointerEvents = 'auto';
+  }
+  document.getElementById(`${prefix}-error`).style.display = 'none';
+}
+function waitForLayout() {
+  return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+function showError(prefix, msg) {
+  document.getElementById(`${prefix}-loading`).style.display = 'none';
+  document.getElementById(`${prefix}-content`).style.display = 'none';
+  const el = document.getElementById(`${prefix}-error`);
+  el.style.display = 'block';
+  el.innerHTML = `<i class="fas fa-exclamation-circle"></i> Erro ao carregar: ${msg}`;
+}
+// Força o Plotly a recalcular tamanho de todos os gráficos de um painel
+function resizeGraficos(painelId) {
+  setTimeout(() => {
+    document.querySelectorAll(`#panel-${painelId} .js-plotly-plot`).forEach(el => {
+      Plotly.Plots.resize(el);
+    });
+  }, 80);
+}
+
+// ── FINANCEIRO ──────────────────────────────────────────────────────────
+async function carregarFinanceiro() {
+  showLoading('fin');
+  try {
+    const campo = document.getElementById('campoDtFinanceiro')?.value || 'data_registro';
+    const d = await fetchPainel('financeiro', campo);
+    if (d.status_config) window._dashStatusConfig = d.status_config;
+    const k = d.kpis;
+
+    document.getElementById('fin-kpis').innerHTML = `
+      <div class="kpi-card" style="--kpi-color:#3b82f6">
+        <div class="kpi-label">Indenizáveis</div>
+        <div class="kpi-value">${fmt_r(k.valor_total_indenizacoes)}</div>
+        <div class="kpi-sub">${fmt_n(k.total_indenizaveis)} avarias</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#10b981">
+        <div class="kpi-label">Indenizações Pagas</div>
+        <div class="kpi-value kpi-up">${fmt_r(k.valor_pago)}</div>
+        <div class="kpi-sub">${fmt_n(k.qtd_pago)} avarias</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#ef4444">
+        <div class="kpi-label">Em Atraso</div>
+        <div class="kpi-value kpi-down">${fmt_r(k.valor_em_atraso)}</div>
+        <div class="kpi-sub">${fmt_n(k.qtd_em_atraso)} avarias</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#f59e0b">
+        <div class="kpi-label">Pendente Pgto</div>
+        <div class="kpi-value">${fmt_r(k.valor_pendente)}</div>
+        <div class="kpi-sub">${fmt_n(k.qtd_pendente)} avarias (${fmt_n(k.qtd_vencendo_7d)} venc. 7d)</div>
+      </div>`;
+
+    showContent('fin');
+    await waitForLayout();
+
+    // Gráfico transportadora - Empilhado
+    const gt = d.grafico_transp;
+    renderTranspChart(
+      'fin-chart-transp',
+      gt.labels,
+      gt.pago,
+      gt.pendente,
+      gt.atraso
+    );
+
+    // Gráfico status (pie)
+    const gs = d.grafico_status;
+    const gs_vals = sanitize_values(gs.valores);
+    const gs_labels = gs.labels;
+    if (has_data(gs.labels, gs_vals)) {
+      const plotEl = document.getElementById('fin-chart-status');
+      Plotly.newPlot(plotEl, [{
+        labels: gs_labels,
+        values: gs_vals,
+        customdata: gs_vals.map(v => fmt_r(v)),
+        type: 'pie',
+        hole: 0.45,
+        marker: { colors: gs.colors || CORES },
+        texttemplate: '%{label}<br>%{percent}<br><b>%{customdata}</b>',
+        textposition: 'outside',
+        textfont: { size: 11, color: '#ffffff' },
+        insidetextorientation: 'radial',
+        hoverinfo: 'label+percent+value'
+      }], {
+        ...PLY_LAYOUT,
+        margin: { t: 30, r: 30, b: 30, l: 30 },
+        showlegend: false
+      }, PLY_CFG);
+
+      setupPlotlyClick('fin-chart-status', { label: 'ind' });
+    } else { empty_chart('fin-chart-status'); }
+
+    // NOVO: Gráfico de Fluxo de Caixa com agregação
+    const fluxoData = d.grafico_fluxo_detalhado || [];
+    window.currentFluxoData = fluxoData; // Armazena globalmente para os botões
+    updateFluxoChart('month'); // Carga inicial com visão mensal
+
+    // Gráfico de Evolução de Estoque — carregado de forma assíncrona e independente
+    carregarGraficoEvolucao();
+
+    resizeGraficos('financeiro');
+  } catch(e) { showError('fin', e.message); }
+}
+
+// ── Gráfico de Evolução de Estoque WMS (carregamento independente) ──────────
+function _evolucaoSpinner(msg) {
+  const el = document.getElementById('fin-chart-evolucao');
+  if (el) el.innerHTML = `<div class="dash-loading" style="height:200px;flex-direction:column;gap:10px"><div class="spinner"></div><span style="font-size:12px">${msg || 'Carregando…'}</span></div>`;
+}
+
+// Formata valor monetário de forma compacta para labels do gráfico (ex: R$1,2M, R$450K)
+function _fmtValorEvolucao(v) {
+  if (!v || v <= 0) return '';
+  if (v >= 1e6) return 'R$ ' + (v / 1e6).toFixed(1).replace('.', ',') + 'M';
+  if (v >= 1e3) return 'R$ ' + (v / 1e3).toFixed(0) + 'K';
+  return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+}
+function _evolucaoErro(msg) {
+  const el = document.getElementById('fin-chart-evolucao');
+  if (el) el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:200px;flex-direction:column;gap:8px;color:#ef4444;font-size:12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span style="max-width:320px;text-align:center">${msg}</span></div>`;
+}
+
+async function carregarGraficoEvolucao(silencioso = false) {
+  const campo          = document.getElementById('campoDtFinanceiro')?.value || 'data_registro';
+  const evolTitulo     = document.getElementById('evolucao-titulo');
+  const evolSub        = document.getElementById('evolucao-sub');
+  const evolAtualizado = document.getElementById('evolucao-atualizado');
+
+  // Mostra spinner apenas na carga inicial (não nas atualizações silenciosas do polling)
+  if (!silencioso) _evolucaoSpinner('Carregando evolução de estoque…');
+
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const resp = await fetch(`/wms/api/dashboard/financeiro/evolucao?${buildParams(campo)}`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error || 'Erro desconhecido');
+    const ge = json.data;
+
+    if (evolAtualizado) {
+      if (ge && ge.atualizado_em) {
+        evolAtualizado.textContent = `Snapshot: ${ge.atualizado_em}`;
+        evolAtualizado.style.color = 'var(--dash-muted)';
+      } else if (ge && ge.snap_vazio) {
+        // Dispara snapshot automático apenas uma vez por sessão de página
+        if (!window._snapGraficoAutoDisparado) {
+          window._snapGraficoAutoDisparado = true;
+          if (evolAtualizado) {
+            evolAtualizado.textContent = 'Iniciando carregamento do histórico…';
+            evolAtualizado.style.color = 'var(--dash-muted)';
+          }
+          atualizarSnapshotGrafico();
+        } else {
+          if (evolAtualizado) {
+            evolAtualizado.textContent = 'Sem dados — clique em ↻ Atualizar para carregar';
+            evolAtualizado.style.color = 'var(--dash-warning, #f59e0b)';
+          }
+          _evolucaoErro('Histórico de estoque ainda não disponível.<br>Clique em <b>↻ Atualizar</b> para carregar do Sankhya (processo em segundo plano).');
+        }
+        return;
+      }
+    }
+
+    if (ge && ge.labels && ge.labels.length > 0) {
+      if (evolTitulo) evolTitulo.textContent = 'Evolução do Saldo de Estoque WMS';
+      if (evolSub)    evolSub.textContent    = 'fechamento mensal — quantidade (barras) e valor (linha)';
+      const qtds   = (ge.saldos  || []).map(v => parseFloat_br(v));
+      const valors = (ge.valores || []).map(v => parseFloat_br(v));
+      const maxQtd = qtds.length  > 0 ? Math.max(...qtds)   : 1;
+      const maxVal = valors.length > 0 ? Math.max(...valors) : 1;
+      // Sempre limpa innerHTML antes de renderizar — Plotly.purge remove seus próprios elementos
+      // mas não remove HTML customizado (spinner) inserido externamente
+      const _evolEl = document.getElementById('fin-chart-evolucao');
+      if (_evolEl) { Plotly.purge(_evolEl); _evolEl.innerHTML = ''; }
+      Plotly.newPlot(_evolEl, [
+        {
+          x: ge.labels, y: qtds,
+          name: 'Qtd Saldo',
+          type: 'bar',
+          marker: { color: 'rgba(59,130,246,0.55)', line: { color: 'rgba(59,130,246,0.9)', width: 1 } },
+          text: qtds.map(v => v > 0 ? (Math.round(v)).toLocaleString('pt-BR') : ''),
+          textposition: 'outside', textfont: { size: 13, color: '#93c5fd' },
+          constraintext: 'both', cliponaxis: false,
+          yaxis: 'y',
+          hovertemplate: '<b>%{x}</b><br>Qtd: %{y:,.0f}<extra></extra>',
+        },
+        {
+          x: ge.labels, y: valors,
+          name: 'Valor Total',
+          type: 'scatter', mode: 'lines+markers+text',
+          text: valors.map(v => _fmtValorEvolucao(v)),
+          textposition: 'top center',
+          textfont: { size: 13, color: '#c4b5fd' },
+          line: { color: '#8b5cf6', width: 2 },
+          marker: { size: 6, color: '#8b5cf6' },
+          cliponaxis: false,
+          yaxis: 'y2',
+          hovertemplate: '<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>',
+        },
+      ], {
+        ...PLY_LAYOUT,
+        showlegend: true,
+        legend: { font: { size: 10 }, orientation: 'h', y: 1.12 },
+        xaxis: { ...PLY_LAYOUT.xaxis, fixedrange: true, tickfont: { size: 13 } },
+        // Barras na metade inferior (yaxis), linha de valor na metade superior (yaxis2)
+        yaxis:  { ...PLY_LAYOUT.yaxis, fixedrange: true, visible: false, range: [0, maxQtd * 2.2], autorange: false },
+        yaxis2: { overlaying: 'y', side: 'right', fixedrange: true, visible: false, range: [-maxVal * 1.1, maxVal * 1.1], autorange: false },
+        margin: { t: 40, r: 10, b: 55, l: 10 },
+        bargap: 0.3,
+      }, PLY_CFG);
+
+      // Monta xMapping: "Jan/24" → "2024-01" para o clique nos ticks do eixo
+      const _ptMeses = { jan:1, fev:2, mar:3, abr:4, mai:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12 };
+      const evolXMap = {};
+      (ge.labels || []).forEach(function(lbl) {
+        const m = lbl.toLowerCase().replace(/\./g,'').trim().match(/^([a-zà-ÿ]{3})[\/\s]+(\d{2,4})$/);
+        if (m && _ptMeses[m[1]]) {
+          const mn = _ptMeses[m[1]];
+          const ay = m[2].length === 2 ? (parseInt(m[2]) < 50 ? '20' + m[2] : '19' + m[2]) : m[2];
+          evolXMap[lbl] = ay + '-' + String(mn).padStart(2,'0');
+        } else { evolXMap[lbl] = lbl; }
+      });
+      setupPlotlyClick('fin-chart-evolucao', { x: 'date', xMapping: evolXMap });
+
+      setTimeout(() => {
+        const el = document.getElementById('fin-chart-evolucao');
+        if (el && el.classList.contains('js-plotly-plot')) Plotly.Plots.resize(el);
+      }, 80);
+      // Gráfico renderizado com sucesso — para qualquer polling ativo
+      _pararPollSnap();
+      window._snapGraficoAutoDisparado = false; // permite auto-disparo futuro se snap esvaziar
+    } else if (!silencioso) {
+      // Sem dados — mostra mensagem apenas se não for refresh silencioso
+      _evolucaoErro('Sem dados de estoque no período.<br>Use <b>↻ Atualizar</b> para buscar do Sankhya.');
+    }
+  } catch(e) {
+    clearTimeout(timeoutId);
+    if (!silencioso) {
+      const msg = e.name === 'AbortError'
+        ? 'Timeout ao carregar evolução de estoque (>20s).<br>Tente novamente.'
+        : `Falha ao carregar evolução de estoque:<br>${e.message}`;
+      if (evolAtualizado) { evolAtualizado.textContent = e.name === 'AbortError' ? 'Timeout' : `Erro: ${e.message}`; evolAtualizado.style.color = '#ef4444'; }
+      _evolucaoErro(msg);
+    }
+    // Erro silencioso: mantém o gráfico existente sem sobrepor com mensagem de erro
+  }
+}
+
+// ── NOVO: Lógica completa para o gráfico de Fluxo de Caixa ────────────────
+function updateFluxoChart(period) {
+  document.querySelectorAll('#fluxo-controls button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#fluxo-controls button[data-period="${period}"]`).classList.add('active');
+
+  const rawData = window.currentFluxoData || [];
+  if (rawData.length === 0) {
+    empty_chart('fin-chart-fluxo', 'Sem dados de fluxo no período');
+    return;
+  }
+
+  const getPeriodKey = (d, p) => {
+    const date = new Date(d + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso
+    if (p === 'day') return d;
+    if (p === 'year') return String(date.getFullYear());
+    if (p === 'month') return d.substring(0, 7); // YYYY-MM
+    if (p === 'week') {
+      const first = date.getDate() - date.getDay();
+      const firstDay = new Date(date.setDate(first));
+      return firstDay.toISOString().slice(0, 10);
+    }
+    return d;
+  };
+
+  const aggregated = {};
+  rawData.forEach(item => {
+    const key = getPeriodKey(item.date, period);
+    if (!aggregated[key]) {
+      aggregated[key] = { pago: 0, pendente: 0, atrasado: 0 };
+    }
+    aggregated[key][item.status] += item.valor;
+  });
+
+  const sortedKeys = Object.keys(aggregated).sort();
+  const labels = sortedKeys.map(key => {
+    if (period === 'month') {
+      const [year, month] = key.split('-');
+      return new Date(key + '-02').toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
+    }
+    if (period === 'week') {
+      const [y,m,d] = key.split('-');
+      return `${d}/${m}`;
+    }
+    return key;
+  });
+  // Map from formatted label back to ISO key for click handling
+  const xMapping = {};
+  labels.forEach((label, i) => { xMapping[label] = sortedKeys[i]; });
+
+  const tracePago = {
+    x: labels,
+    y: sortedKeys.map(k => aggregated[k].pago),
+    name: 'Pago',
+    type: 'bar',
+    marker: { color: '#10b981' }
+  };
+  const tracePendente = {
+    x: labels,
+    y: sortedKeys.map(k => aggregated[k].pendente),
+    name: 'Pendente',
+    type: 'bar',
+    marker: { color: '#f59e0b' }
+  };
+  const traceAtrasado = {
+    x: labels,
+    y: sortedKeys.map(k => aggregated[k].atrasado),
+    name: 'Atrasado',
+    type: 'bar',
+    marker: { color: '#ef4444' }
+  };
+
+  const totais = sortedKeys.map(k => aggregated[k].pago + aggregated[k].pendente + aggregated[k].atrasado);
+  const maxTotal = totais.length > 0 ? Math.max(...totais) : 0;
+  const yRange = maxTotal > 0 ? maxTotal * 1.40 : 1;
+
+  const traceTotal = {
+    x: labels,
+    y: totais,
+    type: 'scatter',
+    mode: 'text',
+    text: totais.map(v => v > 0 ? fmt_r(v) : ''),
+    textposition: 'top center',
+    textfont: { size: 13, color: '#ffffff' },
+    showlegend: false,
+    hoverinfo: 'skip',
+    cliponaxis: false
+  };
+
+  const layout = {
+    ...PLY_LAYOUT,
+    barmode: 'stack',
+    showlegend: true,
+    legend: { font: { size: 10, color: '#ffffff' }, orientation: 'h', y: 1.15, x: 0.5, xanchor: 'center' },
+    margin: { t: 40, r: 10, b: 55, l: 40 },
+    xaxis: { ...PLY_LAYOUT.xaxis, fixedrange: true, tickfont: { size: 13 } },
+    yaxis: { ...PLY_LAYOUT.yaxis, fixedrange: true, tickformat: '$,.2f', range: [0, yRange], autorange: false },
+    bargap: 0.25
+  };
+
+  Plotly.newPlot('fin-chart-fluxo', [tracePago, tracePendente, traceAtrasado, traceTotal], layout, PLY_CFG);
+  
+  setupPlotlyClick('fin-chart-fluxo', {
+    x: 'date',
+    xMapping: xMapping,
+    legend: 'ind',
+    legendIgnore: ['Total', 'Registros', 'Finalizações']
+  });
+}
+
+// ── OPERACIONAL ─────────────────────────────────────────────────────────
+async function carregarOperacional() {
+  showLoading('op');
+  try {
+    const campo = document.getElementById('campoDtOperacional')?.value || 'data_registro';
+    const d = await fetchPainel('operacional', campo);
+    const k = d.kpis;
+
+    document.getElementById('op-kpis').innerHTML = `
+      <div class="kpi-card" style="--kpi-color:#64748b">
+        <div class="kpi-label">Não Chegou</div>
+        <div class="kpi-value">${fmt_r(k.valor_nao_chegou)}</div>
+        <div class="kpi-sub">${fmt_n(k.nao_chegou)} notas</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#f59e0b">
+        <div class="kpi-label">Pendentes</div>
+        <div class="kpi-value">${fmt_r(k.valor_pendentes)}</div>
+        <div class="kpi-sub">${fmt_n(k.pendentes)} notas</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#3b82f6">
+        <div class="kpi-label">Em Triagem</div>
+        <div class="kpi-value">${fmt_r(k.valor_em_triagem)}</div>
+        <div class="kpi-sub">${fmt_n(k.em_triagem)} notas</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#8b5cf6">
+        <div class="kpi-label">Etiquetados</div>
+        <div class="kpi-value">${fmt_r(k.valor_etiquetados)}</div>
+        <div class="kpi-sub">${fmt_n(k.etiquetados)} notas</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#10b981">
+        <div class="kpi-label">Finalizados</div>
+        <div class="kpi-value kpi-up">${fmt_r(k.valor_finalizados)}</div>
+        <div class="kpi-sub">${fmt_n(k.finalizados)} notas</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#ef4444">
+        <div class="kpi-label">Sem Etiqueta</div>
+        <div class="kpi-value kpi-down">${fmt_r(k.valor_sem_etiqueta)}</div>
+        <div class="kpi-sub">${fmt_n(k.sem_etiqueta)} notas</div>
+      </div>`;
+
+    showContent('op');
+    await waitForLayout();
+
+    // Status estoque (barras)
+    const gs = d.grafico_status_estoque;
+    const gs_agg = aggregateChartData(gs.labels, sanitize_values(gs.values));
+    if (has_data(gs_agg.labels, gs_agg.values)) {
+      renderCustomBarChart('op-chart-status', gs_agg.labels, [
+        { label: 'Qtd', data: gs_agg.values, color: '#3b82f6' }
+      ], { formatValue: fmt_n, barHeight: 28, gap: 10, labelWidth: 160, maxHeight: '260px', showLegend: false, filterType: 'est' });
+    } else { empty_chart('op-chart-status'); }
+
+    // Volume por transportadora
+    const gv = d.grafico_vol_transp;
+    const gv_agg = aggregateChartData(gv.labels, sanitize_values(gv.values));
+    if (has_data(gv_agg.labels, gv_agg.values)) {
+      renderCustomBarChart('op-chart-vol', gv_agg.labels, [
+        { label: 'Qtd', data: gv_agg.values, color: '#6366f1' }
+      ], { formatValue: fmt_n, barHeight: 28, gap: 10, labelWidth: 160, maxHeight: '260px', showLegend: false, filterType: 'transp' });
+    } else { empty_chart('op-chart-vol'); }
+
+    // Estoque por localização (valor das notas)
+    const gl = d.grafico_local;
+    const gl_agg = aggregateChartData(gl.labels, sanitize_values(gl.values), gl.keys);
+    if (has_data(gl_agg.labels, gl_agg.values)) {
+      renderCustomBarChart('op-chart-local', gl_agg.labels, [
+        { label: 'Valor', data: gl_agg.values, color: '#0ea5e9' }
+      ], { formatValue: fmt_r, barHeight: 28, gap: 10, labelWidth: 120, maxHeight: '220px', showLegend: false, filterType: 'codlocal', filterValues: gl_agg.keys });
+    } else { empty_chart('op-chart-local'); }
+
+    // 🚚 Notas Pendentes de Entrega por Transportadora (Stacked Bar)
+    const ge = d.grafico_entrega_transp;
+    if (ge && ge.labels && ge.labels.length > 0) {
+      renderCustomBarChart('op-chart-entrega', ge.labels, [
+        { label: 'Pendente de Entrega', data: ge.pendente, color: '#3b82f6', filterKey: 'est' },
+        { label: 'Em Atraso',           data: ge.atraso,   color: '#ef4444', filterKey: 'est' }
+      ], {
+        formatValue: fmt_n,
+        barHeight: 28,
+        gap: 10,
+        labelWidth: 160,
+        maxHeight: '220px',
+        showLegend: true,
+        filterType: 'transp'
+      });
+    } else { empty_chart('op-chart-entrega', 'Sem pendências de entrega'); }
+
+
+    // Tabela 1: Pendentes de Ação
+    const tp = d.tabela_pendentes;
+    document.getElementById('op-tabela').innerHTML = tp.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:var(--dash-muted);padding:20px">Sem pendências no período</td></tr>'
+      : `<thead><tr><th>Nota</th><th>Transportadora</th><th>Status Estoque</th><th>Dt. Registro</th><th>Dias Aberto</th></tr></thead><tbody>` +
+        tp.map(r => {
+          const tSelected = filtros.transportadora.includes(r.transportadora) ? 'selected' : '';
+          const sSelected = filtros.status_estoque.includes(r.status_estoque) ? 'selected' : '';
+          const nSelected = filtros.nota.includes(r.nota) ? 'selected' : '';
+          return `<tr>
+            <td class="mono interactive-cell ${nSelected}" title="Copiar nota" onclick="navigator.clipboard.writeText('${(r.nota||'').replace(/'/g,"\\\\'")}'); const c=this.style.color; this.style.color='#10b981'; setTimeout(()=>this.style.color=c, 800);">${r.nota || '—'}</td>
+            <td class="interactive-cell ${tSelected}" onclick="applyChartFilter('transp', '${(r.transportadora||'').replace(/'/g,"\\\\'")}')">${r.transportadora || '—'}</td>
+            <td><span class="pill pill-yellow interactive-cell ${sSelected}" onclick="applyChartFilter('est', '${(r.status_estoque||'').replace(/'/g,"\\\\'")}')">${r.status_estoque || '—'}</span></td>
+            <td class="mono">${fmt_d(r.data_registro)}</td>
+            <td class="mono">${r.dias_aberto !== null && r.dias_aberto !== undefined ? r.dias_aberto + 'd' : '—'}</td>
+          </tr>`}).join('') + '</tbody>';
+
+    // Tabela 2: Pendentes de Entrega
+    const te = d.tabela_entrega;
+    const teEl = document.getElementById('op-tabela-entrega');
+    if (te.length === 0) {
+      teEl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dash-muted);padding:20px">Sem entregas pendentes</td></tr>';
+    } else {
+      teEl.innerHTML =
+        `<thead><tr><th>Nota</th><th>Transportadora</th><th>Prev. Entrega</th><th>Valor NF</th><th>Status</th><th>Ações</th></tr></thead><tbody>` +
+        te.map((r, idx) => {
+          const tSelected = filtros.transportadora.includes(r.transportadora) ? 'selected' : '';
+          const nSelected = filtros.nota.includes(r.nota) ? 'selected' : '';
+          const acoes = r.id
+            ? `<button class="tv-btn tv-btn-blue te-cobrar" data-idx="${idx}" title="Registrar cobrança de entrega"><i class="fas fa-phone-alt"></i> Cobrar</button>
+               <a class="tv-btn tv-btn-gray" href="/wms/consultar?avaria_id=${r.id}" target="_blank" title="Abrir avaria"><i class="fas fa-external-link-alt"></i></a>`
+            : '—';
+          return `<tr>
+            <td class="mono interactive-cell ${nSelected}" title="Copiar nota" onclick="navigator.clipboard.writeText('${(r.nota||'').replace(/'/g,"\\\\'")}'); const c=this.style.color; this.style.color='#10b981'; setTimeout(()=>this.style.color=c, 800);">${r.nota || '—'}</td>
+            <td class="interactive-cell ${tSelected}" onclick="applyChartFilter('transp', '${(r.transportadora||'').replace(/'/g,"\\\\'")}')">${r.transportadora || '—'}</td>
+            <td class="mono" style="${r.atrasado ? 'color:#ef4444;font-weight:bold' : ''}">${fmt_d(r.data_entrega)}</td>
+            <td class="mono">${r.valor_nf ? fmt_r(r.valor_nf) : '—'}</td>
+            <td><span class="pill ${r.atrasado ? 'pill-red' : 'pill-blue'}">${r.atrasado ? 'Em Atraso' : 'No Prazo'}</span></td>
+            <td style="white-space:nowrap;display:flex;gap:4px;align-items:center">${acoes}</td>
+          </tr>`;
+        }).join('') + '</tbody>';
+      // Wire up cobrar buttons for entrega table
+      teEl.querySelectorAll('.te-cobrar').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const r = te[parseInt(btn.dataset.idx)];
+          if (r) abrirModalCobranca(r.id, r.transportadora || '', r.nota || '', 'Entrega');
+        });
+      });
+    }
+
+    resizeGraficos('operacional');
+  } catch(e) { showError('op', e.message); }
+}
+
+// ── QUALIDADE ───────────────────────────────────────────────────────────
+async function carregarQualidade() {
+  showLoading('ql');
+  try {
+    const campo = document.getElementById('campoDtQualidade')?.value || 'data_registro';
+    const d = await fetchPainel('qualidade', campo);
+    const k = d.kpis;
+
+    document.getElementById('ql-kpis').innerHTML = `
+      <div class="kpi-card" style="--kpi-color:#3b82f6">
+        <div class="kpi-label">Total de Avarias</div>
+        <div class="kpi-value">${fmt_n(k.total_avarias)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#f59e0b">
+        <div class="kpi-label">Motivo + Frequente</div>
+        <div class="kpi-value sm">${k.motivo_mais_frequente}</div>
+        <div class="kpi-sub">${k.pct_motivo_mais_freq}% do total</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#ef4444">
+        <div class="kpi-label">Transp. + Incidente</div>
+        <div class="kpi-value sm">${k.transportadora_mais_incidente || '—'}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#8b5cf6">
+        <div class="kpi-label">Divergências de Motivo</div>
+        <div class="kpi-value">${fmt_n(k.qtd_divergencias_motivo)}</div>
+        <div class="kpi-sub">${k.pct_divergencias}% das avarias</div>
+      </div>`;
+
+    showContent('ql');
+    await waitForLayout();
+
+    // Top produtos (Lista)
+    const gp = d.grafico_top_produtos;
+    const tbodyProdutos = document.getElementById('ql-lista-produtos');
+    if (tbodyProdutos && gp) {
+      const labels = gp.labels || [];
+      const values = gp.values || [];
+      const valores = gp.valores || [];
+      const nomes = gp.nomes_completos || labels;
+      
+      let html = '';
+      for (let i = 0; i < labels.length; i++) {
+        const valFormatado = valores[i] ? fmt_r(valores[i]) : 'R$ 0,00';
+        const isSelected = filtros.codprod.includes(labels[i]) ? 'selected' : '';
+        html += `
+          <tr>
+            <td title="${nomes[i]}" class="interactive-cell ${isSelected}" onclick="applyChartFilter('codprod', '${labels[i]}')" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">
+              <strong>${labels[i]}</strong>
+            </td>
+            <td style="text-align:center"><span class="pill pill-red">${values[i]}</span></td>
+            <td class="mono" style="text-align:right;color:var(--dash-muted)">${valFormatado}</td>
+          </tr>
+        `;
+      }
+      if (labels.length === 0) {
+        html = '<tr><td colspan="3" style="text-align:center;color:var(--dash-muted);padding:20px">Sem dados de produtos no período</td></tr>';
+      }
+      tbodyProdutos.innerHTML = html;
+    }
+
+    // Motivos (Bar chart)
+    const gm = d.grafico_motivos;
+    const gm_vals = sanitize_values(gm.values);
+    if (has_data(gm.labels, gm_vals)) {
+      renderCustomBarChart('ql-chart-motivos', gm.labels, [
+        { label: 'Qtd', data: gm_vals, color: '#0ea5e9' }
+      ], { formatValue: fmt_n, barHeight: 28, gap: 10, labelWidth: 180, maxHeight: 'none', showLegend: false, filterType: 'motivo' });
+    } else { empty_chart('ql-chart-motivos', 'Sem motivos no período'); }
+
+
+
+
+    // Divergências (Tabela)
+    const td = d.tabela_divergencias || [];
+    const tbodyDiverg = document.getElementById('ql-lista-diverg');
+    if (tbodyDiverg) {
+      let html = '';
+      for (const row of td) {
+        const m1Selected = filtros.motivo.includes(row.motivo_inicial) ? 'selected' : '';
+        const m2Selected = filtros.motivo.includes(row.motivo_final) ? 'selected' : '';
+        html += `
+          <tr>
+            <td class="interactive-cell ${m1Selected}" onclick="applyChartFilter('motivo', '${(row.motivo_inicial||'').replace(/'/g,"\\\\'")}')" title="${row.motivo_inicial}" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.motivo_inicial}</td>
+            <td class="interactive-cell ${m2Selected}" onclick="applyChartFilter('motivo', '${(row.motivo_final||'').replace(/'/g,"\\\\'")}')" title="${row.motivo_final}" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.motivo_final}</td>
+            <td style="text-align:center"><span class="pill pill-yellow">${row.qtd}</span></td>
+          </tr>
+        `;
+      }
+      if (td.length === 0) {
+        html = '<tr><td colspan="3" style="text-align:center;color:var(--dash-muted);padding:20px">Sem divergências no período</td></tr>';
+      }
+      tbodyDiverg.innerHTML = html;
+    }
+
+    // Principais motivos por transportadora
+    const gmt = d.grafico_motivos_por_transp;
+    // transpList already sorted by total descending from backend
+    const transpList = (gmt && gmt.transportadoras) ? gmt.transportadoras : [];
+    if (transpList.length > 0) {
+      // Collect unique motivos preserving order: named motivos first, "Outros" last
+      const uniqueMotivos = new Set();
+      transpList.forEach(transp => {
+        const motivos = (gmt.dados && gmt.dados[transp]) ? gmt.dados[transp] : [];
+        motivos.forEach(m => { if (m && m.motivo && m.motivo !== 'Outros') uniqueMotivos.add(m.motivo); });
+      });
+      const motivosArray = [...uniqueMotivos];
+      const temOutros = transpList.some(t => (gmt.dados[t] || []).some(m => m.motivo === 'Outros'));
+      if (temOutros) motivosArray.push('Outros');
+
+      const datasets = motivosArray.map((motivoName, idx) => {
+        const data = transpList.map(transp => {
+          const motivos = (gmt.dados && gmt.dados[transp]) ? gmt.dados[transp] : [];
+          const m = motivos.find(item => item.motivo === motivoName);
+          return m ? m.qtd : 0;
+        });
+        const cor = motivoName === 'Outros' ? '#9ca3af' : CORES[idx % CORES.length];
+        return { label: motivoName, data: data, color: cor, filterKey: 'motivo' };
+      });
+
+      renderCustomBarChart('ql-chart-reembolso', transpList, datasets, {
+        formatValue: fmt_n,
+        barHeight: 28,
+        gap: 10,
+        labelWidth: 160,
+        maxHeight: 'none',
+        showLegend: true,
+        sortByTotal: true,
+        filterType: 'transp'
+      });
+
+
+    } else { empty_chart('ql-chart-reembolso', 'Sem dados de motivos por transportadora'); }
+
+
+    resizeGraficos('qualidade');
+  } catch(e) { showError('ql', e.message); }
+}
+
+// ── COBRANÇA ────────────────────────────────────────────────────────────
+async function carregarCobranca() {
+  showLoading('cb');
+  try {
+    const campo = document.getElementById('campoDtCobranca')?.value || 'prazo_pagamento';
+    const d = await fetchPainel('cobranca', campo);
+    const k = d.kpis;
+
+    document.getElementById('cb-kpis').innerHTML = `
+      <div class="kpi-card" style="--kpi-color:#3b82f6">
+        <div class="kpi-label">Total Indenizáveis</div>
+        <div class="kpi-value">${fmt_n(k.total_indenizaveis)}</div>
+        <div class="kpi-sub">${fmt_r(k.valor_total_indenizaveis)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#ef4444">
+        <div class="kpi-label">Em Atraso</div>
+        <div class="kpi-value kpi-down">${fmt_n(k.qtd_inadimplentes)}</div>
+        <div class="kpi-sub">${fmt_r(k.valor_inadimplente)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#f59e0b">
+        <div class="kpi-label">Taxa de Atraso</div>
+        <div class="kpi-value">${k.taxa_inadimplencia}%</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#8b5cf6">
+        <div class="kpi-label">Pendentes</div>
+        <div class="kpi-value">${fmt_n(k.qtd_pendentes)}</div>
+        <div class="kpi-sub">${fmt_r(k.valor_pendentes)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#f59e0b">
+        <div class="kpi-label">Vencendo em 7d</div>
+        <div class="kpi-value kpi-down">${fmt_n(k.qtd_vencendo_7d)}</div>
+      </div>`;
+
+    // Funil — d.grafico_funil é array de {label, qtd, valor}
+    const funil = d.grafico_funil || [];
+    const coresFunil = ['#64748b','#3b82f6','#f59e0b','#a78bfa','#ef4444','#10b981'];
+    document.getElementById('cb-funil').innerHTML = funil.length === 0
+      ? '<div style="color:var(--dash-muted);font-size:13px;padding:12px">Nenhuma etapa configurada</div>'
+      : funil.map((et, i) => {
+          const rawSt = (et.status || []).join(',');
+          let isSelected = false;
+          if (rawSt && filtros.status_indenizacao.length > 0) {
+            const arr = rawSt.split(',').filter(x => x);
+            isSelected = arr.length > 0 && arr.every(s => filtros.status_indenizacao.includes(s));
+          }
+          const selClass = isSelected ? 'selected' : '';
+          return `
+          <div class="funil-step interactive-cell ${selClass}" onclick="applyFunilFilter('${et.label}', '${rawSt}')">
+            <div class="funil-step-label">${et.label}</div>
+            <div class="funil-step-qtd" style="color:${coresFunil[i] || CORES[i]}">${fmt_n(et.qtd)}</div>
+            <div class="funil-step-val">${fmt_r(et.valor)}</div>
+          </div>`}).join('');
+
+    showContent('cb');
+    await waitForLayout();
+
+    // Aging
+    const ga = d.grafico_aging;
+    const ga_vals = sanitize_values(ga.qtds);
+    if (has_data(ga.faixas, ga_vals)) {
+      Plotly.newPlot('cb-chart-aging', [{
+        x: ga.faixas, y: ga_vals, type: 'bar', width: 0.6,
+        marker: { color: ['#10b981','#10b981','#f59e0b','#ef4444','#991b1b'] },
+        text: ga_vals, textposition: 'outside', textfont: { size: 11, color: '#ffffff' },
+      }], { ...PLY_LAYOUT, yaxis: { ...PLY_LAYOUT.yaxis, visible: false }, bargap: 0.2 }, PLY_CFG);
+    } else { empty_chart('cb-chart-aging', 'Sem cobranças vencidas'); }
+
+
+    // Inadimplência por transportadora
+    const gi = d.grafico_inadimplentes_transp;
+    const gi_vals = sanitize_values(gi.values);
+    if (has_data(gi.labels, gi_vals)) {
+      renderCustomBarChart('cb-chart-inadimp', gi.labels, [
+        { label: 'Valor', data: gi_vals, color: '#ef4444' }
+      ], { formatValue: fmt_r, barHeight: 28, gap: 10, labelWidth: 160, maxHeight: '320px', showLegend: false, filterType: 'transp' });
+    } else { empty_chart('cb-chart-inadimp', 'Sem inadimplências no período'); }
+
+
+    // Tabela vencidas — sortável / filtrável / colunas redimensionáveis
+    _tvData = d.tabela_vencidas || [];
+    _tvSort = { col: 'dias_atraso', dir: -1 };
+    _tvFilters = {};
+    _renderTabelaVencidas();
+
+    resizeGraficos('cobranca');
+  } catch(e) { showError('cb', e.message); }
+}
+
+// ── PRODUTIVIDADE ────────────────────────────────────────────────────────
+async function carregarProdutividade() {
+  showLoading('pr');
+  try {
+    const campo = document.getElementById('campoDtProdutividade')?.value || 'data_registro';
+    const d = await fetchPainel('produtividade', campo);
+    const k = d.kpis;
+
+    document.getElementById('pr-kpis').innerHTML = `
+      <div class="kpi-card" style="--kpi-color:#10b981">
+        <div class="kpi-label">Registros no Mês</div>
+        <div class="kpi-value">${fmt_n(k.total_registros_mes)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#3b82f6">
+        <div class="kpi-label">Finalizações no Mês</div>
+        <div class="kpi-value">${fmt_n(k.total_finalizacoes_mes)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#8b5cf6">
+        <div class="kpi-label">Alterações no Mês</div>
+        <div class="kpi-value">${fmt_n(k.total_alteracoes_mes)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#f59e0b">
+        <div class="kpi-label">Etiquetas/Triagens</div>
+        <div class="kpi-value">${fmt_n(k.total_etiquetas_mes)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#10b981">
+        <div class="kpi-label">Registros Hoje</div>
+        <div class="kpi-value">${fmt_n(k.registros_hoje)}</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#64748b">
+        <div class="kpi-label">Operadores Ativos</div>
+        <div class="kpi-value">${fmt_n(k.total_operadores_ativos)}</div>
+        <div class="kpi-sub">esta semana</div>
+      </div>`;
+
+    showContent('pr');
+    await waitForLayout();
+
+    // Registros por operador (semana)
+    const go = d.grafico_operadores_semana;
+    const go_vals = sanitize_values(go.values);
+    if (has_data(go.labels, go_vals)) {
+      renderCustomBarChart('pr-chart-operador', go.labels, [
+        { label: 'Registros', data: go_vals, color: '#3b82f6' }
+      ], { formatValue: fmt_n, barHeight: 28, gap: 10, labelWidth: 140, maxHeight: '280px', showLegend: false });
+    } else { empty_chart('pr-chart-operador', 'Sem registros esta semana'); }
+
+
+    // Timeline diária
+    const gt = d.grafico_timeline;
+    const gt_reg = sanitize_values(gt.registros);
+    const gt_fin = sanitize_values(gt.finalizacoes);
+    if (gt.datas && gt.datas.length > 0) {
+      const plotEl = document.getElementById('pr-chart-diaria');
+      Plotly.newPlot(plotEl, [
+        { x: gt.datas, y: gt_reg, name: 'Registros', type: 'bar', marker: { color: 'rgba(59,130,246,.7)' } },
+        { x: gt.datas, y: gt_fin, name: 'Finalizações', type: 'bar', marker: { color: 'rgba(16,185,129,.7)' } },
+      ], { ...PLY_LAYOUT, barmode: 'group', showlegend: true,
+        legend: { font: { size: 10 }, orientation: 'h', y: 1.1 },
+        xaxis: { ...PLY_LAYOUT.xaxis, fixedrange: true, nticks: 8 }, bargap: 0.2,
+        margin: { t: 24, r: 10, b: 36, l: 40 } }, PLY_CFG);
+
+      setupPlotlyClick('pr-chart-diaria', { x: 'date' });
+    } else { empty_chart('pr-chart-diaria', 'Sem dados nos últimos 30 dias'); }
+
+    // Ranking
+    const tr = d.tabela_ranking;
+    document.getElementById('pr-tabela').innerHTML = tr.length === 0
+      ? `<tr><td colspan="7" style="text-align:center;color:var(--dash-muted);padding:20px">Sem dados no período</td></tr>`
+      : `<thead><tr>
+          <th>#</th><th>Operador</th>
+          <th>Registros</th><th>Finalizações</th>
+          <th>Alterações</th><th>Etiquetas</th><th>Total Ações</th>
+        </tr></thead>
+        <tbody>${tr.map(r => {
+          const isSelected = filtros.operador.includes(r.operador) ? 'selected' : '';
+          return `<tr>
+            <td class="mono">${r.posicao}</td>
+            <td class="interactive-cell ${isSelected}" onclick="applyChartFilter('operador', '${(r.operador||'').replace(/'/g,"\\\\'")}')">${r.operador}</td>
+            <td class="mono">${fmt_n(r.registros)}</td>
+            <td class="mono">${fmt_n(r.finalizacoes)}</td>
+            <td class="mono">${fmt_n(r.alteracoes)}</td>
+            <td class="mono">${fmt_n(r.etiquetas)}</td>
+            <td class="mono" style="font-weight:700">${fmt_n(r.total_acoes)}</td>
+          </tr>`}).join('')}</tbody>`;
+
+    resizeGraficos('produtividade');
+  } catch(e) { showError('pr', e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// INIT — carrega o primeiro painel visível
+// ════════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  const firstActive = document.querySelector('.dash-panel.active');
+  if (firstActive) {
+    const id = firstActive.id.replace('panel-', '');
+    carregarPainel(id);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// TABELA VENCIDAS — sortável / filtrável / colunas redimensionáveis
+// ════════════════════════════════════════════════════════════════════════
+let _tvData    = [];
+let _tvSort    = { col: 'dias_atraso', dir: -1 };
+let _tvFilters = {};
+
+const _TV_COLS = [
+  { key: 'transportadora', label: 'Transportadora', cls: '' },
+  { key: 'nota',           label: 'Nota (NF)',       cls: 'mono' },
+  { key: 'valor_indenizacao', label: 'Valor Indeniz.', cls: 'mono' },
+  { key: 'prazo_pagamento',   label: 'Prazo',          cls: 'mono' },
+  { key: 'dias_atraso',       label: 'Dias Atraso',    cls: '' },
+  { key: 'status_indenizacao',label: 'Status',         cls: '' },
+  { key: '_acoes',            label: 'Ações',          cls: '', nosort: true, nofilter: true },
+];
+
+function _tvCmp(a, b) {
+  const col = _tvSort.col, d = _tvSort.dir;
+  const va = a[col], vb = b[col];
+  if (typeof va === 'number' && typeof vb === 'number') return d * (va - vb);
+  return d * String(va || '').localeCompare(String(vb || ''), 'pt-BR');
+}
+
+function _renderTabelaVencidas() {
+  const el = document.getElementById('cb-tabela');
+  if (!el) return;
+
+  let rows = _tvData.filter(r => {
+    return Object.entries(_tvFilters).every(([k, v]) => {
+      if (!v) return true;
+      const cell = k === 'valor_indenizacao' ? fmt_r(r[k]) : String(r[k] || '');
+      return cell.toLowerCase().includes(v.toLowerCase());
+    });
+  });
+
+  rows = [...rows].sort(_tvCmp);
+
+  if (rows.length === 0) {
+    el.innerHTML = '<tbody><tr><td colspan="7" style="text-align:center;color:var(--dash-muted);padding:20px">Nenhuma cobrança vencida</td></tr></tbody>';
+    return;
+  }
+
+  const sortIco = (col) => {
+    if (_tvSort.col !== col) return '<span style="opacity:.3;margin-left:4px">⇅</span>';
+    return _tvSort.dir > 0 ? '<span style="margin-left:4px">↑</span>' : '<span style="margin-left:4px">↓</span>';
+  };
+  const thStyle = 'position:relative;white-space:nowrap;overflow:hidden;resize:horizontal;min-width:60px;user-select:none';
+  const thClick = (col) => ` style="${thStyle};cursor:pointer" onclick="_tvSetSort('${col}')"`;
+  const thNoClick = ` style="${thStyle};cursor:default"`;
+
+  const headCells = _TV_COLS.map(c =>
+    '<th' + (c.nosort ? thNoClick : thClick(c.key)) + ' data-col="' + c.key + '">' +
+    c.label + (c.nosort ? '' : sortIco(c.key)) +
+    '<span class="tv-resize-handle"></span></th>'
+  ).join('');
+
+  const filterCells = _TV_COLS.map(c =>
+    c.nofilter ? '<th style="padding:2px 4px"></th>'
+    : '<th style="padding:2px 4px"><input class="tv-filter-inp" placeholder="🔍" data-col="' + c.key + '"' +
+      ' value="' + (_tvFilters[c.key] || '').replace(/"/g, '&quot;') + '"' +
+      ' oninput="_tvSetFilter(\'' + c.key + '\', this.value)"' +
+      ' style="width:100%;box-sizing:border-box;background:var(--dash-bg,#0f1117);border:1px solid var(--dash-border,#2d3550);color:var(--dash-text,#e2e8f0);border-radius:4px;font-size:10px;padding:2px 5px"></th>'
+  ).join('');
+
+  // Armazena índice na row para event delegation
+  const bodyRows = rows.map((r, idx) => {
+    const atrasoClass = r.dias_atraso > 60 ? 'pill-red' : r.dias_atraso > 0 ? 'pill-yellow' : 'pill-green';
+    const atrasoLabel = r.dias_atraso > 0 ? r.dias_atraso + 'd' : (r.dias_atraso === 0 ? 'Hoje' : 'Em ' + Math.abs(r.dias_atraso) + 'd');
+    const tSelected = (filtros.transportadora || []).includes(r.transportadora) ? 'selected' : '';
+    const sSelected = (filtros.status_indenizacao || []).includes(r.status_indenizacao) ? 'selected' : '';
+
+    return '<tr>' +
+      '<td class="interactive-cell ' + tSelected + '" onclick="applyChartFilter(\'transp\', \'' + (r.transportadora || '').replace(/'/g,"\\\\'") + '\')">' + (r.transportadora || '—') + '</td>' +
+      '<td class="mono">' + (r.nota || '—') + '</td>' +
+      '<td class="mono">' + fmt_r(r.valor_indenizacao) + '</td>' +
+      '<td class="mono">' + fmt_d(r.prazo_pagamento) + '</td>' +
+      '<td><span class="pill ' + atrasoClass + '">' + atrasoLabel + '</span></td>' +
+      '<td><span class="pill pill-yellow interactive-cell ' + sSelected + '" onclick="applyChartFilter(\'ind\', \'' + (r.status_indenizacao || '').replace(/'/g,"\\\\'") + '\')" style="font-size:10px">' + (r.status_indenizacao || '—') + '</span></td>' +
+      '<td style="white-space:nowrap;display:flex;gap:4px;align-items:center;flex-wrap:wrap">' +
+        '<button class="tv-btn tv-btn-blue tv-cobrar" data-idx="' + idx + '" title="Registrar cobrança"><i class="fas fa-phone-alt"></i> Cobrar</button>' +
+        '<button class="tv-btn tv-btn-green tv-pagar" data-idx="' + idx + '" title="Marcar como Pago"><i class="fas fa-check-circle"></i> Pago</button>' +
+        '<a class="tv-btn tv-btn-gray" href="/wms/consultar?avaria_id=' + r.id + '" target="_blank" title="Abrir avaria"><i class="fas fa-external-link-alt"></i></a>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  el.innerHTML =
+    '<thead>' +
+      '<tr>' + headCells + '</tr>' +
+      '<tr class="tv-filter-row">' + filterCells + '</tr>' +
+    '</thead>' +
+    '<tbody>' + bodyRows + '</tbody>';
+
+  // Event listeners via data-idx (evita problemas com aspas em onclick inline)
+  el.querySelectorAll('.tv-cobrar').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = rows[parseInt(btn.dataset.idx)];
+      if (r) abrirModalCobranca(r.id, r.transportadora || '', r.nota || '', 'Indenização');
+    });
+  });
+  el.querySelectorAll('.tv-pagar').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = rows[parseInt(btn.dataset.idx)];
+      if (r) _tvMarcarPago(r.id, r.transportadora || '', r.nota || '');
+    });
+  });
+
+  _tvInitResize(el);
+}
+
+function _tvSetSort(col) {
+  if (_tvSort.col === col) _tvSort.dir *= -1;
+  else { _tvSort.col = col; _tvSort.dir = 1; }
+  _renderTabelaVencidas();
+}
+
+function _tvSetFilter(col, val) {
+  _tvFilters[col] = val;
+  _renderTabelaVencidas();
+}
+
+let _mpAvaria = null;
+
+function _tvMarcarPago(avaria_id, transportadora, nota) {
+  _mpAvaria = { id: avaria_id, transportadora, nota };
+  const hoje = new Date().toISOString().slice(0, 10);
+  document.getElementById('mp-data').value = hoje;
+  document.getElementById('mp-obs').value  = '';
+  document.getElementById('mp-avaria-info').textContent =
+    `Avaria: ${avaria_id}${transportadora ? ' · ' + transportadora : ''}${nota ? ' · NF ' + nota : ''}`;
+  document.getElementById('modal-pagamento').style.display = 'flex';
+}
+
+function fecharModalPagamento() {
+  document.getElementById('modal-pagamento').style.display = 'none';
+  _mpAvaria = null;
+}
+
+async function confirmarPagamento() {
+  if (!_mpAvaria) return;
+  const dataPgto = document.getElementById('mp-data').value;
+  if (!dataPgto) { alert('Informe a data de pagamento.'); return; }
+  const obs    = document.getElementById('mp-obs').value.trim();
+  const btn    = document.getElementById('mp-btn-confirmar');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+  try {
+    const resp = await fetch(`/wms/api/avaria/${encodeURIComponent(_mpAvaria.id)}/marcar-pago`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data_pagamento: dataPgto, observacao: obs }),
+    });
+    const json = await resp.json();
+    if (json.success) {
+      const idRemover = _mpAvaria.id;
+      fecharModalPagamento();
+      _tvData = _tvData.filter(r => r.id !== idRemover);
+      _renderTabelaVencidas();
+    } else {
+      await _alertaCritico('Erro', traduzirErroTecnico(json.error || 'desconhecido'));
+    }
+  } catch(e) {
+    await _alertaCritico('Erro', traduzirErroTecnico(e.message));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Pagamento';
+  }
+}
+
+// Resize de colunas via drag no handle
+function _tvInitResize(table) {
+  table.querySelectorAll('th').forEach(th => {
+    const handle = th.querySelector('.tv-resize-handle');
+    if (!handle) return;
+    let startX, startW;
+    handle.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      startX = e.pageX;
+      startW = th.offsetWidth;
+      const onMove = ev => { th.style.width = Math.max(60, startW + ev.pageX - startX) + 'px'; };
+      const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
+    });
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// MODAL DE COBRANÇAS
+// ════════════════════════════════════════════════════════════════════════
+let _mc_avaria_id = null;
+
+let _mc_tipo_cobranca = 'Indenização';
+
+function abrirModalCobranca(avaria_id, transportadora, nota, tipo) {
+  _mc_avaria_id = avaria_id;
+  _mc_tipo_cobranca = tipo || 'Indenização';
+  const modal = document.getElementById('modal-cobranca');
+  const tipoLabel = _mc_tipo_cobranca !== 'Indenização' ? ` [${_mc_tipo_cobranca}]` : '';
+  document.getElementById('mc-avaria-info').textContent = `Avaria: ${avaria_id}${transportadora ? ' · ' + transportadora : ''}${nota ? ' · NF ' + nota : ''}${tipoLabel}`;
+  document.getElementById('mc-obs').value = '';
+  modal.style.display = 'flex';
+  _carregarHistoricoCobranca(avaria_id);
+}
+
+function fecharModalCobranca() {
+  document.getElementById('modal-cobranca').style.display = 'none';
+  _mc_avaria_id = null;
+}
+
+async function _carregarHistoricoCobranca(avaria_id) {
+  const el = document.getElementById('mc-historico');
+  el.innerHTML = '<div style="color:var(--dash-muted);font-size:13px">Carregando...</div>';
+  try {
+    const resp = await fetch(`/wms/api/avaria/${encodeURIComponent(avaria_id)}/cobran%C3%A7as`);
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error);
+    const registros = json.data || [];
+    if (registros.length === 0) {
+      el.innerHTML = '<div style="color:var(--dash-muted);font-size:12px;padding:8px 0">Nenhuma cobrança registrada ainda.</div>';
+      return;
+    }
+    el.innerHTML = registros.map(r => {
+      const tipoColor = r.tipo_cobranca === 'Entrega' ? '#3b82f6' : '#10b981';
+      const tipoLabel = r.tipo_cobranca || 'Indenização';
+      return `
+      <div style="background:var(--dash-bg,#0f1117);border:1px solid var(--dash-border,#2d3550);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-weight:700;font-size:12px;color:${tipoColor}">${r.tentativa}ª Cobrança</span>
+            <span style="font-size:10px;background:${tipoColor}22;color:${tipoColor};border-radius:4px;padding:1px 6px;font-weight:600">${tipoLabel}</span>
+          </div>
+          <span style="font-size:11px;color:var(--dash-muted)">${fmt_d(r.data_cobranca)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--dash-muted)">por <strong style="color:var(--dash-text)">${r.usuario || '—'}</strong></div>
+        ${r.observacao ? `<div style="font-size:12px;margin-top:6px;color:var(--dash-text)">${r.observacao}</div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="color:#ef4444;font-size:12px">${traduzirErroTecnico(e.message)}</div>`;
+  }
+}
+
+async function salvarCobranca() {
+  if (!_mc_avaria_id) return;
+  const btn = document.getElementById('mc-btn-salvar');
+  const obs = document.getElementById('mc-obs').value.trim();
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+  try {
+    const resp = await fetch(`/wms/api/avaria/${encodeURIComponent(_mc_avaria_id)}/cobran%C3%A7as`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ observacao: obs, tipo_cobranca: _mc_tipo_cobranca }),
+    });
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.error);
+    document.getElementById('mc-obs').value = '';
+    await _carregarHistoricoCobranca(_mc_avaria_id);
+  } catch(e) {
+    await _alertaCritico('Erro ao registrar cobrança', traduzirErroTecnico(e.message));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plus me-1"></i>Registrar Cobrança';
+  }
+}
+
+// Fecha modais ao clicar fora
+document.getElementById('modal-cobranca').addEventListener('click', function(e) {
+  if (e.target === this) fecharModalCobranca();
+});
+document.getElementById('modal-pagamento').addEventListener('click', function(e) {
+  if (e.target === this) fecharModalPagamento();
+});
+document.getElementById('modal-estoque').addEventListener('click', function(e) {
+  if (e.target === this) fecharModalEstoque();
+});
+
+// ── Snapshot gráfico evolução ─────────────────────────────────────────────────
+let _snapPollTimer = null;
+let _snapPollCount = 0;
+// 200 × 10s = ~33 min (suficiente para 25 meses × ~15s cada)
+const _SNAP_POLL_MAX = 200;
+const _SNAP_POLL_MS  = 10000;  // 10 s por verificação de status
+
+function _pararPollSnap() {
+  if (_snapPollTimer) { clearInterval(_snapPollTimer); _snapPollTimer = null; }
+  _snapPollCount = 0;
+}
+
+async function atualizarSnapshotGrafico() {
+  const btn = document.getElementById('btn-snap-grafico');
+  const inf = document.getElementById('evolucao-atualizado');
+  _pararPollSnap();
+  window._snapGraficoAutoDisparado = true; // impede re-disparo automático durante o processo
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Atualizando…'; }
+  if (inf) { inf.textContent = 'Carregando histórico em segundo plano…'; inf.style.color = 'var(--dash-muted)'; }
+  _evolucaoSpinner('Carregando histórico — dados são exibidos ao concluir…');
+  try {
+    const res = await fetch('/wms/api/estoque/snapshot/grafico', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!data.success) {
+      const msg = `Erro ao iniciar snapshot: ${data.error}`;
+      if (inf) { inf.textContent = msg; inf.style.color = '#ef4444'; }
+      if (btn) { btn.disabled = false; btn.textContent = '↻ Atualizar'; }
+      _evolucaoErro(msg);
+      return;
+    }
+
+    // Polling de STATUS apenas (sem recarregar o gráfico a cada tick)
+    // O gráfico é recarregado UMA VEZ quando o job conclui ou ao atingir o limite.
+    _snapPollTimer = setInterval(async () => {
+      _snapPollCount++;
+
+      // Limite de tempo atingido — recarrega o gráfico com o que estiver no snap
+      if (_snapPollCount >= _SNAP_POLL_MAX) {
+        _pararPollSnap();
+        if (btn) { btn.disabled = false; btn.textContent = '↻ Atualizar'; }
+        if (inf) { inf.textContent = 'Processo concluído (limite de tempo atingido)'; inf.style.color = 'var(--dash-muted)'; }
+        carregarGraficoEvolucao(); // carga normal com spinner
+        return;
+      }
+
+      try {
+        const sr = await fetch('/wms/api/estoque/snapshot/grafico/status');
+        const sd = await sr.json();
+
+        // Atualiza apenas o label de progresso (sem tocar no gráfico/spinner)
+        if (sd.progresso && inf) {
+          inf.textContent = `Carregando histórico: ${sd.progresso}…`;
+          inf.style.color = 'var(--dash-muted)';
+        }
+
+        // Job concluiu (com ou sem erro) — recarrega o gráfico UMA VEZ
+        if (!sd.processando) {
+          _pararPollSnap();
+          if (btn) { btn.disabled = false; btn.textContent = '↻ Atualizar'; }
+          if (sd.erro) {
+            if (inf) { inf.textContent = `Falha parcial: ${sd.erro}`; inf.style.color = 'var(--dash-warning, #f59e0b)'; }
+          } else {
+            if (inf) { inf.textContent = `Snap atualizado: ${sd.atualizado_em}`; inf.style.color = 'var(--dash-muted)'; }
+          }
+          carregarGraficoEvolucao(); // carga final (com spinner)
+        }
+      } catch(pe) {
+        // Falha de rede no poll — não cancela, tenta novamente no próximo tick
+        console.warn('[snapPoll] erro de rede:', pe.message);
+      }
+    }, _SNAP_POLL_MS);
+
+  } catch(e) {
+    const msg = `Falha de rede ao iniciar snapshot: ${e.message}`;
+    if (inf) { inf.textContent = msg; inf.style.color = '#ef4444'; }
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Atualizar'; }
+    _evolucaoErro(msg);
+  }
+}
+
+// ── Modal Validação de Estoque ────────────────────────────────────────────────
+let _mePaginaAtual = 1;
+let _meUltimaFonte = '';  // 'sheets' | 'sankhya'
+
+function abrirModalEstoque() {
+  const modal = document.getElementById('modal-estoque');
+  const ini = filtros.data_inicio || '';
+  const fim = filtros.data_fim    || '';
+  document.getElementById('me-data-ini').value = ini;
+  document.getElementById('me-data-fim').value = fim;
+  modal.style.display = 'flex';
+  // Não carrega Sheets automaticamente — aguarda o usuário escolher a fonte
+  const tbody = document.getElementById('me-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-muted)">Use <b>Filtrar Sheets</b> ou <b>Buscar Sankhya</b> para carregar os dados.</td></tr>';
+  document.getElementById('me-total').textContent = '';
+  document.getElementById('me-paginacao').innerHTML = '';
+  document.getElementById('me-titulo').textContent    = 'Dados de Estoque';
+  document.getElementById('me-subtitulo').textContent = 'Abertura por mês/local';
+}
+
+function fecharModalEstoque() {
+  document.getElementById('modal-estoque').style.display = 'none';
+}
+
+function carregarDadosEstoque(pagina) {
+  _mePaginaAtual = pagina || 1;
+  _meUltimaFonte = 'sheets';
+  const ini     = document.getElementById('me-data-ini').value;
+  const fim     = document.getElementById('me-data-fim').value;
+  const local   = document.getElementById('me-local').value.trim();
+  const empresa = (filtros.cod_empresa && filtros.cod_empresa !== '__todos__') ? filtros.cod_empresa : '';
+
+  const params = new URLSearchParams({ page: _mePaginaAtual, per_page: 50 });
+  if (ini)     params.set('data_inicio', ini);
+  if (fim)     params.set('data_fim',    fim);
+  if (local)   params.set('codlocal',    local);
+  if (empresa) params.set('cod_empresa', empresa);
+
+  const tbody = document.getElementById('me-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-muted)"><span style="display:inline-flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Carregando Sheets…</span></td></tr>';
+
+  fetch(`/wms/api/estoque/evolucao?${params}`)
+    .then(r => r.json())
+    .then(res => {
+      if (_meUltimaFonte !== 'sheets') return;
+      if (!res.success) { tbody.innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-red)">${res.error || 'Erro'}</td></tr>`; return; }
+      document.getElementById('me-titulo').textContent    = 'Dados de Estoque — Sheets';
+      document.getElementById('me-subtitulo').textContent = 'Snapshots salvos · abertura por mês';
+      document.getElementById('me-total').textContent = `${res.total} registro(s)`;
+      if (!res.data || res.data.length === 0) {
+        const sheetVazia = res.sheet_rows === 0;
+        const msg = sheetVazia
+          ? `Planilha vazia — nenhum snapshot gravado ainda.<br><small style="color:var(--dash-muted)">Use <b>Buscar Sankhya</b> para consultar a posição atual em tempo real.</small>`
+          : `Nenhum registro no período selecionado.<br><small style="color:var(--dash-muted)">${res.sheet_rows} linha(s) na planilha. Tente remover os filtros de data ou use <b>Buscar Sankhya</b>.</small>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-muted)">${msg}</td></tr>`;
+        document.getElementById('me-paginacao').innerHTML = '';
+        return;
+      }
+      tbody.innerHTML = res.data.map(r => `
+        <tr style="border-bottom:1px solid var(--dash-border,#252a3a)">
+          <td style="padding:7px 12px;font-family:var(--dash-mono);white-space:nowrap">${r.codlocal || '—'}</td>
+          <td style="padding:7px 12px;color:var(--dash-muted)">${r.descrlocal || '—'}</td>
+          <td style="padding:7px 12px;font-family:var(--dash-mono);white-space:nowrap">${r.mes_ref || '—'}</td>
+          <td style="padding:7px 12px;text-align:right;font-family:var(--dash-mono)">${parseFloat(r.saldo||r.qtd_total||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})}</td>
+          <td style="padding:7px 12px;text-align:right;font-family:var(--dash-mono)">${parseFloat(r.valor_total||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        </tr>`).join('');
+      const pag = document.getElementById('me-paginacao');
+      if (res.pages <= 1) { pag.innerHTML = ''; return; }
+      let btns = '';
+      for (let p = 1; p <= res.pages; p++) {
+        const active = p === res.page ? 'background:var(--dash-accent);color:#fff;' : 'background:var(--dash-surface2);color:var(--dash-muted);';
+        btns += `<button onclick="carregarDadosEstoque(${p})" style="${active}border:1px solid var(--dash-border);border-radius:4px;padding:3px 9px;font-size:11px;cursor:pointer">${p}</button>`;
+      }
+      pag.innerHTML = btns;
+    })
+    .catch(err => {
+      if (_meUltimaFonte !== 'sheets') return;
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-red)">Erro ao carregar: ${err.message}</td></tr>`;
+    });
+}
+
+function buscarDoSankhya() {
+  _meUltimaFonte = 'sankhya';
+  const dataRef = document.getElementById('me-data-ini').value;
+  const dataFim = document.getElementById('me-data-fim').value;
+  const local   = document.getElementById('me-local').value.trim();
+  const empresa = (filtros.cod_empresa && filtros.cod_empresa !== '__todos__') ? filtros.cod_empresa : '';
+
+  const params = new URLSearchParams();
+  if (dataRef) params.set('data_ref', dataRef);
+  if (dataFim) params.set('data_fim', dataFim);
+  if (local)   params.set('codlocal', local);
+  if (empresa) params.set('empresa',  empresa);
+
+  const tbody = document.getElementById('me-tbody');
+  const btn   = document.getElementById('me-btn-sankhya');
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-muted)"><span style="display:inline-flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-opacity=".3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Consultando Sankhya…</span></td></tr>';
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+
+  fetch(`/wms/api/estoque/snapshot-sankhya?${params}`)
+    .then(r => r.json())
+    .then(res => {
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      if (_meUltimaFonte !== 'sankhya') return;
+      if (!res.success) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-red)">${res.error || 'Erro Sankhya'}</td></tr>`;
+        return;
+      }
+      document.getElementById('me-titulo').textContent     = 'Dados de Estoque — Sankhya';
+      document.getElementById('me-subtitulo').textContent  = `${res.fonte || 'Sankhya'} · abertura mês: ${res.mes_ref || dataRef || '?'}`;
+      document.getElementById('me-total').textContent      = `${res.total} local(is)`;
+      document.getElementById('me-paginacao').innerHTML    = '';
+
+      if (!res.data || res.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-muted)">Sankhya retornou zero registros para esta data/empresa.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = res.data.map(r => `
+        <tr style="border-bottom:1px solid var(--dash-border,#252a3a)">
+          <td style="padding:7px 12px;font-family:var(--dash-mono);white-space:nowrap">${r.codlocal || '—'}</td>
+          <td style="padding:7px 12px;color:var(--dash-muted)">${r.descrlocal || '—'}</td>
+          <td style="padding:7px 12px;font-family:var(--dash-mono);white-space:nowrap">${r.mes_ref || '—'}</td>
+          <td style="padding:7px 12px;text-align:right;font-family:var(--dash-mono)">${parseFloat(r.saldo||r.qtd_total||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})}</td>
+          <td style="padding:7px 12px;text-align:right;font-family:var(--dash-mono)">${parseFloat(r.valor_total||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        </tr>`).join('');
+    })
+    .catch(err => {
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      if (_meUltimaFonte !== 'sankhya') return;
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--dash-red)">Erro: ${err.message}</td></tr>`;
+    });
+}
+</script>
+{% endblock %}

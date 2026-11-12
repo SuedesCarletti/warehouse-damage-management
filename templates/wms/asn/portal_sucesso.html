@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Agendamento Confirmado{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="card shadow-sm text-center py-5 px-4 mt-4">
+            <div class="mb-3" style="font-size:4rem;">✅</div>
+            <h2 class="text-success mb-1">Agendamento Confirmado!</h2>
+            <p class="text-muted mb-4">Seu agendamento foi registrado com sucesso.</p>
+
+            <div class="bg-light rounded p-4 mb-4 text-start">
+                <div class="row g-3 align-items-center">
+                    {% if nota %}
+                    <div class="col-6 small text-muted">Nota</div>
+                    <div class="col-6 fw-bold fs-5 text-success">{{ nota }}</div>
+                    {% endif %}
+                    {% if prevista %}
+                    <div class="col-6 small text-muted">Previsão de Entrega</div>
+                    <div class="col-6 fw-semibold">{{ prevista[:16] }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="alert alert-info text-start">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Próximo passo:</strong> Apresente o número da sua <strong>Nota Fiscal / NFD</strong>
+                ao operador do CD na chegada. A equipe já foi notificada sobre o seu agendamento.
+            </div>
+
+            <a href="{{ url_for('wms_asn.portal_transportadora') }}" class="btn btn-success btn-lg mt-2">
+                <i class="fas fa-arrow-left me-2"></i>Voltar ao Portal
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

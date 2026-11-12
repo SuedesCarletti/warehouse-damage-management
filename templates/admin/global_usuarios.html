@@ -1,0 +1,19 @@
+{% extends "admin/_usuarios_base.html" %}
+
+{# Admin Global: pode ver e criar usuários em qualquer empresa/departamento #}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  window.API_CRIAR    = "{{ url_for('admin_global.api_global_criar_usuario') }}";
+  window.API_EDITAR   = "{{ url_for('admin_global.api_global_editar_usuario') }}";
+  window.API_DESATIVAR= "{{ url_for('admin_global.api_global_desativar_usuario') }}";
+  window.API_REATIVAR = "{{ url_for('admin_global.api_global_reativar_usuario') }}";
+  window.API_RESET    = "{{ url_for('admin_global.api_global_reset_senha') }}";
+
+  function confirmarLogarComo(email, nome) {
+    if (!confirm('Você vai navegar o sistema como "' + nome + '" (' + email + ').\n\nUm banner amarelo te permitirá voltar. Continuar?')) return;
+    window.location.href = '/admin/global/logar-como/' + encodeURIComponent(email);
+  }
+</script>
+{% endblock %}

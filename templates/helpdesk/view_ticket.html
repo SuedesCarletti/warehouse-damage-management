@@ -1,0 +1,182 @@
+<!-- ========================================
+     4. templates/view_ticket.html - CORRIGIDO
+     ======================================== -->
+{% extends "base.html" %}
+
+{% block title %}Chamado #{{ ticket.ticket_number }} - Sistema de Chamados TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-ticket-alt me-2"></i>
+                Chamado #{{ ticket.ticket_number }}
+            </h2>
+            <div>
+                <a href="{{ url_for('tickets.list_tickets') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar
+                </a>
+                {% if session.user_level in ['gestor', 'admin'] and ticket.status not in ['Resolvido', 'Fechado'] %}
+                <div class="btn-group ms-2">
+                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-cog me-2"></i>Ações
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" 
+                               onclick="updateStatus('{{ ticket.ticket_number }}', 'Em Andamento')">
+                            <i class="fas fa-play me-2"></i>Colocar Em Andamento
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" 
+                               onclick="updateStatus('{{ ticket.ticket_number }}', 'Resolvido')">
+                            <i class="fas fa-check me-2"></i>Marcar como Resolvido
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" 
+                               onclick="updateStatus('{{ ticket.ticket_number }}', 'Fechado')">
+                            <i class="fas fa-times me-2"></i>Fechar Chamado
+                        </a></li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Detalhes do Chamado -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Detalhes do Chamado</h5>
+                <span class="status-badge status-{{ ticket.status.lower().replace(' ', '-') }}">
+                    {{ ticket.status }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>Assunto:</strong></div>
+                    <div class="col-sm-9">{{ ticket.subject }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>Descrição:</strong></div>
+                    <div class="col-sm-9">
+                        <div class="bg-light p-3 rounded">
+                            {{ ticket.description | replace('\n', '<br>') | safe }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>Categoria:</strong></div>
+                    <div class="col-sm-9">
+                        <span class="badge bg-primary">{{ ticket.category }}</span>
+                        {% if ticket.third_party_email %}
+                        <span class="badge bg-info ms-2">
+                            <i class="fas fa-external-link-alt me-1"></i>Terceiro
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>Prioridade:</strong></div>
+                    <div class="col-sm-9">
+                        <span class="priority-{{ ticket.priority.lower() }}">
+                            <i class="fas fa-{{ 'exclamation-triangle' if ticket.priority in ['Alta', 'Crítica'] 
+                                            else 'exclamation-circle' if ticket.priority == 'Média' 
+                                            else 'info-circle' }}"></i>
+                            {{ ticket.priority }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Timeline de Status -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Histórico do Chamado</h5>
+            </div>
+            <div class="card-body">
+                <div class="ticket-timeline">
+                    {% for log in status_logs %}
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>{{ log.new_status }}</strong>
+                                {% if log.change_reason %}
+                                <span class="text-muted">- {{ log.change_reason }}</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ format_date_br(log.created_at) }}</small>
+                        </div>
+                        <small class="text-muted">por {{ log.changed_by }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Informações Laterais -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informações</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Solicitante:</strong><br>
+                    <i class="fas fa-user me-2"></i>{{ ticket.user_name }}<br>
+                    <i class="fas fa-envelope me-2"></i>{{ ticket.user_email }}<br>
+                    <i class="fas fa-building me-2"></i>{{ ticket.department }}
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Datas:</strong><br>
+                    <i class="fas fa-calendar-plus me-2"></i>
+                    Criado: <span>{{ format_date_br(ticket.created_at) }}</span><br>
+
+                    {% if ticket.updated_at != ticket.created_at %}
+                    <i class="fas fa-calendar-edit me-2"></i>
+                    Atualizado: <span>{{ format_date_br(ticket.updated_at) }}</span><br>
+                    {% endif %}
+
+                    {% if ticket.closed_at %}
+                    <i class="fas fa-calendar-check me-2"></i>
+                    Fechado: <span>{{ format_date_br(ticket.closed_at) }}</span>
+                    {% endif %}
+                </div>
+                
+                {% if ticket.third_party_email %}
+                <div class="mb-3">
+                    <strong>Fornecedor:</strong><br>
+                    <i class="fas fa-external-link-alt me-2"></i>{{ ticket.third_party_email }}
+                    {% if ticket.email_opened %}
+                    <br><small class="text-success">
+                        <i class="fas fa-check-circle me-1"></i>E-mail visualizado
+                    </small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if ticket.status in ['Resolvido', 'Fechado'] %}
+        <div class="card mt-3">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5>Chamado {{ ticket.status }}</h5>
+                <p class="text-muted">
+                    {% if ticket.closed_at %}
+                    Finalizado em <span>{{ format_date_br(ticket.closed_at) }}</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

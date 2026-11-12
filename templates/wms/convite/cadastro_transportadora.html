@@ -1,0 +1,248 @@
+{# templates/wms/convite/cadastro_transportadora.html #}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Transportadora — MultiSoluções</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0d1f12 0%, #1a2e1e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .card-cadastro {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.35);
+            width: 100%;
+            max-width: 480px;
+            overflow: hidden;
+        }
+        .card-header-custom {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            padding: 2rem;
+            text-align: center;
+            color: #fff;
+        }
+        .card-header-custom .logo-icon {
+            font-size: 3rem;
+            margin-bottom: .5rem;
+            opacity: .9;
+        }
+        .card-header-custom h4 { margin: 0; font-weight: 700; }
+        .card-header-custom small { opacity: .8; font-size: .85rem; }
+        .card-body-custom { padding: 2rem; }
+        .badge-empresa {
+            background: rgba(40,167,69,.12);
+            color: #1e7e34;
+            border: 1px solid rgba(40,167,69,.3);
+            border-radius: 20px;
+            padding: .35rem .9rem;
+            font-size: .82rem;
+            font-weight: 600;
+        }
+        .form-control:focus { border-color: #28a745; box-shadow: 0 0 0 .2rem rgba(40,167,69,.2); }
+        .btn-cadastrar {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            border: none;
+            color: #fff;
+            padding: .75rem;
+            font-weight: 600;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 1rem;
+            transition: opacity .2s;
+        }
+        .btn-cadastrar:hover { opacity: .9; color: #fff; }
+        .btn-cadastrar:disabled { opacity: .65; }
+        .info-expiracao {
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            padding: .75rem 1rem;
+            font-size: .82rem;
+            color: #555;
+        }
+        .strength-bar { height: 4px; border-radius: 2px; transition: all .3s; }
+    </style>
+</head>
+<body>
+
+<div class="card-cadastro">
+
+    {# ── Cabeçalho ── #}
+    <div class="card-header-custom">
+        <div class="logo-icon"><i class="fas fa-truck"></i></div>
+        <h4>Cadastro de Transportadora</h4>
+        <small>Portal de Agendamento de Entregas (ASN)</small>
+    </div>
+
+    <div class="card-body-custom">
+
+        {# Empresa destino #}
+        <div class="text-center mb-3">
+            <span class="badge-empresa">
+                <i class="fas fa-building me-1"></i>Empresa: <strong>{{ empresa }}</strong>
+            </span>
+        </div>
+
+        {# Avisos de erro #}
+        {% if erros %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <ul class="mb-0 ps-3">
+                {% for erro in erros %}<li>{{ erro }}</li>{% endfor %}
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        {# Formulário #}
+        <form method="POST" id="formCadastro" novalidate>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-building me-1 text-muted"></i>Nome da Transportadora *
+                </label>
+                <input type="text" name="nome" class="form-control"
+                       placeholder="Ex: Transportadora ABC Ltda"
+                       value="{{ nome or '' }}"
+                       minlength="3" required autofocus>
+                <small class="text-muted">Nome que aparecerá nos agendamentos.</small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-envelope me-1 text-muted"></i>E-mail de Acesso *
+                </label>
+                <input type="email" name="email" class="form-control"
+                       placeholder="contato@transportadora.com"
+                       value="{{ email or '' }}"
+                       required>
+                <small class="text-muted">Será usado para entrar no sistema.</small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-lock me-1 text-muted"></i>Senha *
+                </label>
+                <div class="input-group">
+                    <input type="password" name="senha" id="inputSenha" class="form-control"
+                           placeholder="Mínimo 6 caracteres"
+                           minlength="6" required
+                           oninput="atualizarForca(this.value)">
+                    <button class="btn btn-outline-secondary" type="button"
+                            onclick="toggleSenha('inputSenha', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <div class="strength-bar mt-1" id="strengthBar" style="background:#dee2e6;width:0%"></div>
+                <small class="text-muted" id="strengthLabel"></small>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-lock me-1 text-muted"></i>Confirmar Senha *
+                </label>
+                <div class="input-group">
+                    <input type="password" name="confirmar_senha" id="inputConf" class="form-control"
+                           placeholder="Repita a senha" required>
+                    <button class="btn btn-outline-secondary" type="button"
+                            onclick="toggleSenha('inputConf', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <small class="text-danger d-none" id="senhasMismatch">
+                    <i class="fas fa-times me-1"></i>As senhas não coincidem.
+                </small>
+            </div>
+
+            <div class="info-expiracao mb-4">
+                <i class="fas fa-clock me-1"></i>
+                Este link é de <strong>uso único</strong> e expira em
+                <strong>{{ expira_em[:16] if expira_em else '72 horas' }}</strong>.
+            </div>
+
+            <button type="submit" class="btn-cadastrar" id="btnCadastrar">
+                <i class="fas fa-user-plus me-2"></i>Criar Minha Conta
+            </button>
+
+        </form>
+
+        <p class="text-center text-muted mt-4 mb-0" style="font-size:.8rem;">
+            Já possui cadastro?
+            <a href="/login" class="text-success">Entrar no sistema</a>
+        </p>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleSenha(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon  = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+function atualizarForca(senha) {
+    const bar   = document.getElementById('strengthBar');
+    const label = document.getElementById('strengthLabel');
+    let score = 0;
+    if (senha.length >= 6)  score++;
+    if (senha.length >= 10) score++;
+    if (/[A-Z]/.test(senha)) score++;
+    if (/[0-9]/.test(senha)) score++;
+    if (/[^A-Za-z0-9]/.test(senha)) score++;
+
+    const configs = [
+        { pct: '20%', bg: '#dc3545', txt: 'Muito fraca' },
+        { pct: '40%', bg: '#fd7e14', txt: 'Fraca'       },
+        { pct: '60%', bg: '#ffc107', txt: 'Razoável'    },
+        { pct: '80%', bg: '#20c997', txt: 'Boa'         },
+        { pct: '100%',bg: '#28a745', txt: 'Forte'       },
+    ];
+    const c = configs[Math.min(score - 1, 4)] || { pct: '0%', bg: '#dee2e6', txt: '' };
+    bar.style.width      = c.pct;
+    bar.style.background = c.bg;
+    label.textContent    = c.txt;
+    label.style.color    = c.bg;
+}
+
+// Verificar coincidência das senhas em tempo real
+document.getElementById('inputConf').addEventListener('input', function () {
+    const s1 = document.getElementById('inputSenha').value;
+    const s2 = this.value;
+    const msg = document.getElementById('senhasMismatch');
+    msg.classList.toggle('d-none', s1 === s2 || !s2);
+});
+
+// Prevenir duplo-submit
+document.getElementById('formCadastro').addEventListener('submit', function (e) {
+    const btn = document.getElementById('btnCadastrar');
+    const s1  = document.getElementById('inputSenha').value;
+    const s2  = document.getElementById('inputConf').value;
+    if (s1 !== s2) {
+        e.preventDefault();
+        document.getElementById('senhasMismatch').classList.remove('d-none');
+        return;
+    }
+    btn.disabled   = true;
+    btn.innerHTML  = '<i class="fas fa-spinner fa-spin me-2"></i>Criando conta...';
+});
+</script>
+</body>
+</html>

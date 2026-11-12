@@ -1,0 +1,474 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block extra_head %}
+{{ super() }}
+{# 1. Adicionar os links do Select2 (CSS) e um estilo customizado para o tema #}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+  /* Estilos para o Select2 combinar com o tema do app */
+  .select2-container--default .select2-selection--multiple {
+    background-color: var(--bg-input-color, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: .25rem; min-height: 38px;
+  }
+  .dark-mode .select2-container--default .select2-selection--multiple { background-color: #2a2a2a; border-color: #555; }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #28a745; border-color: #1e7e34; color: #fff;
+    padding: 2px 8px; margin-top: 4px;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color: rgba(255, 255, 255, 0.7); margin-right: 5px; }
+  .select2-dropdown { background-color: var(--bg-content-color, #fff); border: 1px solid var(--border-color, #dee2e6); }
+  .dark-mode .select2-dropdown { background-color: #2a2a2a; border-color: #555; }
+  .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable { background-color: #28a745; }
+  .select2-container--default .select2-search--dropdown .select2-search__field {
+      background-color: var(--bg-input-color, #fff); border: 1px solid var(--border-color, #dee2e6); color: var(--text-color, #212529);
+  }
+  .dark-mode .select2-container--default .select2-search--dropdown .select2-search__field { background-color: #333; border-color: #555; color: #fff; }
+</style>
+{% endblock %}
+
+{% block tab_content %}
+<div class="alert alert-info d-flex align-items-start gap-2">
+    <i class="fas fa-info-circle mt-1"></i>
+    <div>
+        Configurações da aba <strong>Dashboard</strong> afetam a visualização do painel principal do WMS
+        para todos os operadores da empresa <strong>{{ empresa }}</strong>.
+        Alterações têm efeito imediato após salvar.
+    </div>
+</div>
+
+{# ── Preview visual dos cards configuráveis ── #}
+<div class="param-card mb-4">
+    <div class="param-card-header">
+        <h5><i class="fas fa-eye me-2 text-success"></i>Preview dos Cards</h5>
+        <small class="text-muted">Cards que serão exibidos no Dashboard conforme configuração abaixo</small>
+    </div>
+    <div class="param-card-body">
+        <div class="row g-3" id="previewCards">
+            {% set card_configs = [
+                ('dashboard_exibir_card_pendentes', 'Avarias Pendentes', 'fas fa-exclamation-circle', 'warning'),
+                ('dashboard_exibir_card_triagem',   'Aguardando Triagem', 'fas fa-search', 'info'),
+                ('dashboard_exibir_card_pagamento', 'Aguardando Pagamento', 'fas fa-dollar-sign', 'success'),
+                ('dashboard_exibir_card_asn',       'ASNs Agendados', 'fas fa-truck', 'primary'),
+            ] %}
+            {% for chave, label, icone, cor in card_configs %}
+                {% if configs.get(chave, 'sim') == 'sim' %}
+                <div class="col-md-3 col-6">
+                    <div class="border border-{{ cor }} rounded p-3 text-center opacity-75">
+                        <i class="{{ icone }} text-{{ cor }} mb-1 d-block fs-4"></i>
+                        <small class="text-muted">{{ label }}</small>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <p class="text-muted small mt-2 mb-0">
+            <i class="fas fa-sync-alt me-1"></i>O preview atualiza ao salvar as configurações.
+        </p>
+    </div>
+</div>
+
+{# ── Formulário de configuração (mesmo padrão do tab_geral) ── #}
+<form id="formConfigDashboard">
+{% for secao in secoes %}
+<div class="param-card mb-4">
+    <div class="param-card-header">
+        <h5><i class="{{ secao.icone }} me-2 text-success"></i>{{ secao.titulo }}</h5>
+    </div>
+    <div class="param-card-body">
+        <div class="row g-3">
+        {% for chave, label, tipo, default in secao.campos %}
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">{{ label }}</label>
+            {% set valor_atual = configs.get(chave, default) %}
+
+            {% if tipo.startswith('multiselect:') %}
+                {# 2. Renderização condicional: se for 'multiselect', cria um <select> #}
+                {% set opcoes = tipo.split(':')[1].split(',') %}
+                <select id="cfg-{{ chave }}" name="{{ chave }}" class="form-control select2-multiple" multiple="multiple" style="width: 100%">
+                    {% for option in opcoes %}
+                        {% if option %}<option value="{{ option }}">{{ option }}</option>{% endif %}
+                    {% endfor %}
+                </select>
+                <input type="hidden" class="select2-value-holder" data-target="cfg-{{ chave }}" value="{{ valor_atual }}">
+            {% elif tipo.startswith('select:') %}
+                {% set opcoes = tipo[7:].split(',') %}
+                <select name="{{ chave }}" class="form-select">
+                    {% for op in opcoes %}
+                        <option value="{{ op }}" {{ 'selected' if valor_atual == op else '' }}>
+                            {% if op == 'sim' %}✅ Sim
+                            {% elif op == 'nao' %}❌ Não
+                            {% else %}{{ op }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            {% elif tipo == 'number' %}
+                <input type="number" name="{{ chave }}" class="form-control" value="{{ valor_atual }}" min="1">
+            {% elif tipo == 'textarea' %}
+                <textarea name="{{ chave }}" class="form-control" rows="3">{{ valor_atual }}</textarea>
+            {% else %}
+                <input type="text" name="{{ chave }}" class="form-control" value="{{ valor_atual }}">
+            {% endif %}
+
+            <input type="hidden" data-chave="{{ chave }}" data-default="{{ default }}">
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{# ══ SEÇÃO DINÂMICA: Funil de Cobrança ══ #}
+<div class="param-card mb-4" id="card-funil">
+  <div class="param-card-header d-flex justify-content-between align-items-center">
+    <div>
+      <h5 class="mb-0"><i class="fas fa-funnel-dollar me-2 text-success"></i>Painéis Analíticos — Funil de Cobrança</h5>
+      <small class="text-muted">As etapas contam avarias pelo Status de Indenização. Vazio = todas as indenizáveis.</small>
+    </div>
+  </div>
+  <div class="param-card-body">
+
+    {# Dados para o JS #}
+    <script>
+    const FUNIL_STATUS_OPTS = [
+      {% for st in status_indenizacao_list_full %}
+      { nome: {{ st.status | tojson }}, cor: {{ st.cor | tojson }} }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+    const FUNIL_ETAPAS_INIT = {{ funil_etapas_atual | tojson }};
+    </script>
+
+    <div id="funil-etapas-lista"></div>
+
+    <button type="button" class="btn btn-outline-success btn-sm mt-2" onclick="funilAddEtapa()">
+      <i class="fas fa-plus me-1"></i>Adicionar Etapa
+    </button>
+  </div>
+</div>
+
+<div class="d-flex justify-content-end gap-2 mt-3 mb-4">
+    <button type="button" class="btn btn-outline-secondary" onclick="restaurarPadroesDash()">
+        <i class="fas fa-undo me-1"></i>Restaurar Padrões
+    </button>
+    <button type="submit" class="btn btn-success">
+        <i class="fas fa-save me-1"></i>Salvar Configurações do Dashboard
+    </button>
+</div>
+</form>
+{% endblock %}
+
+{% block tab_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<style>
+/* ── Funil dinâmico ── */
+.funil-row {
+  background: var(--bg-content-color, #fff);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.dark-mode .funil-row { background: #1e2130; border-color: #333; }
+.funil-row .funil-idx {
+  font-size: 11px; font-weight: 700; color: #6c757d;
+  min-width: 56px; padding-top: 7px; text-align: center;
+  flex-shrink: 0;
+}
+.funil-row .funil-label-inp {
+  flex: 0 0 180px; min-width: 0;
+}
+.funil-row .funil-status-area {
+  flex: 1; min-width: 0; position: relative;
+}
+.funil-status-trigger {
+  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--bg-input-color, #fff);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 34px;
+  align-items: center;
+  transition: border-color .2s;
+}
+.dark-mode .funil-status-trigger { background: #2a2a2a; border-color: #555; color: #e2e8f0; }
+.funil-status-trigger:hover, .funil-status-trigger.open { border-color: #28a745; }
+.funil-status-trigger .fst-placeholder { color: #aaa; font-size: 11px; }
+.funil-status-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 600;
+  cursor: pointer;
+}
+.funil-status-pill .fsp-x { opacity: .7; font-size: 9px; }
+.funil-status-dropdown {
+  display: none; position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+  z-index: 999; background: var(--bg-content-color, #fff);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.15);
+  max-height: 240px; overflow-y: auto;
+}
+.dark-mode .funil-status-dropdown { background: #1e2130; border-color: #444; }
+.funil-status-dropdown.open { display: block; }
+.fsd-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  transition: background .12s;
+}
+.fsd-item:hover { background: rgba(40,167,69,.06); }
+.fsd-item.selected { background: rgba(40,167,69,.10); }
+.fsd-item input[type=checkbox] { accent-color: #28a745; width: 14px; height: 14px; flex-shrink: 0; }
+.fsd-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.funil-row .funil-remove {
+  flex-shrink: 0; margin-top: 2px;
+}
+</style>
+<script>
+$(document).ready(function() {
+    // Para cada campo multiselect na página...
+    $('.select2-multiple').each(function() {
+        const selectId = $(this).attr('id');
+        const holder = document.querySelector(`.select2-value-holder[data-target="${selectId}"]`);
+        const savedValue = holder ? holder.value : '';
+        const savedValues = savedValue ? savedValue.split(',') : [];
+
+        // Inicializa o Select2
+        $(this).select2({
+            placeholder: "Selecione os status",
+            width: '100%',
+            closeOnSelect: false
+        });
+
+        // Define os valores salvos como selecionados
+        if (savedValues.length > 0) {
+            $(this).val(savedValues).trigger('change');
+        }
+    });
+});
+
+document.getElementById('formConfigDashboard').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const payload = {};
+    this.querySelectorAll('[name]').forEach(el => {
+        if (!el.name) return;
+
+        // Tratamento especial para Select2
+        if (el.classList.contains('select2-multiple')) {
+            const selectedValues = $(el).val() || [];
+            payload[el.name] = selectedValues.join(',');
+        } else {
+            // Lógica padrão para outros campos
+            payload[el.name] = el.value;
+        }
+    });
+    _funilSerialize(payload);
+
+    const btn = this.querySelector('[type=submit]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+
+    const res = await paramApi('/wms/parametrizacao/api/config', 'POST', payload);
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Configurações do Dashboard';
+
+    if (res.success) {
+        showParamToast('✅ Configurações do Dashboard salvas!');
+    } else {
+        showParamToast(res.error || 'Erro ao salvar', 'danger');
+    }
+});
+
+function restaurarPadroesDash() {
+    if (!confirm('Restaurar padrões do Dashboard? (Confirme em Salvar para aplicar)')) return;
+    document.querySelectorAll('[data-chave]').forEach(el => {
+        const campo = document.querySelector(`[name="${el.dataset.chave}"]`);
+        if (campo) campo.value = el.dataset.default;
+    });
+    showParamToast('Padrões restaurados. Clique em Salvar para confirmar.', 'warning');
+}
+
+/* ══════════════════════════════════════════════
+   FUNIL DE COBRANÇA — UI dinâmico
+   ══════════════════════════════════════════════ */
+
+// Estado por linha: { rowEl, selectedStatus: [{nome, cor}] }
+const _funilRows = [];
+
+function funilRenderAll() {
+    const container = document.getElementById('funil-etapas-lista');
+    container.innerHTML = '';
+    _funilRows.length = 0;
+    (FUNIL_ETAPAS_INIT || []).forEach(etapa => {
+        const selected = (etapa.status || '').split(',').map(s => s.trim()).filter(Boolean).map(nome => {
+            const opt = FUNIL_STATUS_OPTS.find(o => o.nome === nome);
+            return { nome, cor: opt ? opt.cor : '#6c757d' };
+        });
+        _funilAddRow(etapa.label || '', selected);
+    });
+    _funilReindex();
+}
+
+function funilAddEtapa() {
+    _funilAddRow('', []);
+    _funilReindex();
+}
+
+function _funilAddRow(labelVal, selectedStatus) {
+    const container = document.getElementById('funil-etapas-lista');
+    const row = document.createElement('div');
+    row.className = 'funil-row';
+    row.innerHTML = `
+      <div class="funil-idx"></div>
+      <div class="funil-label-inp">
+        <input type="text" class="form-control form-control-sm funil-label" placeholder="Nome da etapa" value="${_esc(labelVal)}">
+      </div>
+      <div class="funil-status-area">
+        <div class="funil-status-trigger" tabindex="0">
+          <span class="fst-placeholder">Selecionar status...</span>
+        </div>
+        <div class="funil-status-dropdown">
+          ${FUNIL_STATUS_OPTS.map(o => `
+            <div class="fsd-item" data-nome="${_esc(o.nome)}" data-cor="${_esc(o.cor)}">
+              <input type="checkbox" tabindex="-1">
+              <span class="fsd-dot" style="background:${o.cor}"></span>
+              <span>${_esc(o.nome)}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="funil-remove">
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="funilRemoveEtapa(this)" title="Remover etapa">
+          <i class="fas fa-minus"></i>
+        </button>
+      </div>`;
+
+    container.appendChild(row);
+
+    const state = { rowEl: row, selectedStatus: [] };
+    _funilRows.push(state);
+
+    // Wire up dropdown toggle
+    const trigger = row.querySelector('.funil-status-trigger');
+    const dropdown = row.querySelector('.funil-status-dropdown');
+
+    trigger.addEventListener('click', () => {
+        const isOpen = dropdown.classList.toggle('open');
+        trigger.classList.toggle('open', isOpen);
+        if (isOpen) {
+            // close other open dropdowns
+            document.querySelectorAll('.funil-status-dropdown.open').forEach(d => {
+                if (d !== dropdown) {
+                    d.classList.remove('open');
+                    d.previousElementSibling.classList.remove('open');
+                }
+            });
+        }
+    });
+
+    // Checkbox items
+    dropdown.querySelectorAll('.fsd-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.tagName === 'INPUT') return; // handled below
+            item.querySelector('input[type=checkbox]').click();
+        });
+        item.querySelector('input[type=checkbox]').addEventListener('change', function() {
+            const nome = item.dataset.nome;
+            const cor  = item.dataset.cor;
+            if (this.checked) {
+                if (!state.selectedStatus.find(s => s.nome === nome))
+                    state.selectedStatus.push({ nome, cor });
+            } else {
+                state.selectedStatus = state.selectedStatus.filter(s => s.nome !== nome);
+            }
+            _funilUpdateTrigger(trigger, state.selectedStatus);
+        });
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!row.contains(e.target)) {
+            dropdown.classList.remove('open');
+            trigger.classList.remove('open');
+        }
+    }, { capture: false });
+
+    // Set initial selection
+    selectedStatus.forEach(({ nome, cor }) => {
+        state.selectedStatus.push({ nome, cor });
+        const item = dropdown.querySelector(`.fsd-item[data-nome="${CSS.escape(nome)}"]`);
+        if (item) {
+            item.querySelector('input[type=checkbox]').checked = true;
+            item.classList.add('selected');
+        }
+    });
+    _funilUpdateTrigger(trigger, state.selectedStatus);
+}
+
+function funilRemoveEtapa(btn) {
+    const row = btn.closest('.funil-row');
+    const idx = _funilRows.findIndex(s => s.rowEl === row);
+    if (idx !== -1) _funilRows.splice(idx, 1);
+    row.remove();
+    _funilReindex();
+}
+
+function _funilReindex() {
+    document.querySelectorAll('#funil-etapas-lista .funil-row').forEach((row, i) => {
+        const idx = row.querySelector('.funil-idx');
+        if (idx) idx.textContent = `Etapa ${i + 1}`;
+    });
+}
+
+function _funilUpdateTrigger(trigger, selected) {
+    // sync .selected class on items
+    trigger.nextElementSibling.querySelectorAll('.fsd-item').forEach(item => {
+        const sel = selected.find(s => s.nome === item.dataset.nome);
+        item.classList.toggle('selected', !!sel);
+        item.querySelector('input[type=checkbox]').checked = !!sel;
+    });
+
+    if (selected.length === 0) {
+        trigger.innerHTML = `<span class="fst-placeholder">Selecionar status...</span>`;
+        return;
+    }
+    trigger.innerHTML = selected.map(s =>
+        `<span class="funil-status-pill" style="background:${s.cor}20;color:${s.cor};border:1px solid ${s.cor}40">
+           <span class="fsd-dot" style="background:${s.cor};width:7px;height:7px;border-radius:50%;display:inline-block"></span>
+           ${_esc(s.nome)}
+         </span>`
+    ).join('');
+}
+
+function _esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _funilSerialize(payload) {
+    // Clear old keys (up to 15)
+    for (let i = 1; i <= 15; i++) {
+        payload[`dash_funil_etapa${i}_label`]  = '';
+        payload[`dash_funil_etapa${i}_status`] = '';
+    }
+    let idx = 1;
+    document.querySelectorAll('#funil-etapas-lista .funil-row').forEach(row => {
+        const state = _funilRows.find(s => s.rowEl === row);
+        const label = row.querySelector('.funil-label').value.trim();
+        if (!label) return;
+        payload[`dash_funil_etapa${idx}_label`]  = label;
+        payload[`dash_funil_etapa${idx}_status`] = state ? state.selectedStatus.map(s => s.nome).join(',') : '';
+        idx++;
+    });
+}
+
+// Boot funil on page load
+document.addEventListener('DOMContentLoaded', funilRenderAll);
+</script>
+{% endblock %}

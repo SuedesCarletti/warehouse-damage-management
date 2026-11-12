@@ -1,0 +1,337 @@
+{# ===========================================================================
+     COMPONENTE: Modal de Registrar Avaria (Fase 3)
+     Extraído de: templates/wms/registrar_avarias.html
+     Pode ser incluído em qualquer template WMS:
+       include 'components/modal_registrar_avaria.html'
+     =========================================================================== #}
+
+<div class="modal fade" id="modalRegistrarAvaria" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>Registrar Nova Avaria
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('wms.registrar_avaria_post') }}">
+                <div class="modal-body">
+                    
+            <!-- SEÇÃO 1: IDENTIFICAÇÃO -->
+            <div class="border-bottom pb-3 mb-4">
+                <h6 class="text-success mb-3">
+                    <i class="fas fa-id-card me-2"></i>Identificação
+                </h6>
+                <div class="row mb-3">
+                    <!-- Código Empresa -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-building me-1"></i>Código da Empresa *
+                        </label>
+                        <input type="text" class="form-control" name="cod_empresa" id="cod_empresa"
+                               placeholder="Ex: 1, 2, 6" required maxlength="10">
+                    </div>
+            
+                    <!-- Nota (NF Venda) -->
+                    <div class="col-md-5">
+                        <label class="form-label">
+                            <i class="fas fa-file-invoice me-1"></i>NF Venda (ou NFD Busca) *
+                        </label>
+                        <input type="text" class="form-control" name="nota" id="nota"
+                               placeholder="Busque pelo número da NF ou NFD" required>
+                        <small class="text-muted">O sistema tentará preencher NF Venda e NFD</small>
+                        <div id="feedbackNota" class="mt-2"></div>
+                    </div>
+            
+                    <!-- NFD Adicional -->
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-file-alt me-1"></i>NFD
+                        </label>
+                        <input type="text" class="form-control form-control-autofill" name="nfd" id="nfd"
+                               placeholder="Preenchido automaticamente" readonly>
+                        <small class="text-muted">Número da NFD, se for devolução</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SEÇÃO 2: LOGÍSTICA (AUTO-PREENCHIDOS + MANUAL) -->
+            <div class="border-bottom pb-3 mb-4">
+                <h6 class="text-success mb-3">
+                    <i class="fas fa-truck me-2"></i>Logística e Valores
+                </h6>
+                <!-- START ROW 1: Quantidade, Volume, Transportadora, CTE -->
+                <div class="row mb-3">
+                    <!-- Quantidade (AUTO) -->
+                    <div class="col-md-2">
+                        <label class="form-label">
+                            <i class="fas fa-box me-1"></i>Quantidade * (Auto)
+                        </label>
+                        <input type="number" class="form-control form-control-autofill" name="quantidade" id="quantidade"
+                               placeholder="Auto" required min="1" step="1" readonly>
+                    </div>
+            
+                    <!-- Volume (AUTO) -->
+                    <div class="col-md-2">
+                        <label class="form-label">
+                            <i class="fas fa-cube me-1"></i>Volume (Auto)
+                        </label>
+                        <input type="text" class="form-control form-control-autofill" name="volume" id="volume"
+                               placeholder="Auto" readonly>
+                    </div>
+                    
+                    <!-- Transportadora (MANUAL/AUTO) -->
+                    <div class="col-md-5">
+                        <label class="form-label">
+                            <i class="fas fa-truck-moving me-1"></i>Transportadora *
+                        </label>
+                        <input type="text" class="form-control" name="transportadora" id="transportadora"
+                               placeholder="Auto-preenchido, mas editável" required>
+                    </div>
+                    
+                    <!-- CTE -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-file-contract me-1"></i>CTE
+                        </label>
+                        <input type="text" class="form-control" name="cte" id="cte"
+                               placeholder="Opcional">
+                    </div>
+                    
+                    <!-- Protocolo Insucesso -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-times-circle me-1"></i>Protocolo Insucesso
+                        </label>
+                        <input type="text" class="form-control" name="protocolo_insucesso"
+                               id="protocolo_insucesso" placeholder="Nº protocolo de insucesso">
+                    </div>
+                </div>
+                <!-- END ROW 1 -->
+
+                <!-- START ROW 2: Valor NF, Valor NFD -->
+                <div class="row mb-3">
+                    <!-- Valor NF (AUTO) -->
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            <i class="fas fa-dollar-sign me-1"></i>Valor NF * (Auto)
+                        </label>
+                        <input type="text" class="form-control form-control-autofill" name="valor_nf" id="valor_nf"
+                               placeholder="Auto" required readonly>
+                    </div>
+                    
+                    <!-- Valor NFD (AUTO) -->
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            <i class="fas fa-dollar-sign me-1"></i>Valor NFD (Auto)
+                        </label>
+                        <input type="text" class="form-control form-control-autofill" name="valor_nfd" id="valor_nfd"
+                               placeholder="Valor NFD" readonly>
+                    </div>
+                </div>
+                <!-- END ROW 2 -->
+            </div>
+            
+            <!-- SEÇÃO 3: LOGÍSTICA ADICIONAL E DEVOLUÇÃO (SIMPLIFICADO) -->
+            <div class="border-bottom pb-3 mb-4">
+                <h6 class="text-success mb-3">
+                    <i class="fas fa-pallet me-2"></i>Logística Adicional e Devolução
+                </h6>
+                <div class="row mb-3">
+                    
+                    <!-- Data Coleta (NEW) -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-calendar-alt me-1"></i>Data da Coleta
+                        </label>
+                        <input type="date" class="form-control" name="data_coleta" id="data_coleta">
+                    </div>
+                    
+                    <!-- Código Rastreio Correios (NEW) -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-barcode me-1"></i>Cód. Rastreio Correios
+                        </label>
+                        <input type="text" class="form-control" name="cod_rastreio_correios" id="cod_rastreio_correios"
+                               placeholder="Rastreio ou AWB">
+                    </div>
+                    
+                    <!-- Motivo Devolução -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-question-circle me-1"></i>Motivo Devolução <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" name="motivo_devolucao" id="motivo_devolucao" required>
+                            <option value="">⏳ Carregando motivos...</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            Obrigatório - Selecione o motivo da devolução
+                        </small>
+                    </div>
+                    
+                    <!-- Campos ocultos para armazenar dados do motivo -->
+                    <input type="hidden" name="cod_motivo_devolucao" id="cod_motivo_devolucao">
+                    <input type="hidden" name="cod_motivo_inicial" id="cod_motivo_inicial">
+                    <input type="hidden" name="motivo_inicial" id="motivo_inicial">
+                    
+                    <!-- Indenização (Status) -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-hand-holding-usd me-1"></i>Indenização
+                        </label>
+                         <select class="form-select" name="indenizacao" id="indenizacao">
+                            <option value="">Selecione o Status</option>
+                            <option value="total">Total</option>
+                            <option value="parcial">Parcial</option>
+                            <option value="nao_indenizavel">Não Indenizável</option>
+                        </select>
+                    </div>
+                                    <!-- START NOVO CAMPO: Data de Entrega (após Indenização) -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-check me-1"></i>Previsão de Entrega
+                            </label>
+                            <input type="date" class="form-control" name="data_entrega" id="data_entrega">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="data_protocolo_mkt" class="form-label">Data Protocolo MKT</label>
+                            <input type="date" class="form-control" id="data_protocolo_mkt" name="data_protocolo_mkt" value="{{ request.form.data_protocolo_mkt }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="prazo_pagamento" class="form-label">
+                                <i class="fas fa-calendar-alt me-1"></i>Prazo de Pagamento
+                            </label>
+                            <input type="date" class="form-control" id="prazo_pagamento" name="prazo_pagamento" value="{{ request.form.prazo_pagamento }}">
+                        </div>
+                        <!-- Espaçador: 3 colunas ocupadas acima, resta 1 coluna de gap -->
+                        <div class="col-md-3"></div>
+                    </div>
+                </div>
+                
+                <!-- CAMPOS REMOVIDOS/SIMPLIFICADOS: valor_nfd, nfp, valor_nfp, prazo_pagamento, data_pagamento -->
+            </div>
+            
+            <!-- SEÇÃO 4: STATUS (MULTIPLOS) E OBSERVAÇÕES -->
+            <div class="border-bottom pb-3 mb-4">
+                <h6 class="text-success mb-3">
+                    <i class="fas fa-tasks me-2"></i>Status de Avaria
+                </h6>
+                <div class="row mb-3">
+
+                    <!-- Status Estoque Field ◩︎ -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-warehouse me-1"></i>Status Estoque *
+                        </label>
+                        <select class="form-select" name="status_estoque" id="status_estoque" required>
+                            {% for status in status_estoque_list %}
+                            <option value="{{ status.status }}">{{ status.status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Status Indenização Field ◩︎ -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-hand-holding-usd me-1"></i>Status Indenização *
+                        </label>
+                        <select class="form-select" name="status_indenizacao" id="status_indenizacao" required>
+                            {% for status in status_indenizacao_list %}
+                            <option value="{{ status.status }}">{{ status.status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Observação Geral (Resized to col-md-3) -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-comment-dots me-1"></i>Observação Geral
+                        </label>
+                        <textarea class="form-control" name="observacao" id="observacao"
+                                  rows="3" placeholder="Informações adicionais sobre a avaria"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SEÇÃO 5: ITENS DA NOTA (SELEÇÃO MÚLTIPLA) -->
+            <div id="secaoItens" style="display: none;">
+                <h6 class="text-success mb-3">
+                    <i class="fas fa-list-check me-2"></i>Itens da Nota - Selecione os Avariados
+                </h6>
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Selecione os itens avariados</strong> e ajuste a quantidade e localização conforme necessário.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover">
+                            <thead class="table-success">
+                                <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="selecionarTodos" class="form-check-input">
+                                    </th>
+                                    <th>Seq</th>
+                                    <th>Código</th>
+                                    <th>Produto</th>
+                                    <th class="text-center" style="width: 80px;">Qtd Nota</th>
+                                    <th style="width: 120px;">Qtd Avariada</th>
+                                    <th style="width: 100px;">Localização</th>
+                                    <th class="text-end" style="width: 100px;">Vlr Unit.</th>
+                                    <!-- 🆕 NOVA COLUNA -->
+                                    <th class="text-center" style="width: 80px;">Ações</th>
+                                </tr>
+                            </thead>
+                        <tbody id="itensNotaLista">
+                            <!-- Preenchido dinamicamente via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Campo Hidden para armazenar itens selecionados -->
+            <input type="hidden" name="itens_selecionados" id="itens_selecionados" value="[]">
+            <!-- ⚡ NUNOTA selecionado no modal (preenchido pelo JS) -->
+            <input type="hidden" name="nunota" id="nunota_selecionado" value="">
+            
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-2"></i>Salvar Avaria
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalSelecionarNota" tabindex="-1"
+     aria-labelledby="modalSelecionarNotaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalSelecionarNotaLabel">
+                    <i class="fas fa-file-invoice me-2"></i>Selecione a Nota Fiscal Correta
+                </h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    Múltiplas notas foram encontradas para o número informado.
+                    Selecione a nota correta para prosseguir com o registro:
+                </p>
+                <div id="tabelaSelecionarNota">
+                    <!-- Populado dinamicamente pelo JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Plataforma Multi-Soluções{% endblock %}
+
+{% block content %}
+<div class="container text-center">
+    <div class="py-5">
+        <h1 class="display-4">Bem-vindo à Plataforma de Soluções</h1>
+        <p class="lead text-muted">Selecione o módulo que deseja acessar.</p>
+    </div>
+
+    <div class="row justify-content-center g-4">
+        {% set allowed_modules = user_permissions.get('modules', []) %}
+
+        <!-- Card HelpDesk -->
+        {% if 'helpdesk' in allowed_modules and endpoint_exists('tickets.dashboard') %}
+        <div class="col-md-5">
+            <a href="{{ safe_url_for('tickets.dashboard') }}" class="text-decoration-none">
+                <div class="card h-100 module-card theme-helpdesk">
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <div class="mb-3"><i class="fas fa-headset fa-4x"></i></div>
+                        <h4 class="card-title">HelpDesk de TI</h4>
+                        <p class="card-text">Gerencie chamados, acompanhe status e melhore o suporte.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Card WMS -->
+        {% if 'wms' in allowed_modules and endpoint_exists('wms.index') %}
+        <div class="col-md-5 mb-4">
+            <a href="{{ safe_url_for('wms.index') }}" class="text-decoration-none">
+                <div class="card h-100 module-card theme-wms">
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <div class="mb-3"><i class="fas fa-warehouse fa-4x"></i></div>
+                        <h4 class="card-title">WMS de Avarias</h4>
+                        <p class="card-text">
+                            Sistema de gerenciamento de armazém e controle de avarias.
+                        </p>
+                        <a href="{{ safe_url_for('wms.index') }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-arrow-right"></i> Acessar WMS
+                        </a>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+
+        {% if not allowed_modules %}
+        <div class="col-md-6">
+            <div class="alert alert-warning">
+                <h4 class="alert-heading">Acesso não configurado</h4>
+                <p>Seu usuário não tem permissão para acessar nenhum módulo. Entre em contato com o administrador.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .module-card {
+        border-left: 7px solid var(--theme-primary);
+        color: var(--text-color);
+        transition: all 0.3s ease;
+    }
+    .module-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        border-color: var(--theme-primary-darker);
+    }
+    .module-card .fas {
+        color: var(--theme-primary);
+    }
+    .module-card.theme-helpdesk { --theme-primary: #2c5aa0; --theme-primary-darker: #1a4480; }
+    .module-card.theme-wms { --theme-primary: #28a745; --theme-primary-darker: #208338; }
+    .dark-mode .module-card {
+        background-color: #2a2a2a;
+    }
+</style>
+{% endblock %}

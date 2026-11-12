@@ -1,0 +1,221 @@
+/**
+ * sidebar-toggle.css - Sistema de Toggle da Sidebar (VERSÃO 4.0 - DEFINITIVA)
+ * 
+ * CORREÇÕES FINAIS:
+ * - Sidebar se estende até o final da página
+ * - Sem afetar outras rows do sistema
+ * - Sem espaço em branco embaixo
+ * - Transições suaves funcionando
+ * 
+ * Adicione: <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar-toggle.css') }}">
+ */
+
+/* ==================== BOTÃO DE TOGGLE ==================== */
+.sidebar-toggle-btn {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    z-index: 1040;
+    background: var(--theme-primary);
+    color: white;
+    border: none;
+    border-radius: 0 8px 8px 0;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+}
+
+.sidebar-toggle-btn:hover {
+    padding-left: 12px;
+    background: var(--theme-primary-hover, #0056b3);
+}
+
+.sidebar-toggle-btn i {
+    font-size: 18px;
+    transition: transform 0.3s ease;
+}
+
+/* Quando sidebar está oculta - ícone rotaciona */
+body.sidebar-hidden .sidebar-toggle-btn i {
+    transform: rotate(180deg);
+}
+
+/* ==================== COLUNA DA SIDEBAR ==================== */
+
+/* Manter coluna visível por padrão */
+.col-lg-2 {
+    transition: all 0.3s ease;
+}
+
+/* Quando sidebar oculta - coluna some */
+body.sidebar-hidden .col-lg-2 {
+    flex: 0 0 0 !important;
+    max-width: 0 !important;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+/* ==================== SIDEBAR COMPORTAMENTO ==================== */
+
+.sidebar {
+    transition: all 0.3s ease;
+    min-height: calc(100vh - 56px);
+    height: 100%;
+    overflow-y: auto;
+    position: sticky;
+    top: 56px;
+}
+
+/* Quando sidebar visível (padrão) */
+body:not(.sidebar-hidden) .sidebar {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Quando sidebar oculta */
+body.sidebar-hidden .sidebar {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* ==================== FORÇAR ALTURA DA COLUNA ==================== */
+
+@media (min-width: 992px) {
+    /* Apenas em desktop - força coluna a ter altura total */
+    body:not(.sidebar-hidden) .col-lg-2 {
+        min-height: calc(100vh - 56px);
+    }
+}
+
+/* ==================== CONTEÚDO PRINCIPAL SE ADAPTA ==================== */
+
+.main-content-wrapper {
+    transition: all 0.3s ease;
+    min-width: 0; /* FIX CRÍTICO: impede flex child de crescer além do container */
+}
+
+/* Quando sidebar visível - coluna ocupa 10 */
+body:not(.sidebar-hidden) .col-lg-10 {
+    flex: 0 0 auto;
+    width: 83.33333333%;
+}
+
+/* Quando sidebar oculta - coluna ocupa 12 (100%) */
+body.sidebar-hidden .col-lg-10 {
+    flex: 0 0 100%;
+    max-width: 100%;
+}
+
+/* ==================== SCROLLBAR DA SIDEBAR ==================== */
+
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* ==================== RESPONSIVIDADE ==================== */
+
+/* Para telas pequenas */
+@media (max-width: 991px) {
+    /* Antes o botão de toggle era escondido no mobile — ou seja, não havia como
+       recolher a sidebar, que empurra todo o conteúdo para baixo numa tela pequena.
+       Mantemos o botão visível (maior, para dedo/touch) para o operador poder
+       recolher a sidebar e ir direto ao conteúdo. */
+    .sidebar-toggle-btn {
+        top: 60px;
+        padding: 14px 10px;
+        min-height: 44px;
+    }
+
+    body.sidebar-hidden .sidebar {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Evita que uma sidebar longa empurre todo o conteúdo para fora da tela em tablet/celular */
+    .sidebar {
+        max-height: 40vh;
+    }
+
+    /* Garante que o conteúdo ocupe 100% da tela no mobile, evitando espaço em branco à esquerda */
+    body.sidebar-hidden .col-lg-10,
+    body:not(.sidebar-hidden) .col-lg-10 {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Alvos de toque maiores para botões e campos de formulário (operação em tablet/celular) */
+    .btn,
+    .form-control,
+    .form-select {
+        min-height: 44px;
+    }
+    .btn-sm {
+        min-height: 38px;
+    }
+}
+
+/* ==================== INDICADOR VISUAL DO BOTÃO ==================== */
+
+.sidebar-toggle-btn::after {
+    content: '';
+    position: absolute;
+    width: 3px;
+    height: 40%;
+    background: rgba(255, 255, 255, 0.3);
+    right: 5px;
+    top: 30%;
+    border-radius: 2px;
+}
+
+/* ==================== ANIMAÇÕES SUAVES ==================== */
+
+.sidebar,
+.main-content-wrapper,
+.sidebar-toggle-btn,
+.col-lg-2,
+.col-lg-10 {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==================== GARANTIR QUE NAVBAR FIQUE NO TOPO ==================== */
+
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1050;
+}
+
+/* ==================== PREVENIR PROBLEMAS ==================== */
+
+/* Prevenir scroll horizontal */
+body {
+    overflow-x: hidden;
+}
+
+/* Garantir que cards não causem espaço extra */
+.card {
+    margin-bottom: 1.5rem;
+}
+
+/* Última card da página */
+.main-content > .card:last-child,
+.main-content > div:last-child .card:last-child {
+    margin-bottom: 0;
+}
+
+/* ==================== FIM DO ARQUIVO ==================== */

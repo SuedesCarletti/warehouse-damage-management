@@ -1,0 +1,529 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block extra_head %}
+{{ super() }}
+{# Quill.js — editor visual WYSIWYG open source #}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+<style>
+/* ── Editor Quill estilizado para dark/light mode ── */
+.ql-toolbar.ql-snow {
+    border-color: var(--border-color, #dee2e6) !important;
+    border-radius: 6px 6px 0 0;
+    background: var(--bg-content-color, #fff);
+}
+.ql-container.ql-snow {
+    border-color: var(--border-color, #dee2e6) !important;
+    border-radius: 0 0 6px 6px;
+    min-height: 220px;
+    font-size: .9rem;
+}
+.ql-editor { min-height: 200px; }
+.dark-mode .ql-toolbar.ql-snow,
+.dark-mode .ql-container.ql-snow { border-color: #444 !important; background: #1e1e1e; }
+.dark-mode .ql-editor { color: #e0e0e0; }
+.dark-mode .ql-toolbar button svg .ql-stroke { stroke: #ccc; }
+
+/* ── Pílulas de variável disponível ── */
+.var-pill {
+    display: inline-block;
+    background: rgba(40,167,69,.12);
+    border: 1px solid rgba(40,167,69,.3);
+    color: #28a745;
+    font-family: monospace;
+    font-size: .78rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background .15s;
+}
+.var-pill:hover { background: rgba(40,167,69,.25); }
+
+/* ── Preview do e-mail ── */
+#previewContainer {
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 8px;
+    overflow: hidden;
+}
+#previewFrame {
+    width: 100%;
+    min-height: 340px;
+    border: none;
+    background: #fff;
+}
+#previewPlaceholder {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted-color, #6c757d);
+}
+#previewPlaceholder i { font-size: 2.5rem; opacity: .3; }
+
+/* ── Linha de template na tabela ── */
+.template-ativo  { border-left: 3px solid #28a745; }
+.template-inativo { border-left: 3px solid #6c757d; opacity: .65; }
+</style>
+{% endblock %}
+
+{% block tab_content %}
+
+{# ══════════════════════════════════════════════════════════
+   CABEÇALHO
+══════════════════════════════════════════════════════════ #}
+<div class="param-card mb-3">
+    <div class="param-card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-file-alt me-2 text-success"></i>Templates de E-mail
+        </h5>
+        <button class="btn btn-success btn-sm" onclick="abrirModalNovo()">
+            <i class="fas fa-plus me-1"></i>Novo Template
+        </button>
+    </div>
+    <div class="param-card-body">
+        <div class="alert alert-info border-0 mb-0 py-2" style="font-size:.85rem;">
+            <i class="fas fa-info-circle me-2"></i>
+            Templates são usados nas etapas do <strong>Funil de Cobrança</strong> e em outras notificações do WMS.
+            Use <code>{{variavel}}</code> para inserir dados dinâmicos (ex: <code>{{transportadora}}</code>,
+            <code>{{numero_nf}}</code>, <code>{{valor}}</code>). Os valores são substituídos automaticamente
+            no momento do envio.
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   LISTA DE TEMPLATES
+══════════════════════════════════════════════════════════ #}
+<div class="param-card">
+    <div class="param-card-body p-0">
+        {% if templates %}
+        <table class="param-table mb-0">
+            <thead>
+                <tr>
+                    <th style="width:30%">Nome</th>
+                    <th style="width:35%">Assunto</th>
+                    <th style="width:20%">Variáveis</th>
+                    <th style="width:7%">Status</th>
+                    <th style="width:8%" class="text-end pe-3">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaTemplates">
+            {% for tpl in templates %}
+            <tr class="{{ 'template-ativo' if tpl.ativo == 'sim' else 'template-inativo' }}"
+                data-id="{{ tpl.id }}">
+                <td>
+                    <strong>{{ tpl.nome }}</strong>
+                    <br><small class="text-muted">Criado em {{ format_date_br(tpl.criado_em, include_time=False) or '—' }}</small>
+                </td>
+                <td class="text-truncate" style="max-width:0">{{ tpl.assunto }}</td>
+                <td>
+                    {% if tpl.variaveis %}
+                        {% for v in tpl.variaveis.split(',') %}
+                            <span class="var-pill" title="Variável disponível">{{"{{"}}{{ v.strip() }}{{"}}"}}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if tpl.ativo == 'sim' %}
+                        <span class="badge bg-success">Ativo</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inativo</span>
+                    {% endif %}
+                </td>
+                <td class="text-end pe-3">
+                    <button class="btn btn-sm btn-outline-secondary me-1"
+                            title="Visualizar"
+                            onclick='previewTemplate({{ tpl | tojson }})'>
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success me-1"
+                            title="Editar"
+                            onclick='editarTemplate({{ tpl | tojson }})'>
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger"
+                            title="Excluir"
+                            onclick="excluirTemplate('{{ tpl.id }}', '{{ tpl.nome }}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="param-empty">
+            <i class="fas fa-file-alt d-block"></i>
+            <p class="mt-2">Nenhum template criado ainda.</p>
+            <button class="btn btn-success btn-sm" onclick="abrirModalNovo()">
+                <i class="fas fa-plus me-1"></i>Criar primeiro template
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   MODAL — Criar / Editar template
+══════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalTemplate" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTemplateTitle">
+                    <i class="fas fa-file-alt me-2"></i>Novo Template
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="tplId">
+                <div class="row g-3">
+
+                    {# Coluna esquerda — formulário #}
+                    <div class="col-lg-6">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nome do template <span class="text-danger">*</span></label>
+                            <input type="text" id="tplNome" class="form-control"
+                                   placeholder="Ex: 1ª Cobrança — Transportadora">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Assunto do e-mail <span class="text-danger">*</span></label>
+                            <input type="text" id="tplAssunto" class="form-control"
+                                   placeholder="Ex: Cobrança de indenização — NF {{numero_nf}}">
+                            <small class="text-muted">Suporta variáveis <code>{{"{{"}}variavel{{"}}"}}</code></small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Variáveis disponíveis neste template</label>
+                            <input type="text" id="tplVariaveis" class="form-control"
+                                   placeholder="transportadora, numero_nf, valor, prazo, empresa">
+                            <small class="text-muted">Separe por vírgula. Clique numa variável abaixo para inserir no corpo.</small>
+                        </div>
+
+                        {# Pílulas de variáveis padrão para clicar #}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Variáveis sugeridas</label>
+                            <div class="d-flex flex-wrap gap-1" id="varPills">
+                                {% set vars_padrao = [
+                                    'transportadora','numero_nf','numero_nfd','valor',
+                                    'valor_indenizacao','prazo','empresa','data_avaria',
+                                    'tipo_avaria','operador','link_portal'
+                                ] %}
+                                {% for v in vars_padrao %}
+                                <span class="var-pill" onclick="inserirVariavel('{{ v }}')"
+                                      title="Clique para inserir no corpo do e-mail">
+                                    {{"{{"}}{{ v }}{{"}}"}}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select id="tplAtivo" class="form-select">
+                                <option value="sim">✅ Ativo</option>
+                                <option value="nao">❌ Inativo</option>
+                            </select>
+                        </div>
+
+                    </div>{# /col-lg-6 #}
+
+                    {# Coluna direita — editor + preview #}
+                    <div class="col-lg-6">
+
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">
+                                    Corpo do e-mail (HTML) <span class="text-danger">*</span>
+                                </label>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary active"
+                                            id="btnModoVisual" onclick="modoVisual()">
+                                        <i class="fas fa-paint-brush me-1"></i>Visual
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            id="btnModoHtml" onclick="modoHTML()">
+                                        <i class="fas fa-code me-1"></i>HTML
+                                    </button>
+                                </div>
+                            </div>
+
+                            {# Editor visual Quill #}
+                            <div id="editorVisual">
+                                <div id="quillEditor"></div>
+                            </div>
+
+                            {# Editor HTML direto #}
+                            <div id="editorHTML" style="display:none;">
+                                <textarea id="htmlRaw" class="form-control font-monospace"
+                                          rows="12" placeholder="Cole ou escreva o HTML aqui..."></textarea>
+                            </div>
+                        </div>
+
+                        {# Preview #}
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">Preview</label>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        onclick="atualizarPreview()">
+                                    <i class="fas fa-sync-alt me-1"></i>Atualizar preview
+                                </button>
+                            </div>
+                            <div id="previewContainer">
+                                <div id="previewPlaceholder">
+                                    <i class="fas fa-eye d-block mb-2"></i>
+                                    <small>Clique em "Atualizar preview" para visualizar o e-mail</small>
+                                </div>
+                                <iframe id="previewFrame" style="display:none;"></iframe>
+                            </div>
+                        </div>
+
+                    </div>{# /col-lg-6 #}
+
+                </div>{# /row #}
+            </div>{# /modal-body #}
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-outline-info" onclick="atualizarPreview()">
+                    <i class="fas fa-eye me-1"></i>Preview
+                </button>
+                <button type="button" class="btn btn-success" id="btnSalvarTemplate" onclick="salvarTemplate()">
+                    <i class="fas fa-save me-1"></i>Salvar Template
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{# Modal de preview full ─ visualização rápida sem editar #}
+<div class="modal fade" id="modalPreview" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalPreviewTitle">Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="previewFrameFull" style="width:100%;min-height:500px;border:none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tab_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<script>
+// ── Quill instance ────────────────────────────────────────────────────────────
+let quill = null;
+let modoAtual = 'visual'; // 'visual' | 'html'
+
+document.addEventListener('DOMContentLoaded', () => {
+    quill = new Quill('#quillEditor', {
+        theme: 'snow',
+        placeholder: 'Escreva o conteúdo do e-mail aqui...',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                [{ 'align': [] }],
+                ['link', 'blockquote'],
+                ['clean'],
+            ]
+        }
+    });
+});
+
+// ── Funções de modo editor ─────────────────────────────────────────────────────
+function modoVisual() {
+    if (modoAtual === 'html') {
+        // Migra HTML bruto → Quill
+        const html = document.getElementById('htmlRaw').value;
+        quill.root.innerHTML = html;
+    }
+    modoAtual = 'visual';
+    document.getElementById('editorVisual').style.display = '';
+    document.getElementById('editorHTML').style.display = 'none';
+    document.getElementById('btnModoVisual').classList.add('active');
+    document.getElementById('btnModoHtml').classList.remove('active');
+}
+
+function modoHTML() {
+    if (modoAtual === 'visual') {
+        // Migra Quill → HTML bruto
+        document.getElementById('htmlRaw').value = quill.root.innerHTML;
+    }
+    modoAtual = 'html';
+    document.getElementById('editorVisual').style.display = 'none';
+    document.getElementById('editorHTML').style.display = '';
+    document.getElementById('btnModoVisual').classList.remove('active');
+    document.getElementById('btnModoHtml').classList.add('active');
+}
+
+function getHtmlAtual() {
+    if (modoAtual === 'visual') return quill.root.innerHTML;
+    return document.getElementById('htmlRaw').value;
+}
+
+function setHtmlEditor(html) {
+    if (modoAtual === 'visual') {
+        quill.root.innerHTML = html || '';
+    } else {
+        document.getElementById('htmlRaw').value = html || '';
+    }
+}
+
+// ── Inserir variável no cursor do Quill ───────────────────────────────────────
+function inserirVariavel(nome) {
+    if (modoAtual === 'visual' && quill) {
+        const range = quill.getSelection(true);
+        quill.insertText(range ? range.index : quill.getLength(), '{{' + nome + '}}');
+    } else {
+        // Modo HTML: insere na posição do cursor no textarea
+        const ta = document.getElementById('htmlRaw');
+        const pos = ta.selectionStart;
+        const val = ta.value;
+        ta.value = val.slice(0, pos) + '{{' + nome + '}}' + val.slice(pos);
+        ta.selectionStart = ta.selectionEnd = pos + nome.length + 4;
+        ta.focus();
+    }
+}
+
+// ── Preview ────────────────────────────────────────────────────────────────────
+function atualizarPreview() {
+    const html  = getHtmlAtual();
+    const frame = document.getElementById('previewFrame');
+    const placeholder = document.getElementById('previewPlaceholder');
+
+    placeholder.style.display = 'none';
+    frame.style.display = '';
+
+    const doc = frame.contentDocument || frame.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+        <style>body{font-family:'Segoe UI',sans-serif;padding:16px;}</style>
+        </head><body>${html}</body></html>`);
+    doc.close();
+
+    // Ajusta altura ao conteúdo
+    frame.style.height = (doc.body.scrollHeight + 32) + 'px';
+}
+
+// ── Abrir modal novo ───────────────────────────────────────────────────────────
+function abrirModalNovo() {
+    document.getElementById('tplId').value        = '';
+    document.getElementById('tplNome').value      = '';
+    document.getElementById('tplAssunto').value   = '';
+    document.getElementById('tplVariaveis').value = '';
+    document.getElementById('tplAtivo').value     = 'sim';
+    document.getElementById('modalTemplateTitle').textContent = '✉️ Novo Template';
+
+    // Reset editor
+    modoVisual();
+    setHtmlEditor('');
+
+    // Esconde preview
+    document.getElementById('previewPlaceholder').style.display = '';
+    document.getElementById('previewFrame').style.display = 'none';
+
+    new bootstrap.Modal(document.getElementById('modalTemplate')).show();
+}
+
+// ── Editar template ────────────────────────────────────────────────────────────
+function editarTemplate(tpl) {
+    document.getElementById('tplId').value        = tpl.id        || '';
+    document.getElementById('tplNome').value      = tpl.nome      || '';
+    document.getElementById('tplAssunto').value   = tpl.assunto   || '';
+    document.getElementById('tplVariaveis').value = tpl.variaveis || '';
+    document.getElementById('tplAtivo').value     = tpl.ativo     || 'sim';
+    document.getElementById('modalTemplateTitle').textContent = `✏️ Editar: ${tpl.nome}`;
+
+    modoVisual();
+    setHtmlEditor(tpl.html_body || '');
+
+    document.getElementById('previewPlaceholder').style.display = '';
+    document.getElementById('previewFrame').style.display = 'none';
+
+    new bootstrap.Modal(document.getElementById('modalTemplate')).show();
+}
+
+// ── Preview rápido (sem editar) ────────────────────────────────────────────────
+function previewTemplate(tpl) {
+    document.getElementById('modalPreviewTitle').textContent = `👁 Preview: ${tpl.nome}`;
+    const frame = document.getElementById('previewFrameFull');
+    const doc   = frame.contentDocument || frame.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+        <style>body{font-family:'Segoe UI',sans-serif;padding:20px;}</style>
+        </head><body>${tpl.html_body || '<p style="color:#999">Template sem conteúdo.</p>'}</body></html>`);
+    doc.close();
+    new bootstrap.Modal(document.getElementById('modalPreview')).show();
+}
+
+// ── Salvar template ────────────────────────────────────────────────────────────
+async function salvarTemplate() {
+    const id       = document.getElementById('tplId').value.trim();
+    const nome     = document.getElementById('tplNome').value.trim();
+    const assunto  = document.getElementById('tplAssunto').value.trim();
+    const htmlBody = getHtmlAtual().trim();
+    const vars     = document.getElementById('tplVariaveis').value.trim();
+    const ativo    = document.getElementById('tplAtivo').value;
+
+    if (!nome)     { showParamToast('❌ Informe o nome do template', 'danger'); return; }
+    if (!htmlBody || htmlBody === '<p><br></p>') {
+        showParamToast('❌ O corpo do e-mail não pode estar vazio', 'danger');
+        return;
+    }
+
+    const payload = { nome, assunto, html_body: htmlBody, variaveis: vars, ativo };
+    const btn = document.getElementById('btnSalvarTemplate');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+
+    let url, method;
+    if (id) {
+        url    = `/wms/parametrizacao/api/templates/${id}`;
+        method = 'PUT';
+    } else {
+        url    = '/wms/parametrizacao/api/templates';
+        method = 'POST';
+    }
+
+    const res = await paramApi(url, method, payload);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Template';
+
+    if (res.success) {
+        showParamToast(`✅ ${res.message || 'Template salvo!'}`, 'success');
+        bootstrap.Modal.getInstance(document.getElementById('modalTemplate'))?.hide();
+        setTimeout(() => location.reload(), 900);
+    } else {
+        showParamToast(`❌ ${res.error || 'Erro ao salvar'}`, 'danger');
+    }
+}
+
+// ── Excluir (desativar) template ───────────────────────────────────────────────
+async function excluirTemplate(id, nome) {
+    if (!confirm(`Desativar o template "${nome}"?\n\nEle não será deletado permanentemente — apenas marcado como inativo.`)) return;
+
+    const res = await paramApi(`/wms/parametrizacao/api/templates/${id}`, 'DELETE');
+    if (res.success) {
+        showParamToast('✅ Template desativado', 'success');
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showParamToast(`❌ ${res.error}`, 'danger');
+    }
+}
+</script>
+{% endblock %}

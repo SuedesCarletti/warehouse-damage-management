@@ -1,0 +1,25 @@
+# Flask e dependências core
+Flask==2.3.3
+gunicorn==21.2.0
+Werkzeug==2.3.7
+Flask-Session==0.5.0  # ADICIONADO: Necessário para a linha 11 de app.py
+
+# Google Sheets e Drive
+gspread==6.1.2
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-api-python-client>=2.0.0  # ✅ ADICIONADO: Necessário para Google Drive API
+
+# GitHub (se necessário)
+# github-api-python
+
+# Utilitários (opcionais para relatórios)
+# FIX CRÍTICO: Pinning numpy e upgrade pandas para evitar ValueError: numpy.dtype size changed
+numpy==1.26.4
+pandas==2.2.0
+openpyxl==3.1.2
+
+# A dependência pywin32 foi removida para garantir a compatibilidade
+# com ambientes Linux como o Railway. Para usar a funcionalidade de
+# impressão em um ambiente Windows local, instale-a manualmente:
+# pip install pywin32

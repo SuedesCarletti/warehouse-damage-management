@@ -1,0 +1,362 @@
+<!-- 
+templates/components/modal_editar_avaria.html - VERSÃO CORRIGIDA
+Correções aplicadas:
+1. Prazo de pagamento alterado para tipo date
+2. % Reembolso → % Indenização
+3. Adicionado campo "Valor da Indenização" (calculado)
+4. Status Indenização: "Indenização Total", "Indenização Parcial", "Não Indenizável"
+5. Prevenção de reload ao editar item (type="button" nos botões)
+-->
+
+<!-- Modal: Editar Avaria -->
+<div class="modal fade" id="modalEditarAvaria" tabindex="-1" aria-labelledby="modalEditarAvariaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalEditarAvariaLabel">
+                    <i class="fas fa-edit me-2"></i>Editar Avaria
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <!-- ⚠️ IMPORTANTE: Não usar <form> para evitar submits acidentais -->
+                <div id="formEditarAvaria">
+                    <input type="hidden" id="editAvariaId">
+                    
+                    <!-- Informações Não Editáveis -->
+                    <div class="alert alert-info mb-4">
+                        <strong><i class="fas fa-info-circle me-2"></i>ID:</strong> <span id="editDisplayId" class="fw-bold">-</span><br>
+                        <strong>Registrado por:</strong> <span id="editDisplayRegistradoPor">-</span> em <span id="editDisplayDataRegistro">-</span>
+                    </div>
+                    
+                    <!-- =====================================================================
+                         SEÇÃO 1: IDENTIFICAÇÃO BÁSICA
+                         Cod empresa, nota, nfd, valor da nf venda
+                    ====================================================================== -->
+                    <div class="border-bottom pb-3 mb-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-id-card me-2"></i>Identificação Básica
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Cód. Empresa <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="editCodEmpresa" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Nota <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="editNota" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">NFD (Devolução)</label>
+                                <input type="text" class="form-control" id="editNfd" placeholder="Ex: NFD12345">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Valor NF Venda</label>
+                                <input type="text" inputmode="decimal" class="form-control" id="editValorNf" placeholder="0.00" readonly>
+                                <small class="text-muted">Valor da nota fiscal original</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- =====================================================================
+                         SEÇÃO 2: QUANTIDADE E TRANSPORTE
+                         quantidade, volume, transportadora, cte, data coleta, cod rastreio
+                    ====================================================================== -->
+                    <div class="border-bottom pb-3 mb-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-truck me-2"></i>Quantidade e Transporte
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold">Quantidade <span class="text-danger">*</span></label>
+                                <input type="number" step="1" class="form-control" id="editQuantidade" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold">Volume</label>
+                                <input type="number" step="1" class="form-control" id="editVolume" placeholder="1">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Transportadora <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="editTransportadora" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold">CTE</label>
+                                <input type="text" class="form-control" id="editCte" placeholder="Ex: 12345">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Protocolo Insucesso</label>
+                                <input type="text" class="form-control" id="editProtocoloInsucesso"
+                                       placeholder="Nº protocolo de insucesso">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Data da Coleta</label>
+                                <input type="date" class="form-control" id="editDataColeta">
+                            </div>
+                        </div>
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Cód. Rastreio Correios</label>
+                                <input type="text" class="form-control" id="editCodRastreioCorreios" placeholder="Ex: AA123456789BR">
+                            </div>
+
+                        <!-- Data de Entrega (movida para cá conforme solicitação original) -->
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Previsão de Entrega</label>
+                                <input type="date" class="form-control" id="editDataEntrega">
+                                <small class="text-muted">Data prevista/realizada de entrega</small>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="editDataProtocoloMkt" class="form-label">Data Protocolo MKT</label>
+                                <input type="date" class="form-control" id="editDataProtocoloMkt" name="editDataProtocoloMkt">
+                                <small class="text-muted">Data Protocolo MKT</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- =====================================================================
+                         SEÇÃO 3: FINANCEIRO - CORRIGIDO
+                         Valor NFD, NFP, Valor nFP/Verba, Prazo pagamento (DATE), 
+                         % Indenização, Valor Indenização (CALCULADO), Data pagamento
+                    ====================================================================== -->
+                    <div class="border-bottom pb-3 mb-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-dollar-sign me-2"></i>Financeiro
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Valor NFD (Devolução)</label>
+                                <input type="text" inputmode="decimal" class="form-control" id="editValorNfd" placeholder="0,00">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">NFP </label>
+                                <input type="text" class="form-control" id="editNfp" placeholder="Ex: NFP12345">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Valor NFP / Verba</label>
+                                <input type="text" inputmode="decimal" class="form-control" id="editValorNfp" placeholder="0,00">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Prazo de Pagamento</label>
+                                <input type="date" class="form-control" id="editPrazoPagamento">
+                                <small class="text-muted">Data limite para pagamento</small>
+                            </div>
+                        </div>
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Tipo de Indenização</label>
+                                <select class="form-select" id="editIndenizacao" onchange="calculateIndenizacaoValue()">
+                                    <option value="">Selecione...</option>
+                                    <option value="total">Total</option>
+                                    <option value="parcial">Parcial</option>
+                                    <option value="nao_indenizavel">Não Indenizável</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">% Indenização</label>
+                                <input type="number" step="0.01" min="0" max="100" class="form-control" id="editReembolsoPct" placeholder="0.00" oninput="calculateIndenizacaoValue()">
+                                <small class="text-muted">Percentual da indenização</small>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold">Valor Indenização</label>
+                                <input type="text" class="form-control bg-light" id="editReembolsoValor" readonly placeholder="R$ 0,00">
+                                <small class="text-muted">Calculado automaticamente</small>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Data do Pagamento</label>
+                                <input type="date" class="form-control" id="editDataPagamento">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- =====================================================================
+                         SEÇÃO 4: STATUS E OBSERVAÇÕES
+                         Status Indenização (do sheets), Status Estoque (do sheets), 
+                         Motivo inicial, Motivo atual (dropdown), Observação
+                    ====================================================================== -->
+                    <div class="border-bottom pb-3 mb-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-tasks me-2"></i>Status e Observações
+                        </h6>
+                        
+                        <!-- Status -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Status Indenização <span class="text-danger">*</span></label>
+                                <select class="form-select" id="editStatusIndenizacao" required>
+                                    <option value="">Carregando...</option>
+                                </select>
+                                <small class="text-muted">Status atual do processo de indenização</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Status Estoque <span class="text-danger">*</span></label>
+                                <select class="form-select" id="editStatusEstoque" required>
+                                    <option value="">Carregando...</option>
+                                </select>
+                                <small class="text-muted">Situação física do produto</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Motivos -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Motivo Inicial</label>
+                                <div class="alert alert-light mb-0 p-2">
+                                    <small>
+                                        <strong>Código:</strong> <span id="editCodMotivoInicialDisplay">-</span><br>
+                                        <strong>Descrição:</strong> <span id="editMotivoInicialTextoDisplay">-</span>
+                                    </small>
+                                </div>
+                                <input type="hidden" id="editCodMotivoInicial">
+                                <input type="hidden" id="editMotivoInicial">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Motivo Atual</label>
+                                <select class="form-select" id="editCodMotivoDevolucao" onchange="checkMotivoChanged()">
+                                    <option value="">Selecione um motivo...</option>
+                                </select>
+                                <small class="text-muted">Selecione o motivo atual da devolução</small>
+                                
+                                <!-- Alert quando motivo mudou -->
+                                <div id="alertMotivoAlterado" class="alert alert-warning mt-2" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <small>Motivo foi alterado em relação ao inicial</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Observação -->
+                        <div class="row g-3 mt-2">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Observação Geral</label>
+                                <textarea class="form-control" id="editObservacao" rows="4" placeholder="Adicione observações detalhadas sobre esta avaria..."></textarea>
+                                <small class="text-muted">Registre aqui qualquer informação adicional relevante</small>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                    <!-- =====================================================================
+                         SEÇÃO 5: ITENS DA AVARIA
+                    ====================================================================== -->
+                    <div class="mb-3">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-boxes me-2"></i>Itens da Avaria
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Seq</th>
+                                        <th>Código</th>
+                                        <th>Descrição</th>
+                                        <th>Qtd Avariada</th>
+                                        <th>Localização</th>
+                                        <th class="text-end">Valor Item</th>
+                                        <th>Etiqueta</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="editItensTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted">
+                                            <i class="fas fa-spinner fa-spin me-2"></i>Carregando itens...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="salvarEdicaoAvaria()">
+                    <i class="fas fa-save me-2"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Item de Avaria - CORRIGIDO para não causar reload -->
+<div class="modal fade" id="modalEditarItem" tabindex="-1" aria-labelledby="modalEditarItemLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="modalEditarItemLabel">
+                    <i class="fas fa-edit me-2"></i>Editar Item
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editItemAvariaId">
+                <input type="hidden" id="editItemSequencia">
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Produto</label>
+                    <input type="text" class="form-control" id="editItemProduto" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Qtd Avariada Atual <small class="text-muted">(Original: <span id="editItemOriginalQtd"></span>)</small></label>
+                    <input type="number" step="0.01" class="form-control" id="editItemQtd" min="0.01" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Localização</label>
+                    <input type="text" class="form-control" id="editItemLocalizacao" placeholder="Ex: A1">
+                    <small class="text-muted">Local físico antes da triagem (se etiqueta não gerada)</small>
+                </div>
+
+                <div id="editItemWarning" class="alert alert-warning" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmarEdicaoItem()">
+                    <i class="fas fa-save me-2"></i>Salvar Item
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Estilos adicionais para melhor visualização */
+.form-label.fw-semibold {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.border-bottom {
+    border-bottom: 2px solid #e9ecef !important;
+}
+
+#alertMotivoAlterado {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+/* Destaque para campos calculados */
+.bg-light {
+    background-color: #f8f9fa !important;
+    font-weight: 600;
+    color: #198754;
+}
+</style>

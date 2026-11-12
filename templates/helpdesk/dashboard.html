@@ -1,0 +1,193 @@
+
+<!-- ========================================
+     1. templates/dashboard.html - CORRIGIDO
+     ======================================== -->
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sistema de Chamados TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        </h2>
+    </div>
+</div>
+
+<!-- Estatísticas -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ stats.total }}</h3>
+                    <p class="mb-0 text-muted">Total de Chamados</p>
+                </div>
+                <i class="fas fa-ticket-alt fa-2x text-info"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ stats.abertos }}</h3>
+                    <p class="mb-0 text-muted">Chamados Abertos</p>
+                </div>
+                <i class="fas fa-folder-open fa-2x text-warning"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ stats.em_andamento }}</h3>
+                    <p class="mb-0 text-muted">Em Andamento</p>
+                </div>
+                <i class="fas fa-spinner fa-2x text-primary"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stats-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-1">{{ stats.resolvidos }}</h3>
+                    <p class="mb-0 text-muted">Resolvidos</p>
+                </div>
+                <i class="fas fa-check-circle fa-2x text-success"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico de Status -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Distribuição de Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Ações Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('tickets.new_ticket') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Novo Chamado
+                    </a>
+                    <a href="{{ url_for('tickets.list_tickets') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i>Ver Todos os Chamados
+                    </a>
+                    {% if session.user_level == 'admin' %}
+                    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-cog me-2"></i>Administração
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chamados Recentes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Chamados Recentes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Assunto</th>
+                                <th>Categoria</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in recent_tickets %}
+                            <tr>
+                                <td><strong>#{{ ticket.ticket_number }}</strong></td>
+                                <td>{{ ticket.subject[:50] }}{{ '...' if ticket.subject|length > 50 else '' }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ ticket.category }}</span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ ticket.status.lower().replace(' ', '-') }}">
+                                        {{ ticket.status }}
+                                    </span>
+                                </td>
+                                <td>{{ format_date_br(ticket.created_at) }}</td>
+                                <td>
+                                    <a href="{{ url_for('tickets.view_ticket', ticket_number=ticket.ticket_number) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">
+                                    Nenhum chamado encontrado
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Gráfico de status
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Abertos', 'Em Andamento', 'Resolvidos'],
+            datasets: [{
+                data: [{{ stats.abertos }}, {{ stats.em_andamento }}, {{ stats.resolvidos }}],
+                backgroundColor: [
+                    '#ffc107',
+                    '#2c5aa0',
+                    '#28a745'
+                ],
+                borderWidth: 3,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

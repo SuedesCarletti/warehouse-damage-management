@@ -1,0 +1,661 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block tab_content %}
+
+{# ══════════════════════════════════════════════════════════
+   CABEÇALHO DA ABA
+══════════════════════════════════════════════════════════ #}
+<div class="param-card mb-3">
+    <div class="param-card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-robot me-2 text-success"></i>Automações de Status</h5>
+        <button class="btn btn-success btn-sm" onclick="abrirModalNova()">
+            <i class="fas fa-plus me-1"></i>Nova Automação
+        </button>
+    </div>
+    <div class="param-card-body">
+        <div class="alert alert-info border-0 mb-0 py-2">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Como funciona:</strong> Quando um evento (trigger) ocorre, o sistema verifica as
+            condições configuradas e atualiza o status da avaria automaticamente.
+            Se um <strong>Status de Origem</strong> estiver configurado e não for satisfeito,
+            a operação é <strong>bloqueada com erro visível</strong> ao operador.
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   FILTROS
+══════════════════════════════════════════════════════════ #}
+<div class="param-card mb-3">
+    <div class="param-card-body py-2">
+        <div class="row g-2 align-items-center">
+            <div class="col-auto">
+                <label class="form-label mb-0 text-muted small">Filtrar por Trigger</label>
+                <select id="filtroTrigger" class="form-select form-select-sm" onchange="filtrarTabela()">
+                    <option value="">Todos</option>
+                    {% for t in triggers %}
+                    <option value="{{ t.value }}">{{ t.icon }} {{ t.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0 text-muted small">Status</label>
+                <select id="filtroAtivo" class="form-select form-select-sm" onchange="filtrarTabela()">
+                    <option value="">Todos</option>
+                    <option value="sim">Ativas</option>
+                    <option value="nao">Inativas</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TABELA DE AUTOMAÇÕES
+══════════════════════════════════════════════════════════ #}
+<div class="param-card mb-4">
+    <div class="param-card-body p-0">
+        {% if automacoes %}
+        <div class="table-responsive">
+            <table class="param-table table mb-0" id="tabelaAutomacoes">
+                <thead>
+                    <tr>
+                        <th>Trigger</th>
+                        <th>Status Origem</th>
+                        <th>Condições</th>
+                        <th>Altera</th>
+                        <th>Novo Status</th>
+                        <th class="text-center">Prioridade</th>
+                        <th>Ativo</th>
+                        <th width="100">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for a in automacoes %}
+                <tr data-trigger="{{ a.trigger }}" data-ativo="{{ a.ativo }}">
+                    <td>
+                        <span class="badge bg-secondary">{{ a.trigger }}</span>
+                        {% if a.descricao %}<br><small class="text-muted">{{ a.descricao }}</small>{% endif %}
+                    </td>
+                    <td>
+                        {% if a.status_origem_estoque %}
+                            <span class="badge bg-info text-dark">📦 {{ a.status_origem_estoque }}</span><br>
+                        {% endif %}
+                        {% if a.status_origem_indenizacao %}
+                            <span class="badge bg-warning text-dark">💰 {{ a.status_origem_indenizacao }}</span>
+                        {% endif %}
+                        {% if not a.status_origem_estoque and not a.status_origem_indenizacao %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set conds = a.condicoes_extras if a.condicoes_extras is iterable and a.condicoes_extras is not string else [] %}
+                        {% if conds %}
+                            <span class="badge bg-dark mb-1">{{ a.operador_condicoes or 'AND' }}</span>
+                            {% for c in conds %}
+                                <br><small class="text-muted">{{ c.campo }} = <code>{{ c.valor }}</code></small>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if a.target_type == 'estoque' %}
+                            <span class="badge bg-info text-dark">📦 Estoque</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">💰 Indenização</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ a.novo_status }}</strong></td>
+                    <td class="text-center">
+                        <span class="badge bg-secondary" title="Maior número = maior prioridade">
+                            {{ a.prioridade or '0' }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if a.ativo == 'sim' %}
+                            <span class="badge bg-success">Ativa</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inativa</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-primary btn-sm me-1"
+                                onclick='editarAutomacao("{{ a.id }}", {{ a | tojson }})'
+                                title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm me-1"
+                                onclick="toggleAtivo('{{ a.id }}')"
+                                title="Ativar/Desativar">
+                            <i class="fas fa-power-off"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm"
+                                onclick="excluirAutomacao('{{ a.id }}')"
+                                title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-robot fa-3x mb-3 opacity-25"></i>
+            <p>Nenhuma automação configurada ainda.</p>
+            <button class="btn btn-success btn-sm" onclick="abrirModalNova()">
+                <i class="fas fa-plus me-1"></i>Criar primeira automação
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   REFERÊNCIA DE TRIGGERS
+══════════════════════════════════════════════════════════ #}
+<div class="param-card mb-4">
+    <div class="param-card-header">
+        <h6 class="mb-0"><i class="fas fa-bolt me-2 text-warning"></i>Eventos Disponíveis</h6>
+    </div>
+    <div class="param-card-body">
+        <div class="row g-2">
+            {% for t in triggers %}
+            {% if 'legado' not in t.label %}
+            <div class="col-md-4 col-lg-3">
+                <div class="d-flex align-items-start gap-2 p-2 rounded" style="background:rgba(255,255,255,.04)">
+                    <span class="fs-5">{{ t.icon }}</span>
+                    <div>
+                        <div class="fw-semibold small text-white">{{ t.label }}</div>
+                        <code class="text-muted" style="font-size:.75rem">{{ t.value }}</code>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   MODAL — Criar / Editar Automação
+══════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalAutomacao" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="background:#1a2e1e;border:1px solid rgba(40,167,69,.3)">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-success" id="modalAutoTitulo">
+                    <i class="fas fa-robot me-2"></i>Nova Automação
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editAutoId">
+
+                {# ── SEÇÃO 1: Trigger e Destino ─────────────────────────── #}
+                <div class="border border-secondary rounded p-3 mb-3">
+                    <h6 class="text-success mb-3"><i class="fas fa-bolt me-2"></i>Evento e Ação</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Evento (Trigger) <span class="text-danger">*</span></label>
+                            <select id="inputTrigger" class="form-select" onchange="atualizarPreview()">
+                                <option value="">Selecione o evento...</option>
+                                {% for t in triggers %}
+                                <option value="{{ t.value }}">{{ t.icon }} {{ t.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">O evento que disparará a mudança</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Alterar qual status <span class="text-danger">*</span></label>
+                            <select id="inputTargetType" class="form-select" onchange="carregarStatusOptions(); atualizarPreview()">
+                                <option value="">Selecione...</option>
+                                <option value="estoque">📦 Status de Estoque</option>
+                                <option value="indenizacao">💰 Status de Indenização</option>
+                                <option value="finalizacao">🏁 Marcar como Finalizado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Novo Status <span class="text-danger">*</span></label>
+                            <select id="inputNovoStatus" class="form-select" onchange="atualizarPreview()">
+                                <option value="">— selecione o tipo de status primeiro —</option>
+                            </select>
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label fw-semibold">Descrição</label>
+                            <input type="text" id="inputDescricao" class="form-control"
+                                   placeholder="Ex: Ao gerar etiqueta inicial, muda status para Em Triagem">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Prioridade</label>
+                            <input type="number" id="inputPrioridade" class="form-control" min="0" max="100" value="0"
+                                   placeholder="0">
+                            <small class="text-muted">Maior número vence conflitos. Ex: 10 supera 5.</small>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── SEÇÃO 2: Status de Origem (pré-condição bloqueante) ── #}
+                <div class="border border-warning rounded p-3 mb-3">
+                    <h6 class="text-warning mb-1">
+                        <i class="fas fa-lock me-2"></i>Status de Origem
+                        <span class="badge bg-warning text-dark ms-2" style="font-size:.7rem">BLOQUEANTE</span>
+                    </h6>
+                    <p class="text-muted small mb-3">
+                        Se configurado, a automação só executa se a avaria estiver
+                        <strong>exatamente</strong> neste status. Caso contrário,
+                        <strong>retorna erro visível</strong> ao operador e impede a operação.
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">📦 Status de Estoque deve ser</label>
+                            <select id="inputStatusOrigemEstoque" class="form-select">
+                                <option value="">— qualquer status (sem restrição) —</option>
+                                {% for s in status_estoque %}
+                                <option value="{{ s.status }}">{{ s.status }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Deixe vazio para não restringir</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">💰 Status de Indenização deve ser</label>
+                            <select id="inputStatusOrigemIndenizacao" class="form-select">
+                                <option value="">— qualquer status (sem restrição) —</option>
+                                {% for s in status_indenizacao %}
+                                <option value="{{ s.status }}">{{ s.status }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Deixe vazio para não restringir</small>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── SEÇÃO 3: Condições Extras (AND / OR) ────────────────── #}
+                <div class="border border-secondary rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-info mb-0">
+                            <i class="fas fa-filter me-2"></i>Condições Adicionais
+                            <span class="badge bg-secondary ms-2" style="font-size:.7rem">IGNORANTE</span>
+                        </h6>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="text-muted small mb-0">Operador:</label>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="operadorCondicoes"
+                                       id="opAnd" value="AND" checked>
+                                <label class="btn btn-outline-info" for="opAnd">AND</label>
+                                <input type="radio" class="btn-check" name="operadorCondicoes"
+                                       id="opOr" value="OR">
+                                <label class="btn btn-outline-info" for="opOr">OR</label>
+                            </div>
+                            <button type="button" class="btn btn-outline-success btn-sm"
+                                    onclick="adicionarCondicao()">
+                                <i class="fas fa-plus me-1"></i>Condição
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-2">
+                        <strong>AND</strong>: todas devem ser verdadeiras.
+                        <strong>OR</strong>: pelo menos uma deve ser verdadeira.
+                        Se não satisfeitas, a automação é <strong>ignorada silenciosamente</strong>
+                        (sem erro ao operador).
+                    </p>
+                    <div id="listaCondicoes">
+                        {# Condições adicionadas dinamicamente #}
+                    </div>
+                    <div id="semCondicoes" class="text-muted small text-center py-2">
+                        Nenhuma condição adicional — a automação disparará para qualquer avaria.
+                    </div>
+                </div>
+
+                {# Preview #}
+                <div id="previewAutomacao" class="d-none">
+                    <div class="alert alert-success border-0 py-2">
+                        <i class="fas fa-eye me-2"></i>
+                        <strong>Preview:</strong> <span id="previewTexto"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="salvarAutomacao()">
+                    <i class="fas fa-save me-1"></i>Salvar Automação
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tab_scripts %}
+<script>
+const API_AUTO   = '/wms/parametrizacao/api/automacoes';
+const API_CONFIG = '/wms/parametrizacao/api/config';
+
+// ── Salvar prioridades dos triggers ──────────────────────────────────────────
+async function salvarPrioridades() {
+    const inputs = document.querySelectorAll('.prioridade-input');
+    const prioridades = {};
+    inputs.forEach(inp => {
+        const trigger = inp.dataset.trigger;
+        const val     = parseInt(inp.value, 10);
+        if (!isNaN(val)) prioridades[trigger] = val;
+    });
+
+    try {
+        const r = await fetch(API_CONFIG, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ automacao_prioridade_triggers: JSON.stringify(prioridades) }),
+        });
+        const d = await r.json();
+        if (d.success) {
+            mostrarToast('Prioridades salvas com sucesso!', 'success');
+        } else {
+            mostrarToast('Erro ao salvar: ' + (d.error || 'desconhecido'), 'danger');
+        }
+    } catch (e) {
+        mostrarToast('Erro de conexão: ' + e.message, 'danger');
+    }
+}
+
+function mostrarToast(msg, tipo = 'success') {
+    const container = document.getElementById('toastContainer') || (() => {
+        const el = document.createElement('div');
+        el.id = 'toastContainer';
+        el.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9999';
+        document.body.appendChild(el);
+        return el;
+    })();
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${tipo} shadow py-2 px-3 mb-2`;
+    toast.style.cssText = 'min-width:250px;font-size:.9rem';
+    toast.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check' : 'exclamation'}-circle me-2"></i>${msg}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+}
+let modalAuto  = null;
+
+// Status indexados por tipo para dropdown dinâmico
+const STATUS_ESTOQUE     = {{ status_estoque | tojson }};
+const STATUS_INDENIZACAO = {{ status_indenizacao | tojson }};
+
+// Campos válidos para condições extras (enviados pelo backend)
+const CAMPOS_VALIDOS = [
+    {value: 'status_estoque',      label: 'Status de Estoque'},
+    {value: 'status_indenizacao',  label: 'Status de Indenização'},
+    {value: 'indenizacao',         label: 'Tipo Indenização (total/parcial/nao_indenizavel)'},
+    {value: 'local',               label: 'Local (codlocal do item após triagem)'},
+    {value: 'transportadora',      label: 'Transportadora'},
+    {value: 'empresa',             label: 'Empresa'},
+    {value: 'cod_empresa',         label: 'Cód. Empresa'},
+];
+
+// ── Inicialização ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    modalAuto = new bootstrap.Modal(document.getElementById('modalAutomacao'));
+    atualizarVisibilidadeSemCondicoes();
+});
+
+// ── Filtros da tabela ──────────────────────────────────────────────────────
+function filtrarTabela() {
+    const triggerFiltro = document.getElementById('filtroTrigger').value;
+    const ativoFiltro   = document.getElementById('filtroAtivo').value;
+    document.querySelectorAll('#tabelaAutomacoes tbody tr').forEach(tr => {
+        const okTrigger = !triggerFiltro || tr.dataset.trigger === triggerFiltro;
+        const okAtivo   = !ativoFiltro   || tr.dataset.ativo === ativoFiltro;
+        tr.style.display = (okTrigger && okAtivo) ? '' : 'none';
+    });
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function abrirModalNova() {
+    document.getElementById('modalAutoTitulo').innerHTML =
+        '<i class="fas fa-plus me-2"></i>Nova Automação';
+    document.getElementById('editAutoId').value = '';
+    limparModal();
+    modalAuto.show();
+}
+
+function editarAutomacao(id, dados) {
+    document.getElementById('modalAutoTitulo').innerHTML =
+        '<i class="fas fa-pen me-2"></i>Editar Automação';
+    document.getElementById('editAutoId').value = id;
+
+    // Campos simples
+    document.getElementById('inputTrigger').value     = dados.trigger     || '';
+    document.getElementById('inputDescricao').value   = dados.descricao   || '';
+    document.getElementById('inputTargetType').value  = dados.target_type || '';
+    document.getElementById('inputPrioridade').value  = dados.prioridade  != null ? dados.prioridade : '0';
+
+    // Status de origem
+    document.getElementById('inputStatusOrigemEstoque').value =
+        dados.status_origem_estoque || '';
+    document.getElementById('inputStatusOrigemIndenizacao').value =
+        dados.status_origem_indenizacao || '';
+
+    // Operador AND/OR
+    const operador = (dados.operador_condicoes || 'AND').toUpperCase();
+    document.getElementById(operador === 'OR' ? 'opOr' : 'opAnd').checked = true;
+
+    // Status destino (carrega lista primeiro)
+    carregarStatusOptions(dados.novo_status);
+
+    // Condições extras
+    document.getElementById('listaCondicoes').innerHTML = '';
+    const conds = Array.isArray(dados.condicoes_extras) ? dados.condicoes_extras : [];
+    conds.forEach(c => adicionarCondicao(c.campo, c.valor));
+    atualizarVisibilidadeSemCondicoes();
+
+    atualizarPreview();
+    modalAuto.show();
+}
+
+function limparModal() {
+    ['inputTrigger','inputTargetType','inputNovoStatus','inputDescricao',
+     'inputStatusOrigemEstoque','inputStatusOrigemIndenizacao','inputPrioridade'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('opAnd').checked = true;
+    document.getElementById('inputPrioridade').value = '0';
+    document.getElementById('listaCondicoes').innerHTML = '';
+    atualizarVisibilidadeSemCondicoes();
+    document.getElementById('previewAutomacao').classList.add('d-none');
+}
+
+// ── Dropdown de status dinâmico ────────────────────────────────────────────
+function carregarStatusOptions(valorAtual = '') {
+    const tipo = document.getElementById('inputTargetType').value;
+    const sel  = document.getElementById('inputNovoStatus');
+    const novoStatusGroup = sel.closest('.col-md-4');
+
+    // ── Tipo especial: Finalização não precisa de status ──────────────
+    if (tipo === 'finalizacao') {
+        novoStatusGroup.style.display = 'none';
+        sel.innerHTML = '<option value="finalizado" selected>finalizado</option>';
+        atualizarPreview();
+        return;
+    }
+
+    // ── Restaurar visibilidade para tipos normais ──────────────────────
+    novoStatusGroup.style.display = '';
+
+    sel.innerHTML = '<option value="">Selecione o status...</option>';
+    const lista = tipo === 'estoque'
+        ? STATUS_ESTOQUE
+        : (tipo === 'indenizacao' ? STATUS_INDENIZACAO : []);
+    lista.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.status || s;
+        opt.textContent = s.status || s;
+        if (opt.value === valorAtual) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    atualizarPreview();
+}
+
+// ── Condições extras ───────────────────────────────────────────────────────
+let condicaoCounter = 0;
+
+function adicionarCondicao(campoInicial = '', valorInicial = '') {
+    const id = ++condicaoCounter;
+    const container = document.getElementById('listaCondicoes');
+
+    const div = document.createElement('div');
+    div.className = 'd-flex gap-2 align-items-center mb-2';
+    div.id = `cond_${id}`;
+
+    // Select do campo
+    const selCampo = document.createElement('select');
+    selCampo.className = 'form-select form-select-sm flex-grow-1';
+    selCampo.name = 'cond_campo';
+    selCampo.innerHTML = '<option value="">— campo —</option>';
+    CAMPOS_VALIDOS.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.value;
+        opt.textContent = c.label;
+        if (c.value === campoInicial) opt.selected = true;
+        selCampo.appendChild(opt);
+    });
+
+    // Input do valor
+    const inpValor = document.createElement('input');
+    inpValor.type = 'text';
+    inpValor.className = 'form-control form-control-sm flex-grow-1';
+    inpValor.placeholder = 'valor esperado';
+    inpValor.name = 'cond_valor';
+    inpValor.value = valorInicial;
+
+    // Botão remover
+    const btnRemover = document.createElement('button');
+    btnRemover.type = 'button';
+    btnRemover.className = 'btn btn-outline-danger btn-sm';
+    btnRemover.innerHTML = '<i class="fas fa-times"></i>';
+    btnRemover.onclick = () => {
+        div.remove();
+        atualizarVisibilidadeSemCondicoes();
+    };
+
+    div.appendChild(selCampo);
+    div.appendChild(inpValor);
+    div.appendChild(btnRemover);
+    container.appendChild(div);
+
+    atualizarVisibilidadeSemCondicoes();
+}
+
+function atualizarVisibilidadeSemCondicoes() {
+    const temCondicoes = document.getElementById('listaCondicoes').children.length > 0;
+    document.getElementById('semCondicoes').style.display = temCondicoes ? 'none' : 'block';
+}
+
+function coletarCondicoes() {
+    const linhas = document.querySelectorAll('#listaCondicoes > div');
+    const result = [];
+    linhas.forEach(linha => {
+        const campo = linha.querySelector('[name="cond_campo"]')?.value?.trim();
+        const valor = linha.querySelector('[name="cond_valor"]')?.value?.trim();
+        if (campo && valor) result.push({ campo, valor });
+    });
+    return result;
+}
+
+// ── Preview ────────────────────────────────────────────────────────────────
+function atualizarPreview() {
+    const trigger    = document.getElementById('inputTrigger').value;
+    const targetType = document.getElementById('inputTargetType').value;
+    const novoStatus = document.getElementById('inputNovoStatus').value;
+    const preview    = document.getElementById('previewAutomacao');
+    const texto      = document.getElementById('previewTexto');
+
+    if (targetType === 'finalizacao') {
+        document.getElementById('previewTexto').textContent =
+            `Ao evento "${trigger}", preenche data_finalizacao e finalizado_por automaticamente`;
+        return;
+    }   
+    if (trigger && targetType && novoStatus) {
+        const tipoLabel = targetType === 'estoque' ? 'Status de Estoque' : 'Status de Indenização';
+        texto.textContent =
+            `Quando '${trigger}' ocorrer → altera ${tipoLabel} para '${novoStatus}'`;
+        preview.classList.remove('d-none');
+    } else {
+        preview.classList.add('d-none');
+    }
+}
+
+// ── Salvar ─────────────────────────────────────────────────────────────────
+async function salvarAutomacao() {
+    const autoId     = document.getElementById('editAutoId').value;
+    const trigger    = document.getElementById('inputTrigger').value.trim();
+    const targetType = document.getElementById('inputTargetType').value.trim();
+    const novoStatus = document.getElementById('inputNovoStatus').value.trim();
+
+    if (!trigger || !targetType || !novoStatus) {
+        alert('❌ Preencha: Trigger, Tipo de Status e Novo Status (obrigatórios)');
+        return;
+    }
+
+    const operador = document.querySelector('input[name="operadorCondicoes"]:checked')?.value || 'AND';
+
+    const payload = {
+        trigger,
+        target_type:                 targetType,
+        novo_status:                 novoStatus,
+        descricao:                   document.getElementById('inputDescricao').value.trim(),
+        status_origem_estoque:       document.getElementById('inputStatusOrigemEstoque').value.trim(),
+        status_origem_indenizacao:   document.getElementById('inputStatusOrigemIndenizacao').value.trim(),
+        condicoes_extras:            coletarCondicoes(),
+        operador_condicoes:          operador,
+        prioridade:                  parseInt(document.getElementById('inputPrioridade').value || '0', 10),
+    };
+
+    const isEdit = !!autoId;
+    const url    = isEdit ? `${API_AUTO}/${autoId}` : API_AUTO;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const resp = await fetch(url, {
+            method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (data.success) {
+            modalAuto.hide();
+            location.reload();
+        } else {
+            alert(`❌ Erro: ${data.error || data.message}`);
+        }
+    } catch (e) {
+        alert(`❌ Falha na requisição: ${e.message}`);
+    }
+}
+
+// ── Toggle ativo / excluir ─────────────────────────────────────────────────
+async function toggleAtivo(id) {
+    try {
+        const resp = await fetch(`${API_AUTO}/${id}/toggle`, {method: 'POST'});
+        const data = await resp.json();
+        if (data.success) location.reload();
+        else alert(`❌ ${data.error}`);
+    } catch (e) {
+        alert(`❌ Falha: ${e.message}`);
+    }
+}
+
+async function excluirAutomacao(id) {
+    if (!confirm('Excluir esta automação permanentemente?')) return;
+    try {
+        const resp = await fetch(`${API_AUTO}/${id}`, {method: 'DELETE'});
+        const data = await resp.json();
+        if (data.success) location.reload();
+        else alert(`❌ ${data.error}`);
+    } catch (e) {
+        alert(`❌ Falha: ${e.message}`);
+    }
+}
+</script>
+{% endblock %}

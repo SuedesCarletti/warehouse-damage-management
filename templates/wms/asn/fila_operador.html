@@ -1,0 +1,2482 @@
+{#
+  templates/wms/asn/fila_operador.html
+  Fila de ASNs agendados — visão do operador WMS.
+
+  Contexto recebido da rota fila_asn():
+    asns   : List[ASN]   – ASNs com status='agendado'
+    stats  : dict        – {total, agendados, atrasados, hoje, recebidos, cancelados}
+    empresa: str         – empresa do operador
+#}
+{% extends "base.html" %}
+{% block title %}Fila ASN — Recebimento{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+/* ─── Fila Operador ─── */
+.asn-fila-header {
+    background: linear-gradient(135deg, #1a3a5c 0%, #0d2240 100%);
+    border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem; color: white;
+    position: relative; overflow: hidden;
+}
+.asn-fila-header::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(...);
+    pointer-events: none;  /* ← ADICIONAR ESTA LINHA */
+}
+.asn-fila-header h2 { margin: 0; font-size: 1.5rem; position: relative; }
+.asn-fila-header p  { margin: .4rem 0 0; opacity: .75; position: relative; }
+
+.asn-stat {
+    background: rgba(255,255,255,.1); border-radius: 10px;
+    padding: .75rem 1rem; text-align: center;
+}
+.asn-stat .num { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.asn-stat .num.warning { color: #ffc107; }
+.asn-stat .num.danger  { color: #dc3545; }
+.asn-stat .lbl { font-size: .72rem; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
+
+/* Tabela / Cards de ASN */
+.asn-row-atrasado { border-left: 4px solid #dc3545 !important; }
+.asn-row-hoje     { border-left: 4px solid #ffc107 !important; }
+
+.asn-table thead th { background: var(--bg-header-color, #f8f9fa); font-size: .82rem;
+                      text-transform: uppercase; letter-spacing: .04em; }
+
+/* Modal receber */
+.modal-receber .modal-header { background: linear-gradient(135deg,#28a745,#1a7a32); color:#fff; }
+
+/* Cartão de nota individual */
+.nota-row {
+    background: var(--bg-light, #f8f9fa);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 8px;
+    padding: .75rem;
+}
+
+/* dark mode */
+.dark-mode .asn-fila-header { background: linear-gradient(135deg, #0d1f3a 0%, #08162b 100%); }
+.dark-mode .asn-table thead th { background: #1e1e1e; }
+.dark-mode .nota-row { background: #252525; border-color: #444; }
+
+/* ── Dark mode: corrige select/horário invisível ── */
+.dark-mode .form-select,
+.dark-mode select {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    border-color: #555 !important;
+}
+.dark-mode .form-select option,
+.dark-mode select option {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+/* Flatpickr dark mode */
+.dark-mode .flatpickr-calendar {
+    background: #2a2a2a;
+    border-color: #555;
+    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+}
+.dark-mode .flatpickr-day { color: #e0e0e0; }
+.dark-mode .flatpickr-day:hover { background: #3a3a3a; }
+.dark-mode .flatpickr-day.selected { background: var(--theme-primary, #28a745); border-color: var(--theme-primary, #28a745); }
+.dark-mode .flatpickr-day.flatpickr-disabled { color: #555 !important; }
+.dark-mode .flatpickr-months,
+.dark-mode .flatpickr-month { background: #222; color: #e0e0e0; fill: #e0e0e0; }
+.dark-mode .flatpickr-current-month input.cur-year { color: #e0e0e0; }
+.dark-mode .flatpickr-weekday { color: #a0a0a0; }
+.dark-mode .flatpickr-prev-month svg,
+.dark-mode .flatpickr-next-month svg { fill: #e0e0e0; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Cabeçalho ── #}
+<div class="asn-fila-header">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h2><i class="fas fa-inbox me-2"></i>Fila de Recebimento — ASN</h2>
+            <p class="mb-0">Agendamentos aguardando chegada no CD.
+                {% if empresa %}<span class="badge bg-light text-dark ms-2">{{ empresa }}</span>{% endif %}
+            </p>
+        </div>
+        <div class="col-md-6 mt-3 mt-md-0">
+            {# Botões de ação #}
+            <div class="d-flex justify-content-md-end mb-2 gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-light"
+                        onclick="abrirModalConvite()"
+                        title="Gerar link de cadastro para transportadora">
+                    <i class="fas fa-user-plus me-1"></i>Convidar Transportadora
+                </button>
+                <button class="btn btn-sm btn-outline-light"
+                        onclick="verHistoricoConvites()"
+                        title="Ver convites gerados">
+                    <i class="fas fa-history me-1"></i>Convites
+                </button>
+                <button class="btn btn-sm btn-outline-light"
+                        onclick="abrirModalConfigAtendimento()"
+                        title="Configurar dias e horários disponíveis para agendamento">
+                    <i class="fas fa-calendar-alt me-1"></i>Configurar Atendimento
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="location.reload()">
+                    <i class="fas fa-sync-alt me-1"></i>Atualizar
+                </button>
+            </div>
+            {# Stats cards #}
+            <div class="row g-2">
+                <div class="col-3">
+                    <div class="asn-stat">
+                        <div class="num warning">{{ stats.hoje | default(0) }}</div>
+                        <div class="lbl">Hoje</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="asn-stat">
+                        <div class="num">{{ stats.agendados | default(0) }}</div>
+                        <div class="lbl">Agendados</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="asn-stat">
+                        <div class="num danger">{{ stats.atrasados | default(0) }}</div>
+                        <div class="lbl">Atrasados</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="asn-stat">
+                        <div class="num" style="color:#6c757d;">{{ stats.recebidos | default(0) }}</div>
+                        <div class="lbl">Recebidos</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Tabela de ASNs ── #}
+{% if asns %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 asn-table">
+                <thead>
+                    <tr>
+                        <th>Transportadora</th>
+                        <th>NF / Tipo</th>
+                        <th>CT-e</th>
+                        <th>Volumes</th>
+                        <th>Previsão</th>
+                        <th>Motorista / Placa</th>
+                        <th>Criado em</th>
+                        <th>Status</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for asn in asns %}
+                {% set hoje_str = now().strftime('%Y-%m-%d') if now is defined else '' %}
+                <tr class="
+                    {{ 'asn-row-atrasado' if asn.atrasado else '' }}
+                    {{ 'asn-row-hoje' if (not asn.atrasado and asn.data_prevista and asn.data_prevista[:10] == hoje_str) else '' }}
+                ">
+                    <td>
+                        <div class="fw-semibold">
+                            {{ asn.transportadora }}
+                            {% if asn.atrasado %}
+                                <span class="badge bg-danger ms-1" title="{{ asn.dias_ate_entrega|abs }} dia(s) de atraso">
+                                    <i class="fas fa-exclamation-triangle"></i> Atrasado
+                                </span>
+                            {% elif asn.data_prevista and asn.data_prevista[:10] == hoje_str %}
+                                <span class="badge bg-warning text-dark ms-1">Hoje</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">{{ asn.email_transportadora }}</small>
+                    </td>
+                    <td>
+                        <div>
+                            <span class="badge bg-{{ asn.tipo_nota_badge }}">{{ asn.tipo_nota }}</span>
+                            <span class="ms-1 fw-semibold">{{ asn.nota }}</span>
+                        </div>
+                        {% if asn.notas_adicionais %}
+                            {% for extra in asn.notas_adicionais.split(',') %}
+                                {% set e = extra.strip() %}
+                                {% if e %}
+                                    {% set partes    = e.split('~') %}
+                                    {% set tipo_num  = partes[0].split(':') %}
+                                    {% set etipo     = tipo_num[0].strip() if tipo_num|length > 1 else 'NF' %}
+                                    {% set enum      = tipo_num[1].strip() if tipo_num|length > 1 else partes[0] %}
+                                    {% set ecte      = partes[1].strip() if partes|length > 1 else '' %}
+                                    {% set evol      = partes[2].strip() if partes|length > 2 else '' %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-{{ 'info' if etipo == 'NFD' else 'primary' }}">{{ etipo }}</span>
+                                        <span class="ms-1">{{ enum }}</span>
+                                        {% if ecte %}<small class="text-muted ms-1">CT-e: {{ ecte }}</small>{% endif %}
+                                        {% if evol %}<small class="text-muted ms-1">{{ evol }} vol.</small>{% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </td>
+                    <td>{{ asn.cte or '—' }}</td>
+                    <td>{{ asn.volumes or '—' }}</td>
+                    <td>
+                        {% if asn.data_prevista %}
+                            <span class="{{ 'text-danger fw-semibold' if asn.atrasado else '' }}">
+                                {{ format_date_br(asn.data_prevista, include_time=False) }}
+                            </span>
+                            {% if asn.atrasado %}
+                                <br><small class="text-danger">{{ asn.dias_ate_entrega|abs }} dia(s) atraso</small>
+                            {% elif asn.dias_ate_entrega is not none %}
+                                {% if asn.dias_ate_entrega == 0 %}
+                                    <br><small class="text-warning">Entrega hoje</small>
+                                {% elif asn.dias_ate_entrega > 0 %}
+                                    <br><small class="text-muted">em {{ asn.dias_ate_entrega }} dia(s)</small>
+                                {% endif %}
+                            {% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if asn.nome_motorista %}
+                            <div>{{ asn.nome_motorista }}</div>
+                        {% endif %}
+                        {% if asn.placa_veiculo %}
+                            <small class="text-muted font-monospace">{{ asn.placa_veiculo }}</small>
+                        {% endif %}
+                        {% if not asn.nome_motorista and not asn.placa_veiculo %}—{% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ format_date_br(asn.criado_em, include_time=False) or '—' }}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-{{ asn.status_badge }}">{{ asn.status_label }}</span>
+                        {% if asn.avaria_id %}
+                            <br><small class="text-muted">Av: {{ asn.avaria_id }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="d-flex gap-1 justify-content-center flex-wrap">
+                            {% if asn.status == 'agendado' %}
+                                {# Etapa 2: operador insere empresa e gera avaria #}
+                                <button class="btn btn-sm btn-primary"
+                                        onclick="abrirModalProcessar('{{ asn.id }}', '{{ asn.nota }}', '{{ asn.tipo_nota }}', '{{ asn.notas_adicionais | e }}')"
+                                        title="Consultar Sankhya e criar avaria">
+                                    <i class="fas fa-building me-1"></i>Processar
+                                </button>
+                                <button class="btn btn-sm btn-outline-info"
+                                        onclick="abrirModalEditar('{{ asn.id }}', '{{ asn.nota }}', '{{ asn.tipo_nota }}', '{{ asn.notas_adicionais | e }}', '{{ asn.cte | default('') }}', '{{ asn.volumes | default('') }}', '{{ asn.descricao_avaria | default('') | e }}', '{{ asn.data_prevista | default('') }}')"
+                                        title="Editar NF/NFD e dia/horário antes do processamento">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            {% elif asn.status in ('processado', 'recebido_parcial') %}
+                                {# Etapa 3: confirmar chegada física #}
+                                <button class="btn btn-sm btn-success"
+                                        onclick="abrirModalReceber('{{ asn.id }}', '{{ asn.nota }}', '{{ asn.tipo_nota }}', '{{ asn.transportadora }}', '{{ asn.notas_adicionais | e }}', '{{ asn.notas_recebidas_parcial | default('') | e }}')"
+                                        title="Confirmar recebimento físico (Completo)">
+                                    <i class="fas fa-check me-1"></i>Receber
+                                </button>
+                                <button class="btn btn-sm btn-info text-white"
+                                        onclick="abrirModalReceberParcial('{{ asn.id }}', '{{ asn.nota }}', '{{ asn.tipo_nota }}', '{{ asn.notas_adicionais | e }}', '{{ asn.notas_recebidas_parcial | default('') | e }}')"
+                                        title="Registrar recebimento parcial de notas">
+                                    <i class="fas fa-cubes me-1"></i>Receber Parcial
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning"
+                                        onclick="abrirModalRecusar('{{ asn.id }}', '{{ asn.nota }}', '{{ asn.tipo_nota }}', '{{ asn.notas_adicionais | e }}', '{{ asn.avaria_id | default('') }}')"
+                                        title="Recusar no CD">
+                                    <i class="fas fa-ban me-1"></i>Recusar
+                                </button>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="verDetalhe('{{ asn.id }}')"
+                                    title="Ver detalhes">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    onclick="cancelarAsn('{{ asn.id }}')"
+                                    title="Cancelar ASN">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% if asn.descricao_avaria %}
+                <tr>
+                    <td colspan="9" class="pt-0 pb-2">
+                        <small class="text-muted fst-italic ms-2">
+                            <i class="fas fa-comment-alt me-1"></i>{{ asn.descricao_avaria }}
+                        </small>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+    <p class="mb-0">Nenhum ASN agendado no momento.</p>
+    <small>Quando as transportadoras criarem agendamentos, eles aparecerão aqui.</small>
+</div>
+{% endif %}
+
+
+{# ══════════════════════════════════════════════════════════════════
+   MODAL — Processar ASN (Etapa 2: empresa → Sankhya → avaria)
+══════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalProcessar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-building me-2"></i>Processar ASN — Consultar Sankhya
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="processarAsnId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">CODEMP padrão</label>
+                    <div class="input-group">
+                        <input type="text" id="processarCodEmpresa" class="form-control"
+                               placeholder="Ex: 1" inputmode="numeric"
+                               oninput="aplicarCodempPadrao(this.value)">
+                        <span class="input-group-text text-muted" style="font-size:.8rem">aplica a todas</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-2">CODEMP por nota — ajuste individualmente se necessário:</small>
+                    <div id="processarListaNotas" class="d-flex flex-column gap-2"></div>
+                </div>
+                <div id="processarResultado" class="d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnConfirmarProcessar"
+                        onclick="confirmarProcessar()">
+                    <i class="fas fa-search me-1"></i>Consultar e Registrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{# ══════════════════════════════════════════════════════════════════
+   MODAL — Confirmar Recebimento
+══════════════════════════════════════════════════════════════════ #}
+<div class="modal fade modal-receber" id="modalReceber" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>Confirmar Recebimento
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1">
+                    Nota: <strong id="receberNota" class="fs-5 text-success"></strong>
+                    <span class="ms-3 text-muted">Transportadora: <span id="receberTransp"></span></span>
+                </p>
+                <div id="alertaValidacaoNota" class="d-none mt-2"></div>
+                <hr class="my-2">
+
+                {# Produtos da NF #}
+                <div id="receberProdutosArea">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="fas fa-boxes text-primary"></i>
+                        <span class="fw-semibold">Produtos da NF</span>
+                        <small class="text-muted">— informe a qtd recusada por item (deixe 0 se aceito)</small>
+                    </div>
+                    <div id="receberProdutosBody">
+                        <div class="text-center py-3 text-muted" id="receberProdutosLoading">
+                            <i class="fas fa-spinner fa-spin me-1"></i> Carregando produtos...
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-2">
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">
+                        Observação do operador
+                        <small class="text-muted">(opcional)</small>
+                        <small id="receberObsObrigatorio" class="text-danger d-none fw-semibold"> * obrigatório ao recusar itens</small>
+                    </label>
+                    <textarea id="receberObs" class="form-control" rows="2"
+                              placeholder="Ex: 3 volumes recebidos, 1 com avaria visível..."></textarea>
+                    <div id="receberObsError" class="text-danger small d-none mt-1">Informe a observação ao recusar itens parcialmente.</div>
+                </div>
+                <hr class="my-2">
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-camera me-1 text-primary"></i>Fotos do Recebimento
+                        <small class="text-muted">(opcional)</small>
+                        <small id="receberFotosObrigatorio" class="text-danger d-none fw-semibold"> * obrigatório ao recusar itens</small>
+                    </label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="file" class="form-control form-control-sm" id="receberFotosInput"
+                               accept="image/*" multiple style="max-width:300px;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnEnviarFotos"
+                                onclick="uploadFotosRecebimento()" disabled>
+                            <i class="fas fa-upload me-1"></i>Enviar
+                        </button>
+                        <span id="fotosUploadStatus" class="text-muted small"></span>
+                    </div>
+                    <div id="receberFotosError" class="text-danger small d-none mt-1">Anexe ao menos uma foto ao recusar itens parcialmente.</div>
+                    <div id="fotosLinkArea" class="mt-2 d-none">
+                        <a id="fotosLinkDrive" href="#" target="_blank" class="btn btn-sm btn-success">
+                            <i class="fab fa-google-drive me-1"></i>Ver fotos no Drive
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnConfirmarRecebimento" onclick="confirmarRecebimento()">
+                    <i class="fas fa-check me-1"></i>Confirmar Recebimento
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{# ══════════════════════════════════════════════════════════════════
+   MODAL — Detalhe ASN
+══════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalDetalhe" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-file-alt me-2"></i>Detalhe do ASN</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalDetalheBody">
+                <div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{# ══════════════════════════════════════════════════════════════════
+   MODAL — Gerar Convite Transportadora
+══════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalConvite" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>Convidar Transportadora
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="conviteEstadoInicial">
+                    <p class="text-muted mb-3">
+                        Gere um link único de cadastro. A transportadora acessa o link,
+                        cria a própria conta e já terá acesso exclusivo ao Portal de Agendamentos.
+                    </p>
+                    <div class="alert alert-info d-flex align-items-start gap-2 mb-0">
+                        <i class="fas fa-info-circle mt-1"></i>
+                        <div>
+                            O link é válido por <strong>72 horas</strong> e de
+                            <strong>uso único</strong> — após o cadastro é automaticamente invalidado.
+                        </div>
+                    </div>
+                </div>
+                <div id="conviteEstadoLink" class="d-none">
+                    <p class="text-success fw-semibold mb-2">
+                        <i class="fas fa-check-circle me-1"></i>Link gerado com sucesso!
+                    </p>
+                    <div class="input-group">
+                        <input type="text" id="conviteLinkInput" class="form-control font-monospace" readonly>
+                        <button class="btn btn-outline-success" onclick="copiarLink()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted mt-1 d-block">Válido por 72h · uso único</small>
+                </div>
+                <div id="conviteEstadoErro" class="d-none">
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <span id="conviteErroMsg">Erro ao gerar convite.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-success" id="btnGerarConvite" onclick="gerarConvite()">
+                    <i class="fas fa-link me-1"></i>Gerar Link
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════
+   MODAL — Configurar Dias/Horários de Atendimento
+══════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalConfigAtendimento" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-alt me-2"></i>Configurar Atendimento
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Define em quais dias da semana e horários a transportadora pode
+                    agendar entregas no Portal ASN{% if empresa %} para <strong>{{ empresa }}</strong>{% endif %}.
+                </p>
+
+                <label class="form-label fw-semibold mb-2">Dias disponíveis</label>
+                <div class="d-flex gap-3 flex-wrap mb-3" id="configDiasContainer">
+                    <div class="form-check">
+                        <input class="form-check-input config-dia" type="checkbox" value="0" id="configDia0">
+                        <label class="form-check-label" for="configDia0">Seg</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input config-dia" type="checkbox" value="1" id="configDia1">
+                        <label class="form-check-label" for="configDia1">Ter</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input config-dia" type="checkbox" value="2" id="configDia2">
+                        <label class="form-check-label" for="configDia2">Qua</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input config-dia" type="checkbox" value="3" id="configDia3">
+                        <label class="form-check-label" for="configDia3">Qui</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input config-dia" type="checkbox" value="4" id="configDia4">
+                        <label class="form-check-label" for="configDia4">Sex</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input config-dia" type="checkbox" value="5" id="configDia5">
+                        <label class="form-check-label" for="configDia5">Sáb</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input config-dia" type="checkbox" value="6" id="configDia6">
+                        <label class="form-check-label" for="configDia6">Dom</label>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-2">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Horário inicial</label>
+                        <input type="time" id="configHoraInicio" class="form-control">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Horário final</label>
+                        <input type="time" id="configHoraFim" class="form-control">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Intervalo entre horários (minutos)</label>
+                    <input type="number" id="configIntervalo" class="form-control" min="5" max="240" step="5">
+                </div>
+
+                <div class="small text-muted mb-1">Pré-visualização dos horários gerados:</div>
+                <div id="configSlotsPreview" class="d-flex gap-1 flex-wrap mb-2"></div>
+
+                <div id="configAtendimentoResultado" class="d-none mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnSalvarConfigAtendimento" onclick="salvarConfigAtendimento()">
+                    <i class="fas fa-save me-1"></i>Salvar Configuração
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Modal Recusar -->
+    <div class="modal fade" id="modalRecusar" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background:#2d1a1a;border:1px solid rgba(220,53,69,.3)">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title text-danger"><i class="fas fa-ban me-2"></i>Recusar ASN</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="recusarAsnId">
+                    <input type="hidden" id="recusarAvariaId">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-warning">
+                            <i class="fas fa-file-invoice me-1"></i>Selecione as notas recusadas <span class="text-danger">*</span>
+                        </label>
+                        <small class="text-muted d-block mb-2">Marque apenas as notas que estão sendo recusadas:</small>
+                        <div id="recusarListaNotas" class="d-flex flex-column gap-2"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Motivo da Recusa <span class="text-danger">*</span></label>
+                        <textarea id="recusarMotivo" class="form-control" rows="3"
+                                  placeholder="Ex: Nota fiscal divergente, embalagem violada..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-light">
+                            <i class="fas fa-camera me-1"></i>Fotos da Recusa <span class="text-danger">*</span>
+                            <small class="text-muted fw-normal">(obrigatório, máx. 10)</small>
+                        </label>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <input type="file" class="form-control form-control-sm" id="recusarFotosInput"
+                                   accept="image/*" multiple style="max-width:280px;background:#3d2020;border-color:rgba(220,53,69,.3);color:#ccc;">
+                            <span id="recusarFotosStatus" class="text-muted small"></span>
+                            <button type="button" class="btn btn-sm btn-outline-danger d-none" id="btnReenviarFotosRecusa" onclick="reenviarFotosRecusa()">
+                                <i class="fas fa-redo"></i> Tentar reenviar fotos
+                            </button>
+                        </div>
+                        <div id="recusarFotosError" class="text-danger small d-none mt-1">Anexe ao menos uma foto para confirmar a recusa.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarRecusa" onclick="confirmarRecusa()">
+                        <i class="fas fa-ban me-1"></i>Confirmar Recusa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Receber Parcial -->
+    <div class="modal fade" id="modalReceberParcial" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="fas fa-cubes me-2"></i>Recebimento Parcial (por Nota e Itens)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Selecione as notas fiscais recebidas nesta remessa. O ASN permanecerá na fila com status <strong>Receb. Parcial</strong> até a conclusão das notas pendentes. Se houver divergência ou avaria nos itens entregues agora, informe a <strong>Qtd Recusada</strong> correspondente.
+                    </p>
+                    <input type="hidden" id="receberParcialAsnId">
+                    <input type="hidden" id="receberParcialJaRecebidas">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase text-muted">1. Selecionar Notas Entregues Agora</label>
+                        <div id="receberParcialListaNotas" class="d-flex flex-column gap-2 p-3 bg-light border rounded"></div>
+                        <div id="alertaValidacaoNotaParcial" class="d-none mt-2"></div>
+                    </div>
+
+                    <hr class="my-3">
+                    
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <label class="form-label fw-bold small text-uppercase text-muted mb-0">2. Conferência de Itens & Recusa no CD</label>
+                            <span class="badge bg-secondary-subtle text-secondary border small">Opcional: informe qtd se houver recusa</span>
+                        </div>
+                        <div id="receberParcialProdutosBody" class="border rounded p-2 bg-white">
+                            <div class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin me-1"></i> Carregando produtos...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">
+                            Observação / Justificativa
+                            <span id="recParcialObsReq" class="text-danger d-none fw-semibold"> * obrigatório ao recusar itens</span>
+                        </label>
+                        <textarea id="receberParcialObs" class="form-control" rows="2" placeholder="Ex: Primeira remessa entregue, 1 volume danificado..."></textarea>
+                        <div id="recParcialObsErr" class="text-danger small d-none mt-1">Informe a observação para justificar a recusa dos itens.</div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold small">
+                            <i class="fas fa-camera me-1 text-primary"></i>Fotos do Recebimento / Avaria
+                            <small class="text-muted">(opcional)</small>
+                            <span id="recParcialFotosReq" class="text-danger d-none fw-semibold"> * obrigatório ao recusar itens</span>
+                        </label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="file" class="form-control form-control-sm" id="receberParcialFotosInput" accept="image/*" multiple style="max-width:320px;">
+                            <span id="recParcialFotosStatus" class="text-muted small"></span>
+                        </div>
+                        <div id="recParcialFotosErr" class="text-danger small d-none mt-1">Anexe ao menos uma foto ao recusar itens de forma parcial.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-info btn-sm text-white" onclick="confirmarRecebimentoParcial()">
+                        <i class="fas fa-check me-1"></i>Confirmar Recebimento Parcial
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{# ══════════════════════════════════════════════════════════════════
+   MODAL — Editar ASN (NF/NFD antes do processamento)
+══════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalEditar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Editar ASN — NF / NFD
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editarAsnId">
+
+                <div class="alert alert-warning py-2 mb-3">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    A edição é permitida apenas antes do processamento (status <strong>Agendado</strong>).
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-2"><i class="fas fa-file-invoice me-2"></i>Dados das Notas</label>
+                    <div id="editarNotasContainer"></div>
+                    <button type="button" class="btn btn-outline-info btn-sm mt-1" onclick="adicionarNotaEdicao()">
+                        <i class="fas fa-plus me-1"></i>Adicionar outra nota
+                    </button>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-2"><i class="fas fa-calendar-alt me-2"></i>Dia e Horário de Atendimento</label>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" id="editarData" class="form-control" placeholder="Selecione a data" readonly>
+                            <div class="form-text text-muted" id="editarDataAjuda">Carregando dias disponíveis...</div>
+                        </div>
+                        <div class="col-md-6">
+                            <select id="editarHorario" class="form-select" disabled>
+                                <option value="">Selecione uma data primeiro</option>
+                            </select>
+                            <div class="form-text text-muted" id="editarHorarioAjuda">Carregando horários disponíveis...</div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Descrição #}
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Descrição / Observação</label>
+                    <textarea id="editarDescricao" class="form-control" rows="2"
+                              placeholder="Ex: Produto com embalagem danificada..."></textarea>
+                </div>
+
+                <div id="editarResultado" class="d-none mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-info text-white" id="btnConfirmarEditar" onclick="confirmarEdicao()">
+                    <i class="fas fa-save me-1"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Toast container #}
+<div id="asnToast" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;min-width:280px;"></div>
+
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+<script>
+const API_RECEBER        = "{{ url_for('wms_asn.api_receber_asn') }}";
+const API_RECEBER_PARCIAL= "{{ url_for('wms_asn.api_receber_parcial_asn') }}";
+const API_PROCESSAR      = "{{ url_for('wms_asn.api_processar_asn') }}";
+const API_CANCELAR       = "{{ url_for('wms_asn.api_cancelar_asn') }}";
+const API_EDITAR         = "{{ url_for('wms_asn.api_editar_asn') }}";
+const API_LISTA          = "{{ url_for('wms_asn.api_lista_asns') }}";
+const API_ITENS_ASN      = "{{ url_for('wms_asn.api_itens_asn') }}";
+const API_UPLOAD_FOTOS_ASN = "{{ url_for('wms_asn.api_upload_fotos_asn') }}";
+const API_SLOTS_DISPONIVEIS = "{{ url_for('wms_asn.api_slots_disponiveis') }}";
+const API_CONFIG_ATENDIMENTO = "{{ url_for('wms_asn.api_get_config_atendimento') }}";
+const API_CONVITE        = "{{ url_for('wms_convite.api_gerar_convite') if endpoint_exists('wms_convite.api_gerar_convite') else '' }}";
+const API_CONVITES_LIST  = "{{ url_for('wms_convite.listar_convites') if endpoint_exists('wms_convite.listar_convites') else '' }}";
+
+/* Configuração de dias/horários de atendimento — carregada do backend
+   (editável pelo operador via "Configurar Atendimento"), não mais fixa no código. */
+let _configAtendimento = { dias_permitidos: [1, 2, 3], dias_permitidos_js: [2, 3, 4], slots: [] };
+
+async function carregarConfigAtendimento() {
+    try {
+        const res  = await fetch(API_CONFIG_ATENDIMENTO, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) {
+            _configAtendimento = data;
+        }
+    } catch (e) {
+        console.error('Erro ao carregar configuração de atendimento:', e);
+    }
+    return _configAtendimento;
+}
+
+let _asnIdAtual = '';
+let _linkFotosDrive = null;
+let _itensReceberParcial = [];
+let modalRecusar = null;
+let modalReceberParcial = null;
+
+// ── Template de linha de nota ─────────────────────────────────────────────
+function criarHtmlNota(isFirst) {
+    const req = isFirst ? ' <span class="text-danger">*</span>' : '';
+    return `
+    <div class="nota-row mb-2">
+        <div class="row g-2 mb-2">
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem;width:45px">NF</span>
+                    <input type="text" class="form-control nota-nf" placeholder="Número da NF">
+                </div>
+            </div>
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem;width:45px">NFD</span>
+                    <input type="text" class="form-control nota-nfd" placeholder="Número da NFD">
+                </div>
+            </div>
+        </div>
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem">CT-e${req}</span>
+                    <input type="text" class="form-control nota-cte" placeholder="CT-e desta nota">
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem">Vol.${req}</span>
+                    <input type="number" class="form-control nota-volumes" min="1" placeholder="Qtd">
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="button" class="btn btn-outline-danger btn-sm nota-rem" title="Remover"
+                        style="${isFirst ? 'display:none' : ''}" onclick="removerNota(this)">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+        </div>
+        <div class="nota-error text-danger small d-none mt-1">Informe ao menos NF ou NFD.</div>
+        <div class="nota-error-cte text-danger small d-none mt-1">Informe o CT-e desta nota.</div>
+        <div class="nota-error-vol text-danger small d-none mt-1">Informe a quantidade de volumes.</div>
+    </div>`;
+}
+
+function adicionarNotaEdicao() {
+    const container = document.getElementById('editarNotasContainer');
+    const isFirst = container.children.length === 0;
+    const div = document.createElement('div');
+    div.innerHTML = criarHtmlNota(isFirst);
+    container.appendChild(div.firstElementChild);
+    atualizarBotoesRemover('#editarNotasContainer');
+}
+
+function removerNota(btn) {
+    btn.closest('.nota-row').remove();
+    atualizarBotoesRemover('#editarNotasContainer');
+}
+
+function atualizarBotoesRemover(selector) {
+    const container = document.querySelector(selector);
+    if (!container) return;
+    const rows = container.querySelectorAll('.nota-row');
+    rows.forEach((row, index) => {
+        const btn = row.querySelector('.nota-rem');
+        if (btn) btn.style.display = index === 0 ? 'none' : '';
+    });
+}
+
+// ── Flatpickr do modal de edição (dias/horário configuráveis — ver _configAtendimento) ──
+let flatpickrEdicaoInstance = null;
+function inicializarDatepickerEdicao() {
+    if (typeof flatpickr === 'undefined') {
+        const inp = document.getElementById('editarData');
+        inp.type = 'date';
+        inp.min  = new Date().toISOString().split('T')[0];
+        inp.addEventListener('focus', async () => {
+            await carregarConfigAtendimento();
+            atualizarTextoAjudaAtendimento();
+        });
+        inp.addEventListener('change', () => {
+            if (!inp.value) return;
+            const dow = new Date(inp.value + 'T12:00:00').getDay();
+            if (!_configAtendimento.dias_permitidos_js.includes(dow)) {
+                showToast('Dia da semana fora da janela de atendimento configurada.', 'warning');
+                inp.value = '';
+                resetarHorarios('editarHorario');
+            } else {
+                const asnId = document.getElementById('editarAsnId').value;
+                carregarSlotsDisponiveis(inp.value, 'editarHorario', asnId);
+            }
+        });
+        return;
+    }
+
+    flatpickr.localize(flatpickr.l10ns.pt);
+    flatpickrEdicaoInstance = flatpickr('#editarData', {
+        minDate: 'today',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd/m/Y',
+        disable: [
+            (date) => !_configAtendimento.dias_permitidos_js.includes(date.getDay())
+        ],
+        locale: 'pt',
+        onChange: async (selectedDates, dateStr) => {
+            if (dateStr) {
+                const asnId = document.getElementById('editarAsnId').value;
+                await carregarSlotsDisponiveis(dateStr, 'editarHorario', asnId);
+            } else {
+                resetarHorarios('editarHorario');
+            }
+        },
+        onOpen: async (_sd, _ds, instance) => {
+            await carregarConfigAtendimento();
+            atualizarTextoAjudaAtendimento();
+            instance.redraw();
+        },
+    });
+}
+
+function resetarHorarios(selectId) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Selecione uma data primeiro</option>';
+    select.disabled = true;
+}
+
+/* ── Carrega apenas slots disponíveis (remove os ocupados) ──
+   asnId: exclui o próprio ASN da checagem de ocupação (mantém o horário atual
+          disponível ao editar). manterHorario: horário a pré-selecionar. */
+async function carregarSlotsDisponiveis(data, selectId, asnId = '', manterHorario = '') {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Verificando disponibilidade...</option>';
+    select.disabled = true;
+    try {
+        let url = `${API_SLOTS_DISPONIVEIS}?data=${data}`;
+        if (asnId) url += `&asn_id=${encodeURIComponent(asnId)}`;
+        const res  = await fetch(url);
+        const json = await res.json();
+        const ocupados    = json.ocupados || [];
+        const disponiveis = (_configAtendimento.slots || []).filter(s => !ocupados.includes(s));
+
+        select.innerHTML = '';
+        if (disponiveis.length === 0) {
+            select.innerHTML = '<option value="">Sem horários disponíveis neste dia</option>';
+        } else {
+            select.innerHTML = '<option value="">Selecione o horário</option>';
+            disponiveis.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                select.appendChild(opt);
+            });
+            select.disabled = false;
+            if (manterHorario && disponiveis.includes(manterHorario)) {
+                select.value = manterHorario;
+            }
+        }
+    } catch (e) {
+        select.innerHTML = '<option value="">Erro ao carregar horários</option>';
+        select.disabled = false;
+    }
+}
+
+const NOMES_DIAS_JS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+function atualizarTextoAjudaAtendimento() {
+    const diasTxt = (_configAtendimento.dias_permitidos_js || [])
+        .slice().sort((a, b) => a - b)
+        .map(d => NOMES_DIAS_JS[d]).join(', ');
+    const ajudaData = document.getElementById('editarDataAjuda');
+    if (ajudaData) ajudaData.textContent = diasTxt ? `Disponível: ${diasTxt}.` : '';
+    const ajudaHorario = document.getElementById('editarHorarioAjuda');
+    if (ajudaHorario) {
+        ajudaHorario.textContent = (_configAtendimento.hora_inicio && _configAtendimento.hora_fim)
+            ? `Das ${_configAtendimento.hora_inicio} às ${_configAtendimento.hora_fim} (intervalos de ${_configAtendimento.intervalo_min} min).`
+            : '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await carregarConfigAtendimento();
+    inicializarDatepickerEdicao();
+    atualizarTextoAjudaAtendimento();
+});
+
+// ── Modal Editar ASN ──────────────────────────────────────────────────────
+function abrirModalEditar(asnId, nota, tipoNota, notasAdicionais, cte, volumes, descricao, dataPrevista) {
+    document.getElementById('editarAsnId').value         = asnId;
+    document.getElementById('editarDescricao').value     = descricao || '';
+    atualizarTextoAjudaAtendimento();
+
+    /* Dia/horário atuais do agendamento */
+    const dataAtual    = (dataPrevista || '').slice(0, 10);
+    const horarioAtual = (dataPrevista || '').slice(11, 16);
+    if (flatpickrEdicaoInstance) {
+        flatpickrEdicaoInstance.setDate(dataAtual || null, false);
+    } else {
+        document.getElementById('editarData').value = dataAtual;
+    }
+    if (dataAtual) {
+        carregarSlotsDisponiveis(dataAtual, 'editarHorario', asnId, horarioAtual);
+    } else {
+        resetarHorarios('editarHorario');
+    }
+
+    const container = document.getElementById('editarNotasContainer');
+    container.innerHTML = '';
+    
+    // Primeira nota
+    const div1 = document.createElement('div');
+    div1.innerHTML = criarHtmlNota(true);
+    const row1 = div1.firstElementChild;
+    if (tipoNota === 'NFD') {
+        row1.querySelector('.nota-nfd').value = nota || '';
+    } else {
+        row1.querySelector('.nota-nf').value = nota || '';
+    }
+    row1.querySelector('.nota-cte').value = cte || '';
+    row1.querySelector('.nota-volumes').value = volumes || '';
+    container.appendChild(row1);
+
+    // Notas adicionais
+    if (notasAdicionais) {
+        const extras = notasAdicionais.split(',');
+        extras.forEach(ext => {
+            const e = ext.trim();
+            if (e) {
+                const partes = e.split('~');
+                const tipoNum = partes[0].split(':');
+                const etipo = tipoNum.length > 1 ? tipoNum[0].trim() : 'NF';
+                const enumero = tipoNum.length > 1 ? tipoNum[1].trim() : partes[0];
+                const ecte = partes.length > 1 ? partes[1].trim() : '';
+                const evol = partes.length > 2 ? partes[2].trim() : '';
+
+                const divEx = document.createElement('div');
+                divEx.innerHTML = criarHtmlNota(false);
+                const rowEx = divEx.firstElementChild;
+                if (etipo === 'NFD') {
+                    rowEx.querySelector('.nota-nfd').value = enumero;
+                } else {
+                    rowEx.querySelector('.nota-nf').value = enumero;
+                }
+                rowEx.querySelector('.nota-cte').value = ecte;
+                rowEx.querySelector('.nota-volumes').value = evol;
+                container.appendChild(rowEx);
+            }
+        });
+    }
+    
+    atualizarBotoesRemover('#editarNotasContainer');
+
+    const resultado = document.getElementById('editarResultado');
+    resultado.className = 'd-none';
+    resultado.innerHTML = '';
+    const btn = document.getElementById('btnConfirmarEditar');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Alterações';
+
+    new bootstrap.Modal(document.getElementById('modalEditar')).show();
+}
+
+async function confirmarEdicao() {
+    const asnId   = document.getElementById('editarAsnId').value;
+    const resultado = document.getElementById('editarResultado');
+    const btn     = document.getElementById('btnConfirmarEditar');
+
+    const container = document.getElementById('editarNotasContainer');
+    const rows = container.querySelectorAll('.nota-row');
+    let hasError = false;
+    const notasLista = [];
+
+    rows.forEach((row, index) => {
+        const nf  = row.querySelector('.nota-nf').value.trim();
+        const nfd = row.querySelector('.nota-nfd').value.trim();
+        const cte = row.querySelector('.nota-cte').value.trim();
+        const vol = row.querySelector('.nota-volumes').value.trim();
+        const err    = row.querySelector('.nota-error');
+        const errCte = row.querySelector('.nota-error-cte');
+        const errVol = row.querySelector('.nota-error-vol');
+        
+        if (!nf && !nfd) { err.classList.remove('d-none'); hasError = true; }
+        else              { err.classList.add('d-none'); }
+        
+        if (index === 0) {
+            if (!cte) { errCte.classList.remove('d-none'); hasError = true; }
+            else      { errCte.classList.add('d-none'); }
+            if (!vol) { errVol.classList.remove('d-none'); hasError = true; }
+            else      { errVol.classList.add('d-none'); }
+        } else {
+            errCte.classList.add('d-none');
+            errVol.classList.add('d-none');
+        }
+
+        if (nf || nfd) {
+            notasLista.push({ tipo: nfd ? 'NFD' : 'NF', numero: nfd || nf, cte, volumes: vol });
+        }
+    });
+
+    if (hasError) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Preencha os campos obrigatórios das notas.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+
+    if (notasLista.length === 0) return;
+
+    /* Dia/horário de atendimento */
+    const inputDataEdit = document.getElementById('editarData');
+    const dataEdit = inputDataEdit._flatpickr
+        ? (inputDataEdit._flatpickr.selectedDates[0]
+            ? inputDataEdit._flatpickr.formatDate(inputDataEdit._flatpickr.selectedDates[0], 'Y-m-d')
+            : '')
+        : inputDataEdit.value;
+    const horarioEdit = document.getElementById('editarHorario').value;
+
+    if (!dataEdit) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Selecione o dia de atendimento.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+    const dowEdit = new Date(dataEdit + 'T12:00:00').getDay();
+    if (!_configAtendimento.dias_permitidos_js.includes(dowEdit)) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Dia da semana fora da janela de atendimento configurada.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+    if (!horarioEdit) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Selecione o horário de atendimento.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+
+    const primeira = notasLista[0];
+    const notasAdicionais = notasLista.slice(1)
+        .map(n => `${n.tipo}:${n.numero}~${n.cte}~${n.volumes}`)
+        .join(',');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+    resultado.className = 'd-none';
+
+    try {
+        const res  = await fetch(API_EDITAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asn_id:           asnId,
+                nota:             primeira.numero,
+                tipo_nota:        primeira.tipo,
+                notas_adicionais: notasAdicionais,
+                cte:              primeira.cte,
+                volumes:          primeira.volumes,
+                descricao_avaria: document.getElementById('editarDescricao').value.trim(),
+                data_prevista:    `${dataEdit} ${horarioEdit}`,
+            }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            resultado.className = 'alert alert-success py-2';
+            resultado.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.message}`;
+            resultado.classList.remove('d-none');
+            showToast('ASN atualizado com sucesso!', 'success');
+            setTimeout(() => { location.reload(); }, 1200);
+        } else {
+            resultado.className = 'alert alert-danger py-2';
+            resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>${data.error}`;
+            resultado.classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Alterações';
+        }
+    } catch(e) {
+        resultado.className = 'alert alert-danger py-2';
+        resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>Erro de conexão: ${e.message}`;
+        resultado.classList.remove('d-none');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Alterações';
+    }
+}
+
+// ── Modal Processar (Etapa 2) ─────────────────────────────────────────────
+let _notasProcessar = [];  // [{tipo, num}]
+
+function abrirModalProcessar(asnId, notaPrincipal, tipoPrincipal, notasAdicionaisStr) {
+    document.getElementById('processarAsnId').value = asnId;
+    document.getElementById('processarCodEmpresa').value = '';
+    const resultado = document.getElementById('processarResultado');
+    resultado.className = 'd-none';
+    resultado.innerHTML = '';
+    document.getElementById('btnConfirmarProcessar').disabled = false;
+    document.getElementById('btnConfirmarProcessar').innerHTML =
+        '<i class="fas fa-search me-1"></i>Consultar e Registrar';
+
+    // Monta lista de notas
+    _notasProcessar = [{ tipo: tipoPrincipal || 'NF', num: notaPrincipal }];
+    if (notasAdicionaisStr) {
+        notasAdicionaisStr.split(',').forEach(extra => {
+            extra = extra.trim().split('~')[0].trim();  // remove sufixo ~CTE~VOL
+            if (!extra) return;
+            const partes = extra.split(':');
+            _notasProcessar.push({
+                tipo: partes.length > 1 ? partes[0].trim() : 'NF',
+                num:  partes.length > 1 ? partes[1].trim() : extra,
+            });
+        });
+    }
+
+    // Renderiza linha por nota com campo CODEMP individual
+    const badgeColor = t => t === 'NFD' ? 'bg-info' : 'bg-primary';
+    const listaCont = document.getElementById('processarListaNotas');
+    listaCont.innerHTML = _notasProcessar.map((n, i) => `
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge ${badgeColor(n.tipo)}" style="min-width:42px">${n.tipo}</span>
+            <span class="fw-semibold" style="min-width:80px">${n.num}</span>
+            <input type="text" class="form-control form-control-sm nota-codemp"
+                   data-key="${n.tipo}:${n.num}" placeholder="CODEMP" inputmode="numeric"
+                   style="max-width:100px">
+        </div>`).join('');
+
+    new bootstrap.Modal(document.getElementById('modalProcessar')).show();
+}
+
+function aplicarCodempPadrao(val) {
+    document.querySelectorAll('#processarListaNotas .nota-codemp').forEach(inp => {
+        inp.value = val;
+    });
+}
+
+async function confirmarProcessar() {
+    const asnId      = document.getElementById('processarAsnId').value;
+    const codPadrao  = document.getElementById('processarCodEmpresa').value.trim();
+    const resultado  = document.getElementById('processarResultado');
+    const btn        = document.getElementById('btnConfirmarProcessar');
+
+    // Coleta CODEMP por nota; usa padrão como fallback
+    const notasEmpresas = {};
+    let algumVazio = false;
+    document.querySelectorAll('#processarListaNotas .nota-codemp').forEach(inp => {
+        const val = inp.value.trim() || codPadrao;
+        if (!val) { algumVazio = true; }
+        notasEmpresas[inp.dataset.key] = val;
+    });
+
+    if (algumVazio) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Informe o CODEMP para todas as notas.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Consultando Sankhya...';
+    resultado.className = 'd-none';
+
+    try {
+        const res  = await fetch(API_PROCESSAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ asn_id: asnId, cod_empresa: codPadrao, notas_empresas: notasEmpresas }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            resultado.className = 'alert alert-success py-2';
+            resultado.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.message}`;
+            resultado.classList.remove('d-none');
+            showToast('ASN processado — avaria(s) criada(s)!', 'success');
+            setTimeout(() => { location.reload(); }, 1500);
+        } else {
+            resultado.className = 'alert alert-danger py-2';
+            resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>${data.error}`;
+            resultado.classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-search me-1"></i>Consultar e Registrar';
+        }
+    } catch (e) {
+        resultado.className = 'alert alert-danger py-2';
+        resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>Erro de conexão: ${e.message}`;
+        resultado.classList.remove('d-none');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search me-1"></i>Consultar e Registrar';
+    }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+    const colors = { success: 'bg-success', danger: 'bg-danger', warning: 'bg-warning text-dark' };
+    const el = document.createElement('div');
+    el.className = `toast align-items-center text-white ${colors[type] || 'bg-success'} border-0`;
+    el.setAttribute('role', 'alert');
+    el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+    document.getElementById('asnToast').appendChild(el);
+    new bootstrap.Toast(el, { delay: 4000 }).show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
+// ── Modal Receber ─────────────────────────────────────────────────────────
+let _itensRecebimento = [];
+
+async function abrirModalReceber(asnId, notaPrincipal, tipoPrincipal, transportadora, notasAdicionaisStr, jaRecebidasStr) {
+    _asnIdAtual = asnId;
+    _itensRecebimento = [];
+    const jaRecebidas = (jaRecebidasStr || '').split(',').map(s => s.trim()).filter(Boolean);
+
+    // Monta lista completa de notas (principal + adicionais)
+    const todasNotas = [{ tipo: tipoPrincipal || 'NF', num: notaPrincipal }];
+    if (notasAdicionaisStr) {
+        notasAdicionaisStr.split(',').forEach(extra => {
+            extra = extra.trim().split('~')[0];
+            if (!extra) return;
+            const partes = extra.split(':');
+            todasNotas.push({
+                tipo: partes.length > 1 ? partes[0].trim() : 'NF',
+                num:  partes.length > 1 ? partes[1].trim() : extra.trim(),
+            });
+        });
+    }
+
+    // Exibição de notas no cabeçalho do modal
+    const badgeColor = t => t === 'NFD' ? 'bg-info' : 'bg-success';
+    document.getElementById('receberNota').innerHTML = todasNotas.map(n =>
+        `<span class="badge ${badgeColor(n.tipo)} me-1">${n.tipo}</span><span class="me-3">${n.num}</span>`
+    ).join('');
+    document.getElementById('receberTransp').textContent = transportadora;
+    document.getElementById('receberObs').value = '';
+
+    // Reset foto upload fields
+    document.getElementById('receberFotosInput').value = '';
+    document.getElementById('btnEnviarFotos').disabled = true;
+    document.getElementById('fotosUploadStatus').textContent = '';
+    document.getElementById('fotosLinkArea').classList.add('d-none');
+    _linkFotosDrive = null;
+
+    const btnConfirmar    = document.getElementById('btnConfirmarRecebimento');
+    const alertaValidacao = document.getElementById('alertaValidacaoNota');
+    const prodBody        = document.getElementById('receberProdutosBody');
+
+    btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Carregando...';
+    if (alertaValidacao) alertaValidacao.classList.add('d-none');
+    prodBody.innerHTML = '<div class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin me-1"></i> Carregando produtos...</div>';
+
+    new bootstrap.Modal(document.getElementById('modalReceber')).show();
+
+    const API_VALIDAR = "{{ url_for('wms_asn.api_validar_nota') }}";
+
+    // Carregar itens e validar TODAS as notas em paralelo
+    const [itensResult, ...validacoesResult] = await Promise.allSettled([
+        fetch(`${API_ITENS_ASN}?asn_id=${encodeURIComponent(asnId)}`).then(r => r.json()),
+        ...todasNotas.map(n =>
+            fetch(`${API_VALIDAR}?nota=${encodeURIComponent(n.num)}`).then(r => r.json())
+        ),
+    ]);
+
+    // ── Renderizar produtos ──
+    const itensData = itensResult.status === 'fulfilled' ? itensResult.value : null;
+    if (itensData && itensData.success && itensData.itens && itensData.itens.length > 0) {
+        _itensRecebimento = itensData.itens;
+        prodBody.innerHTML = `
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-0" style="font-size:.85rem">
+            <thead class="table-dark">
+              <tr>
+                <th>Cód.</th>
+                <th>Produto</th>
+                <th class="text-center">NF</th>
+                <th class="text-center">Qtd Total</th>
+                <th class="text-center" style="width:110px">Qtd Recebida</th>
+                <th class="text-center" style="width:110px">Qtd Recusada</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${_itensRecebimento.map((it, i) => {
+                  const clean = s => (s || '').includes(':') ? (s || '').split(':')[1].trim() : (s || '').trim();
+                  const itemNotasList = [clean(it.nota), clean(it.nf_orig), clean(it.nfd)].filter(Boolean);
+                  const isJaRecebido = Boolean(it.ja_processado) || jaRecebidas.some(nr => {
+                      const nrClean = clean(nr);
+                      return nrClean && itemNotasList.includes(nrClean);
+                  });
+                  const qtdTotal = parseFloat(it.qtdneg || 0);
+
+                  return `
+                  <tr class="${isJaRecebido ? 'bg-light text-muted' : ''}" style="${isJaRecebido ? 'opacity: 0.55; background-color: #e9ecef !important;' : ''}">
+                    <td class="font-monospace small">${it.codprod || '—'}</td>
+                    <td>
+                        ${it.descrprod || '—'}
+                        ${isJaRecebido ? '<span class="d-inline-block ms-2 badge bg-secondary-subtle text-secondary border small"><i class="fas fa-lock me-1"></i>Indisponível (Já processado / recebido)</span>' : ''}
+                    </td>
+                    <td class="text-center small text-muted font-monospace">${it.nota || '—'}</td>
+                    <td class="text-center fw-semibold">${qtdTotal}</td>
+                    <td class="text-center">
+                      ${isJaRecebido ? `
+                        <input type="number" class="form-control form-control-sm text-center bg-secondary-subtle text-muted"
+                               data-idx="${i}" value="0" disabled readonly
+                               style="width:80px;margin:auto;cursor:not-allowed;" title="Item indisponível: já foi processado/recebido em etapa anterior">
+                      ` : `
+                        <input type="number" id="inpRecNormalRecebida${i}" class="form-control form-control-sm text-center item-qtd-recebida"
+                               data-idx="${i}" data-total="${qtdTotal}" min="0" max="${qtdTotal}" step="1" value="${qtdTotal}"
+                               style="width:80px;margin:auto" oninput="ajustarQtdRecebimentoNormal(${i}, 'recebida')">
+                      `}
+                    </td>
+                    <td class="text-center">
+                      ${isJaRecebido ? `
+                        <input type="number" class="form-control form-control-sm text-center bg-secondary-subtle text-muted"
+                               data-idx="${i}" value="0" disabled readonly
+                               style="width:80px;margin:auto;cursor:not-allowed;" title="Item indisponível: já foi processado/recebido em etapa anterior">
+                      ` : `
+                        <input type="number" id="inpRecNormalRecusada${i}" class="form-control form-control-sm text-center item-qtd-recusada"
+                               data-idx="${i}" data-total="${qtdTotal}" min="0" max="${qtdTotal}" step="1" value="0"
+                               style="width:80px;margin:auto" oninput="ajustarQtdRecebimentoNormal(${i}, 'recusada')">
+                      `}
+                    </td>
+                  </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } else {
+        prodBody.innerHTML = '<div class="alert alert-secondary py-2 mb-0"><i class="fas fa-info-circle me-1"></i>Nenhum produto detalhado encontrado para as notas deste ASN.</div>';
+    }
+
+    // ── Exibir validação de TODAS as notas ──
+    const alertasNotas = [];
+    validacoesResult.forEach((res, idx) => {
+        const nota = todasNotas[idx];
+        if (res.status !== 'fulfilled' || !res.value.success) return;
+        const vd = res.value;
+        if (vd.existe) {
+            alertasNotas.push(
+                `<i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                 <strong>${nota.tipo} ${nota.num}</strong> já possui avaria registrada:
+                 <code>${vd.avaria_id || '—'}</code> (${vd.status || '—'})`
+            );
+        }
+    });
+
+    if (alertaValidacao && alertasNotas.length > 0) {
+        alertaValidacao.className = 'alert alert-warning py-2 mt-2';
+        alertaValidacao.innerHTML = alertasNotas.join('<br>');
+        alertaValidacao.classList.remove('d-none');
+    }
+
+    btnConfirmar.disabled = false;
+    btnConfirmar.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Recebimento';
+}
+
+// Enable upload button when files selected
+document.addEventListener('DOMContentLoaded', function() {
+    const fotosInput = document.getElementById('receberFotosInput');
+    if (fotosInput) {
+        fotosInput.addEventListener('change', function() {
+            document.getElementById('btnEnviarFotos').disabled = !this.files.length;
+            document.getElementById('fotosUploadStatus').textContent =
+                this.files.length ? `${this.files.length} foto(s) selecionada(s)` : '';
+        });
+    }
+
+    // Mostrar/esconder aviso de obrigatoriedade quando há itens recusados parcialmente
+    document.addEventListener('input', function(e) {
+        if (!e.target.classList.contains('item-qtd-recusada')) return;
+        const temRecusa = Array.from(document.querySelectorAll('.item-qtd-recusada'))
+            .some(inp => parseFloat(inp.value) > 0);
+        document.getElementById('receberObsObrigatorio')?.classList.toggle('d-none', !temRecusa);
+        document.getElementById('receberFotosObrigatorio')?.classList.toggle('d-none', !temRecusa);
+    });
+});
+
+async function uploadFotosRecebimento() {
+    const input = document.getElementById('receberFotosInput');
+    const statusEl = document.getElementById('fotosUploadStatus');
+    const btn = document.getElementById('btnEnviarFotos');
+
+    if (!input.files.length) {
+        showToast('Selecione ao menos uma foto.', 'warning');
+        return;
+    }
+    if (!_asnIdAtual) {
+        showToast('ASN não identificado.', 'danger');
+        return;
+    }
+
+    btn.disabled = true;
+    statusEl.textContent = 'Enviando...';
+    statusEl.className = 'text-muted small';
+
+    const formData = new FormData();
+    formData.append('asn_id', _asnIdAtual);
+    for (const f of input.files) formData.append('fotos', f);
+
+    try {
+        const res = await fetch(API_UPLOAD_FOTOS_ASN, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.success) {
+            statusEl.textContent = `✓ ${data.total_fotos} foto(s) enviada(s)`;
+            statusEl.className = 'text-success small fw-semibold';
+            _linkFotosDrive = data.link_drive;
+            const linkArea = document.getElementById('fotosLinkArea');
+            linkArea.classList.remove('d-none');
+            document.getElementById('fotosLinkDrive').href = data.link_drive;
+            btn.disabled = false;
+        } else {
+            statusEl.textContent = '✗ Erro: ' + (data.error || 'falha no upload');
+            statusEl.className = 'text-danger small';
+            btn.disabled = false;
+        }
+    } catch (e) {
+        statusEl.textContent = '✗ Erro de conexão';
+        statusEl.className = 'text-danger small';
+        btn.disabled = false;
+    }
+}
+
+function ajustarQtdRecebimentoNormal(idx, origem) {
+    const inpRecebida = document.getElementById(`inpRecNormalRecebida${idx}`);
+    const inpRecusada = document.getElementById(`inpRecNormalRecusada${idx}`);
+    if (!inpRecebida || !inpRecusada) return;
+
+    const total = parseFloat(inpRecebida.dataset.total) || 0;
+    let valRecebida = parseFloat(inpRecebida.value) || 0;
+    let valRecusada = parseFloat(inpRecusada.value) || 0;
+
+    if (valRecebida < 0) { valRecebida = 0; inpRecebida.value = 0; }
+    if (valRecusada < 0) { valRecusada = 0; inpRecusada.value = 0; }
+
+    if (origem === 'recusada') {
+        if (valRecusada > total) { valRecusada = total; inpRecusada.value = total; }
+        valRecebida = Math.max(0, total - valRecusada);
+        inpRecebida.value = valRecebida;
+    } else if (origem === 'recebida') {
+        if (valRecebida > total) { valRecebida = total; inpRecebida.value = total; }
+        // Não existe recebimento parcial de item: o que não foi recebido é recusado.
+        valRecusada = Math.max(0, total - valRecebida);
+        inpRecusada.value = valRecusada;
+    }
+}
+
+async function confirmarRecebimento() {
+    const btnConfirmar = document.getElementById('btnConfirmarRecebimento');
+    btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+
+    // Coletar produtos com qtd recusada > 0 e dados de conferência
+    const produtosRecusados = [];
+    const itensConferencia = [];
+    _itensRecebimento.forEach((it, idx) => {
+        const inpRecebida = document.getElementById(`inpRecNormalRecebida${idx}`);
+        const inpRecusada = document.getElementById(`inpRecNormalRecusada${idx}`);
+        if (!inpRecebida || !inpRecusada || inpRecebida.disabled) return;
+
+        const qtdRecb = parseFloat(inpRecebida.value) || 0;
+        const qtdRec  = parseFloat(inpRecusada.value) || 0;
+
+        if (qtdRec > 0) {
+            produtosRecusados.push({
+                sequencia:    it.sequencia,
+                codprod:      it.codprod,
+                descrprod:    it.descrprod,
+                qtd_recusada: qtdRec,
+            });
+        }
+        itensConferencia.push({
+            sequencia:    it.sequencia,
+            codprod:      it.codprod,
+            descrprod:    it.descrprod,
+            nota:         it.nota,
+            nf_orig:      it.nf_orig,
+            nfd:          it.nfd,
+            avaria_id:    it.avaria_id,
+            qtd_recebida: qtdRecb,
+            qtd_recusada: qtdRec,
+            qtd_orig_nf:  it.qtdneg,
+        });
+    });
+
+    // Se há recusa parcial, observação e foto são obrigatórias
+    if (produtosRecusados.length > 0) {
+        const obs      = document.getElementById('receberObs').value.trim();
+        const fotosInp = document.getElementById('receberFotosInput');
+        const obsErr   = document.getElementById('receberObsError');
+        const fotErr   = document.getElementById('receberFotosError');
+        let bloqueado  = false;
+
+        if (!obs) {
+            obsErr && obsErr.classList.remove('d-none');
+            bloqueado = true;
+        } else {
+            obsErr && obsErr.classList.add('d-none');
+        }
+
+        if ((!fotosInp || fotosInp.files.length === 0) && !_linkFotosDrive) {
+            fotErr && fotErr.classList.remove('d-none');
+            bloqueado = true;
+        } else {
+            fotErr && fotErr.classList.add('d-none');
+        }
+
+        if (bloqueado) {
+            btnConfirmar.disabled = false;
+            btnConfirmar.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Recebimento';
+            return;
+        }
+    }
+
+    try {
+        // Se há recusa parcial e há fotos selecionadas mas ainda não enviadas, enviar agora
+        const fotosInpAuto = document.getElementById('receberFotosInput');
+        if (produtosRecusados.length > 0 && fotosInpAuto && fotosInpAuto.files.length > 0 && !_linkFotosDrive) {
+            const statusEl = document.getElementById('fotosUploadStatus');
+            if (statusEl) statusEl.textContent = 'Enviando fotos...';
+            try {
+                const fd = new FormData();
+                fd.append('asn_id', _asnIdAtual);
+                for (const f of fotosInpAuto.files) fd.append('fotos', f);
+                const upRes  = await fetch(API_UPLOAD_FOTOS_ASN, { method: 'POST', body: fd });
+                const upData = await upRes.json();
+                if (upData.success) {
+                    _linkFotosDrive = upData.link_drive;
+                    if (statusEl) statusEl.textContent = `✓ ${upData.total_fotos} foto(s) enviada(s)`;
+                }
+            } catch(upErr) {
+                console.warn('Auto-upload fotos recebimento parcial:', upErr);
+            }
+        }
+
+        const res  = await fetch(API_RECEBER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asn_id:            _asnIdAtual,
+                observacao:        document.getElementById('receberObs').value,
+                produtos_recusados: produtosRecusados,
+                itens_conferencia:  itensConferencia,
+            }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message || 'ASN recebido com sucesso!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('modalReceber'))?.hide();
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            showToast('Erro: ' + (data.error || 'Falha no recebimento'), 'danger');
+            btnConfirmar.disabled = false;
+            btnConfirmar.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Recebimento';
+        }
+    } catch(e) {
+        showToast('Erro de conexão: ' + e.message, 'danger');
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = '<i class="fas fa-check me-1"></i>Confirmar Recebimento';
+    }
+}
+
+// ── Cancelar ASN ──────────────────────────────────────────────────────────
+async function cancelarAsn(asnId) {
+    if (!confirm(`Cancelar este agendamento? Esta ação não pode ser desfeita.`)) return;
+
+    try {
+        const resp = await fetch(API_CANCELAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ asn_id: asnId, motivo: 'Cancelado pelo operador' }),
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            showToast(`Agendamento cancelado.`, 'warning');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            showToast('Erro: ' + (data.error || 'Tente novamente'), 'danger');
+        }
+    } catch(e) {
+        showToast('Erro: ' + e.message, 'danger');
+    }
+}
+
+// ── Detalhe ASN ───────────────────────────────────────────────────────────
+async function verDetalhe(asnId) {
+    const modal = new bootstrap.Modal(document.getElementById('modalDetalhe'));
+    document.getElementById('modalDetalheBody').innerHTML =
+        '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i></div>';
+    modal.show();
+
+    try {
+        const resp = await fetch(`${API_LISTA}`);
+        const data = await resp.json();
+        const asn  = (data.asns || []).find(a => a.id === asnId);
+
+        if (!asn) {
+            document.getElementById('modalDetalheBody').innerHTML =
+                '<div class="alert alert-warning">ASN não encontrado.</div>';
+            return;
+        }
+
+        document.getElementById('modalDetalheBody').innerHTML = `
+        <div class="row g-3">
+            <div class="col-sm-6"><small class="text-muted d-block">Status</small><span class="badge bg-${asn.status_badge}">${asn.status_label}</span></div>
+            <div class="col-sm-6"><small class="text-muted d-block">Transportadora</small>${asn.transportadora}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">E-mail</small>${asn.email_transportadora}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">Tipo / Nota</small><span class="badge bg-${asn.tipo_nota_badge}">${asn.tipo_nota}</span> ${asn.nota}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">CT-e</small>${asn.cte || '—'}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">Volumes</small>${asn.volumes || '—'}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">Previsão de Entrega</small>${asn.data_prevista ? asn.data_prevista.slice(0,16) : '—'}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">Motorista</small>${asn.nome_motorista || '—'}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">Placa</small>${asn.placa_veiculo || '—'}</div>
+            ${asn.descricao_avaria ? `<div class="col-12"><small class="text-muted d-block">Descrição da Avaria</small><p class="mb-0 fst-italic">${asn.descricao_avaria}</p></div>` : ''}
+            <div class="col-sm-6"><small class="text-muted d-block">Criado em</small>${asn.criado_em ? asn.criado_em.slice(0,16) : '—'}</div>
+            <div class="col-sm-6"><small class="text-muted d-block">Criado por</small>${asn.criado_por || '—'}</div>
+        </div>`;
+    } catch(e) {
+        document.getElementById('modalDetalheBody').innerHTML =
+            `<div class="alert alert-danger">Erro ao carregar detalhe: ${e.message}</div>`;
+    }
+}
+
+// ── Modal Configurar Atendimento (dias/horários de agendamento) ───────────
+
+/* Mesma lógica de geração de slots do backend (AsnService._gerar_slots),
+   usada só para a pré-visualização instantânea no modal de configuração. */
+function gerarSlotsPreviewJs(horaInicio, horaFim, intervaloMin) {
+    const slots = [];
+    const [hi, mi] = (horaInicio || '').split(':').map(Number);
+    const [hf, mf] = (horaFim || '').split(':').map(Number);
+    const intervalo = parseInt(intervaloMin, 10);
+    if ([hi, mi, hf, mf].some(Number.isNaN) || !intervalo || intervalo <= 0) return slots;
+
+    let atual = hi * 60 + mi;
+    const fim = hf * 60 + mf;
+    if (fim <= atual) return slots;
+
+    while (atual < fim) {
+        const h = String(Math.floor(atual / 60)).padStart(2, '0');
+        const m = String(atual % 60).padStart(2, '0');
+        slots.push(`${h}:${m}`);
+        atual += intervalo;
+    }
+    return slots;
+}
+
+function atualizarPreviewSlotsConfig() {
+    const horaInicio = document.getElementById('configHoraInicio').value;
+    const horaFim    = document.getElementById('configHoraFim').value;
+    const intervalo  = document.getElementById('configIntervalo').value;
+    const slots = gerarSlotsPreviewJs(horaInicio, horaFim, intervalo);
+
+    const preview = document.getElementById('configSlotsPreview');
+    preview.innerHTML = slots.length
+        ? slots.map(s => `<span class="badge bg-secondary">${s}</span>`).join('')
+        : '<span class="text-muted small">Configuração de horário inválida.</span>';
+}
+
+async function abrirModalConfigAtendimento() {
+    await carregarConfigAtendimento();
+
+    document.querySelectorAll('.config-dia').forEach(chk => {
+        /* As checkboxes usam a convenção Python (dt.weekday(): segunda=0 ... domingo=6),
+           a mesma enviada em salvarConfigAtendimento() — não dias_permitidos_js
+           (Date.getDay(): domingo=0 ... sábado=6), que é só para o JS do calendário. */
+        chk.checked = _configAtendimento.dias_permitidos.includes(parseInt(chk.value, 10));
+    });
+    document.getElementById('configHoraInicio').value = _configAtendimento.hora_inicio || '14:00';
+    document.getElementById('configHoraFim').value     = _configAtendimento.hora_fim || '17:00';
+    document.getElementById('configIntervalo').value   = _configAtendimento.intervalo_min || 40;
+
+    atualizarPreviewSlotsConfig();
+
+    const resultado = document.getElementById('configAtendimentoResultado');
+    resultado.className = 'd-none';
+    resultado.innerHTML = '';
+    const btn = document.getElementById('btnSalvarConfigAtendimento');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Configuração';
+
+    new bootstrap.Modal(document.getElementById('modalConfigAtendimento')).show();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    ['configHoraInicio', 'configHoraFim', 'configIntervalo'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', atualizarPreviewSlotsConfig);
+    });
+});
+
+async function salvarConfigAtendimento() {
+    const resultado = document.getElementById('configAtendimentoResultado');
+    const btn       = document.getElementById('btnSalvarConfigAtendimento');
+
+    const diasPermitidos = Array.from(document.querySelectorAll('.config-dia:checked'))
+        .map(chk => parseInt(chk.value, 10));
+    const horaInicio = document.getElementById('configHoraInicio').value;
+    const horaFim    = document.getElementById('configHoraFim').value;
+    const intervalo  = document.getElementById('configIntervalo').value;
+
+    if (diasPermitidos.length === 0) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Selecione ao menos um dia de atendimento.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+    if (!horaInicio || !horaFim) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Informe o horário inicial e final.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+    resultado.className = 'd-none';
+
+    try {
+        const res = await fetch(API_CONFIG_ATENDIMENTO, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                dias_permitidos: diasPermitidos,
+                hora_inicio: horaInicio,
+                hora_fim: horaFim,
+                intervalo_min: parseInt(intervalo, 10),
+            }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            resultado.className = 'alert alert-success py-2';
+            resultado.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.message}`;
+            resultado.classList.remove('d-none');
+            await carregarConfigAtendimento();
+            atualizarTextoAjudaAtendimento();
+            showToast('Configuração de atendimento atualizada!', 'success');
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('modalConfigAtendimento'))?.hide();
+            }, 1200);
+        } else {
+            resultado.className = 'alert alert-danger py-2';
+            resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>${data.error}`;
+            resultado.classList.remove('d-none');
+        }
+    } catch (e) {
+        resultado.className = 'alert alert-danger py-2';
+        resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>Erro de conexão: ${e.message}`;
+        resultado.classList.remove('d-none');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Configuração';
+    }
+}
+
+// ── Modal Convite ─────────────────────────────────────────────────────────
+function abrirModalConvite() {
+    document.getElementById('conviteEstadoInicial').classList.remove('d-none');
+    document.getElementById('conviteEstadoLink').classList.add('d-none');
+    document.getElementById('conviteEstadoErro').classList.add('d-none');
+    document.getElementById('btnGerarConvite').disabled = false;
+    document.getElementById('btnGerarConvite').innerHTML = '<i class="fas fa-link me-1"></i>Gerar Link';
+    new bootstrap.Modal(document.getElementById('modalConvite')).show();
+}
+
+async function gerarConvite() {
+    const btn = document.getElementById('btnGerarConvite');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Gerando...';
+
+    try {
+        const resp = await fetch(API_CONVITE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await resp.json();
+
+        if (data.success && data.link) {
+            document.getElementById('conviteEstadoInicial').classList.add('d-none');
+            document.getElementById('conviteEstadoErro').classList.add('d-none');
+            document.getElementById('conviteEstadoLink').classList.remove('d-none');
+            document.getElementById('conviteLinkInput').value = data.link;
+            btn.style.display = 'none';
+        } else {
+            document.getElementById('conviteEstadoInicial').classList.add('d-none');
+            document.getElementById('conviteEstadoErro').classList.remove('d-none');
+            document.getElementById('conviteErroMsg').textContent = data.error || 'Erro ao gerar convite.';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-redo me-1"></i>Tentar Novamente';
+        }
+    } catch(e) {
+        document.getElementById('conviteEstadoErro').classList.remove('d-none');
+        document.getElementById('conviteErroMsg').textContent = 'Erro de comunicação: ' + e.message;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-redo me-1"></i>Tentar Novamente';
+    }
+}
+
+function copiarLink() {
+    const input = document.getElementById('conviteLinkInput');
+    input.select();
+    document.execCommand('copy');
+    showToast('Link copiado para a área de transferência!', 'success');
+}
+
+async function verHistoricoConvites() {
+    showToast('Funcionalidade em desenvolvimento.', 'warning');
+}
+
+    document.addEventListener('DOMContentLoaded', () => {
+        modalRecusar = new bootstrap.Modal(document.getElementById('modalRecusar'));
+        modalReceberParcial = new bootstrap.Modal(document.getElementById('modalReceberParcial'));
+    });
+
+    function abrirModalRecusar(asnId, notaPrincipal, tipoPrincipal, notasAdicionaisStr, avariaId) {
+        document.getElementById('recusarAsnId').value    = asnId;
+        document.getElementById('recusarAvariaId').value = avariaId || '';
+        document.getElementById('recusarMotivo').value   = '';
+        const recFotosEl = document.getElementById('recusarFotosInput');
+        if (recFotosEl) recFotosEl.value = '';
+        const recFotosStatus = document.getElementById('recusarFotosStatus');
+        if (recFotosStatus) recFotosStatus.textContent = '';
+        const recRetryBtn = document.getElementById('btnReenviarFotosRecusa');
+        if (recRetryBtn) recRetryBtn.classList.add('d-none');
+        _recusaFotosRetryCtx = null;
+
+        // Monta lista de todas as notas do ASN
+        const notas = [{ tipo: tipoPrincipal || 'NF', num: notaPrincipal }];
+        if (notasAdicionaisStr) {
+            notasAdicionaisStr.split(',').forEach(extra => {
+                extra = extra.trim();
+                if (!extra) return;
+                // Extrai tipo:num (ignora ~CTE~VOL se existir)
+                const semExtra = extra.split('~')[0];
+                const partes   = semExtra.split(':');
+                notas.push({
+                    tipo: partes.length > 1 ? partes[0].trim() : 'NF',
+                    num:  partes.length > 1 ? partes[1].trim() : semExtra.trim(),
+                });
+            });
+        }
+
+        const badgeColor = t => t === 'NFD' ? 'bg-info' : 'bg-primary';
+        const listaCont  = document.getElementById('recusarListaNotas');
+        listaCont.innerHTML = notas.map((n, i) => `
+            <div class="form-check d-flex align-items-center gap-2 p-2 rounded"
+                 style="background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.2)">
+                <input class="form-check-input recusar-nota-check" type="checkbox"
+                       id="recusarNota${i}" value="${n.tipo}:${n.num}"
+                       ${notas.length === 1 ? 'checked' : ''}>
+                <label class="form-check-label d-flex align-items-center gap-2 mb-0" for="recusarNota${i}">
+                    <span class="badge ${badgeColor(n.tipo)}">${n.tipo}</span>
+                    <span class="fw-semibold">${n.num}</span>
+                </label>
+            </div>`).join('');
+
+        modalRecusar.show();
+    }
+
+    async function confirmarRecusa() {
+        const asn_id    = document.getElementById('recusarAsnId').value;
+        const avaria_id = document.getElementById('recusarAvariaId').value;
+        const motivo    = document.getElementById('recusarMotivo').value.trim();
+
+        // Coleta notas marcadas
+        const notasRecusadas = [];
+        document.querySelectorAll('.recusar-nota-check:checked').forEach(cb => {
+            notasRecusadas.push(cb.value);
+        });
+
+        if (notasRecusadas.length === 0) {
+            alert('Selecione ao menos uma nota para recusar.');
+            return;
+        }
+        if (!motivo) {
+            alert('Informe o motivo da recusa.');
+            return;
+        }
+
+        const fotosInput = document.getElementById('recusarFotosInput');
+        const fotosError = document.getElementById('recusarFotosError');
+        if (!fotosInput || fotosInput.files.length === 0) {
+            if (fotosError) fotosError.classList.remove('d-none');
+            fotosInput && fotosInput.focus();
+            return;
+        }
+        if (fotosError) fotosError.classList.add('d-none');
+
+        const btnConfirmarRecusa = document.getElementById('btnConfirmarRecusa');
+        const statusEl = document.getElementById('recusarFotosStatus');
+        const retryBtn = document.getElementById('btnReenviarFotosRecusa');
+        if (retryBtn) retryBtn.classList.add('d-none');
+        if (statusEl) statusEl.textContent = 'Confirmando...';
+        if (btnConfirmarRecusa) btnConfirmarRecusa.disabled = true;
+
+        const fd = new FormData();
+        fd.append('asn_id', asn_id);
+        for (const f of fotosInput.files) fd.append('fotos', f);
+
+        // Recusa e upload de fotos disparados em PARALELO — não serializa a espera
+        // de um atrás do outro, para não travar o operador. A confirmação de sucesso
+        // só é dada quando os dois terminarem (mesmo tempo total = o mais lento dos
+        // dois, não a soma).
+        const [recusaSettled, fotosSettled] = await Promise.allSettled([
+            fetch('/wms/asn/api/recusar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asn_id, avaria_id, motivo, notas_recusadas: notasRecusadas }),
+            }).then(r => r.json()),
+            fetch(API_UPLOAD_FOTOS_ASN, { method: 'POST', body: fd }).then(r => r.json()),
+        ]);
+
+        if (btnConfirmarRecusa) btnConfirmarRecusa.disabled = false;
+
+        const data = recusaSettled.status === 'fulfilled'
+            ? recusaSettled.value
+            : { success: false, error: 'Erro de rede ao recusar' };
+
+        if (!data.success) {
+            if (statusEl) statusEl.textContent = '';
+            alert('Erro: ' + (data.error || 'Falha na recusa'));
+            return;
+        }
+
+        const upData = fotosSettled.status === 'fulfilled' ? fotosSettled.value : null;
+
+        if (upData && upData.success) {
+            if (statusEl) statusEl.textContent = `✓ ${upData.total_fotos} foto(s) enviada(s)`;
+            modalRecusar.hide();
+            showToast('ASN recusado com sucesso.', 'warning');
+            setTimeout(() => location.reload(), 1200);
+            return;
+        }
+
+        // A recusa já foi confirmada (não dá pra/não deve desfazer aqui) — mas as
+        // fotos não foram salvas. Em vez de travar o fluxo do operador com a recusa
+        // já feita, deixa o modal aberto só para reenviar as fotos, sem repetir o
+        // resto do formulário.
+        _recusaFotosRetryCtx = { asn_id, files: fotosInput.files };
+        const erroFoto = upData ? (upData.error || 'erro') : 'erro de rede';
+        if (statusEl) statusEl.textContent = `⚠️ ASN recusado, mas fotos não enviadas (${erroFoto}).`;
+        if (retryBtn) retryBtn.classList.remove('d-none');
+    }
+
+    let _recusaFotosRetryCtx = null;
+
+    async function reenviarFotosRecusa() {
+        if (!_recusaFotosRetryCtx) return;
+        const statusEl = document.getElementById('recusarFotosStatus');
+        const retryBtn = document.getElementById('btnReenviarFotosRecusa');
+        if (retryBtn) retryBtn.disabled = true;
+        if (statusEl) statusEl.textContent = 'Reenviando fotos...';
+        try {
+            const fd = new FormData();
+            fd.append('asn_id', _recusaFotosRetryCtx.asn_id);
+            for (const f of _recusaFotosRetryCtx.files) fd.append('fotos', f);
+            const upRes  = await fetch(API_UPLOAD_FOTOS_ASN, { method: 'POST', body: fd });
+            const upData = await upRes.json();
+            if (upData.success) {
+                if (statusEl) statusEl.textContent = `✓ ${upData.total_fotos} foto(s) enviada(s)`;
+                if (retryBtn) retryBtn.classList.add('d-none');
+                _recusaFotosRetryCtx = null;
+                modalRecusar.hide();
+                showToast('Fotos da recusa enviadas com sucesso.', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                if (statusEl) statusEl.textContent = `⚠️ Falha ao reenviar: ${upData.error || 'erro'}`;
+            }
+        } catch (e) {
+            console.warn('Reenvio fotos recusa ASN:', e);
+            if (statusEl) statusEl.textContent = '⚠️ Falha ao reenviar (erro de rede).';
+        } finally {
+            if (retryBtn) retryBtn.disabled = false;
+        }
+    }
+
+    async function abrirModalReceberParcial(asnId, notaPrincipal, tipoPrincipal, notasAdicionaisStr, jaRecebidasStr) {
+        _asnIdAtual = asnId;
+        _itensReceberParcial = [];
+        document.getElementById('receberParcialAsnId').value = asnId;
+        document.getElementById('receberParcialJaRecebidas').value = jaRecebidasStr || '';
+        document.getElementById('receberParcialObs').value = '';
+        const fInp = document.getElementById('receberParcialFotosInput');
+        if (fInp) fInp.value = '';
+        const fStat = document.getElementById('recParcialFotosStatus');
+        if (fStat) fStat.textContent = '';
+        document.getElementById('recParcialObsReq')?.classList.add('d-none');
+        document.getElementById('recParcialFotosReq')?.classList.add('d-none');
+        document.getElementById('recParcialObsErr')?.classList.add('d-none');
+        document.getElementById('recParcialFotosErr')?.classList.add('d-none');
+
+        const jaRecebidas = (jaRecebidasStr || '').split(',').map(s => s.trim()).filter(Boolean);
+        
+        const notas = [{ tipo: tipoPrincipal || 'NF', num: notaPrincipal }];
+        if (notasAdicionaisStr) {
+            notasAdicionaisStr.split(',').forEach(item => {
+                const p = item.trim().split('~')[0].strip ? item.trim().split('~')[0].trim() : item.trim().split('~')[0];
+                if (!p) return;
+                if (p.includes(':')) {
+                    const [t, n] = p.split(':');
+                    notas.push({ tipo: t.trim(), num: n.trim() });
+                } else {
+                    notas.push({ tipo: 'NF', num: p });
+                }
+            });
+        }
+
+        const listaCont = document.getElementById('receberParcialListaNotas');
+        listaCont.innerHTML = notas.map((n, i) => {
+            const numClean = n.num.includes(':') ? n.num.split(':')[1].trim() : n.num;
+            const recebido = jaRecebidas.includes(numClean) || jaRecebidas.includes(`${n.tipo}:${numClean}`);
+            return `
+            <div class="form-check p-2 rounded border bg-white d-flex align-items-center justify-content-between">
+                <div>
+                    <input class="form-check-input ms-1 receber-parcial-nota-check" type="checkbox"
+                           id="recParcialNota${i}" value="${numClean}" ${recebido ? 'checked disabled' : ''}
+                           onchange="atualizarItensRecebimentoParcial()">
+                    <label class="form-check-label ms-2 d-flex align-items-center gap-2 mb-0" for="recParcialNota${i}">
+                        <span class="badge bg-${n.tipo === 'NFD' ? 'info' : 'primary'}">${n.tipo}</span>
+                        <strong class="font-monospace">${n.num}</strong>
+                    </label>
+                </div>
+                ${recebido ? '<span class="badge bg-success-subtle text-success border border-success-subtle small"><i class="fas fa-check me-1"></i>Já recebida</span>' : '<span class="badge bg-warning-subtle text-warning border border-warning-subtle small">Pendente</span>'}
+            </div>`;
+        }).join('');
+
+        const prodBody = document.getElementById('receberParcialProdutosBody');
+        prodBody.innerHTML = '<div class="text-center py-3 text-muted"><i class="fas fa-spinner fa-spin me-1"></i> Carregando produtos...</div>';
+
+        modalReceberParcial.show();
+
+        const alertaValidacao = document.getElementById('alertaValidacaoNotaParcial');
+        if (alertaValidacao) { alertaValidacao.className = 'd-none mt-2'; alertaValidacao.innerHTML = ''; }
+        const API_VALIDAR_PARCIAL = "{{ url_for('wms_asn.api_validar_nota') }}";
+        const notasParaValidar = notas.filter(n => {
+            const numClean = n.num.includes(':') ? n.num.split(':')[1].trim() : n.num;
+            return !(jaRecebidas.includes(numClean) || jaRecebidas.includes(`${n.tipo}:${numClean}`));
+        });
+        Promise.allSettled(notasParaValidar.map(n =>
+            fetch(`${API_VALIDAR_PARCIAL}?nota=${encodeURIComponent(n.num)}`).then(r => r.json())
+        )).then(resultados => {
+            if (_asnIdAtual !== asnId || !alertaValidacao) return;
+            const alertasNotas = [];
+            resultados.forEach((res, idx) => {
+                if (res.status !== 'fulfilled' || !res.value.success || !res.value.existe) return;
+                const nota = notasParaValidar[idx];
+                alertasNotas.push(
+                    `<i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                     <strong>${nota.tipo} ${nota.num}</strong> já possui avaria registrada:
+                     <code>${res.value.avaria_id || '—'}</code> (${res.value.status || '—'})`
+                );
+            });
+            if (alertasNotas.length > 0) {
+                alertaValidacao.className = 'alert alert-warning py-2 mt-2';
+                alertaValidacao.innerHTML = alertasNotas.join('<br>');
+            }
+        });
+
+        try {
+            const res = await fetch(`${API_ITENS_ASN}?asn_id=${encodeURIComponent(asnId)}`);
+            const itensData = await res.json();
+            if (itensData && itensData.success && itensData.itens && itensData.itens.length > 0) {
+                _itensReceberParcial = itensData.itens;
+                prodBody.innerHTML = `
+                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                  <table class="table table-sm table-bordered align-middle mb-0" style="font-size:.85rem">
+                    <thead class="table-dark sticky-top">
+                      <tr>
+                        <th>Cód.</th>
+                        <th>Produto</th>
+                        <th class="text-center">NF</th>
+                        <th class="text-center">Qtd Total</th>
+                        <th class="text-center" style="width:115px">Qtd Recebida</th>
+                        <th class="text-center" style="width:115px">Qtd Recusada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${_itensReceberParcial.map((it, i) => {
+                          const qtdTotal = parseFloat(it.qtdneg || 0);
+                          return `
+                          <tr id="rowRecParcialItem${i}">
+                            <td class="font-monospace small">${it.codprod || '—'}</td>
+                            <td>
+                                ${it.descrprod || '—'}
+                                <span id="badgeRecParcialItem${i}"></span>
+                            </td>
+                            <td class="text-center small text-muted font-monospace">${it.nota || '—'}</td>
+                            <td class="text-center fw-semibold">${qtdTotal}</td>
+                            <td class="text-center">
+                              <input type="number" id="inpRecParcialRecebida${i}" class="form-control form-control-sm text-center rec-parcial-item-recebida"
+                                     data-idx="${i}" data-total="${qtdTotal}" min="0" max="${qtdTotal}" step="1" value="0"
+                                     style="width:85px;margin:auto" oninput="ajustarQtdRecebimentoParcial(${i}, 'recebida')">
+                            </td>
+                            <td class="text-center">
+                              <input type="number" id="inpRecParcialItem${i}" class="form-control form-control-sm text-center rec-parcial-item-qtd"
+                                     data-idx="${i}" data-total="${qtdTotal}" min="0" max="${qtdTotal}" step="1" value="0"
+                                     style="width:85px;margin:auto" oninput="ajustarQtdRecebimentoParcial(${i}, 'recusada')">
+                            </td>
+                          </tr>`;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>`;
+                atualizarItensRecebimentoParcial();
+            } else {
+                prodBody.innerHTML = '<div class="alert alert-secondary py-2 mb-0 small"><i class="fas fa-info-circle me-1"></i>Nenhum produto detalhado encontrado para as notas deste ASN.</div>';
+            }
+        } catch (err) {
+            console.warn(err);
+            prodBody.innerHTML = '<div class="alert alert-danger py-2 mb-0 small"><i class="fas fa-exclamation-circle me-1"></i>Erro ao carregar produtos.</div>';
+        }
+    }
+
+    function atualizarItensRecebimentoParcial() {
+        const jaRecebidasStr = document.getElementById('receberParcialJaRecebidas').value || '';
+        const jaRecebidas = jaRecebidasStr.split(',').map(s => s.trim()).filter(Boolean);
+        
+        const notasMarcadasAgora = [];
+        document.querySelectorAll('.receber-parcial-nota-check:checked:not(:disabled)').forEach(cb => {
+            notasMarcadasAgora.push(cb.value.trim());
+        });
+
+        _itensReceberParcial.forEach((it, i) => {
+            const tr = document.getElementById(`rowRecParcialItem${i}`);
+            const badgeEl = document.getElementById(`badgeRecParcialItem${i}`);
+            const inputEl = document.getElementById(`inpRecParcialItem${i}`);
+            if (!tr || !inputEl) return;
+
+            const clean = s => (s || '').includes(':') ? (s || '').split(':')[1].trim() : (s || '').trim();
+            const itemNotasList = [clean(it.nota), clean(it.nf_orig), clean(it.nfd)].filter(Boolean);
+            
+            const isJaRecebido = Boolean(it.ja_processado) || jaRecebidas.some(nr => {
+                const nrClean = clean(nr);
+                return nrClean && itemNotasList.includes(nrClean);
+            });
+
+            const isNotaSelecionada = notasMarcadasAgora.some(n => itemNotasList.includes(n));
+            const inpRecebida = document.getElementById(`inpRecParcialRecebida${i}`);
+
+            if (isJaRecebido) {
+                tr.className = 'bg-light text-muted';
+                tr.style.opacity = '0.55';
+                tr.style.backgroundColor = '#e9ecef';
+                if (badgeEl) badgeEl.innerHTML = '<span class="d-inline-block ms-2 badge bg-secondary-subtle text-secondary border small"><i class="fas fa-lock me-1"></i>Indisponível (Já processado / recebido)</span>';
+                if (inputEl) {
+                    inputEl.value = '0';
+                    inputEl.disabled = true;
+                    inputEl.readOnly = true;
+                    inputEl.className = 'form-control form-control-sm text-center bg-secondary-subtle text-muted';
+                    inputEl.style.cursor = 'not-allowed';
+                    inputEl.title = 'Item indisponível: já foi processado em etapa anterior';
+                }
+                if (inpRecebida) {
+                    inpRecebida.value = '0';
+                    inpRecebida.disabled = true;
+                    inpRecebida.readOnly = true;
+                    inpRecebida.className = 'form-control form-control-sm text-center bg-secondary-subtle text-muted';
+                    inpRecebida.style.cursor = 'not-allowed';
+                    inpRecebida.title = 'Item indisponível: já foi processado em etapa anterior';
+                }
+            } else if (!isNotaSelecionada) {
+                tr.className = 'bg-light text-muted';
+                tr.style.opacity = '0.55';
+                tr.style.backgroundColor = '#f8f9fa';
+                if (badgeEl) badgeEl.innerHTML = '<span class="d-inline-block ms-2 badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small"><i class="fas fa-eye-slash me-1"></i>Nota não selecionada</span>';
+                if (inputEl) {
+                    inputEl.value = '0';
+                    inputEl.disabled = true;
+                    inputEl.readOnly = true;
+                    inputEl.className = 'form-control form-control-sm text-center bg-secondary-subtle text-muted';
+                    inputEl.style.cursor = 'not-allowed';
+                    inputEl.title = 'Marque a caixinha da Nota Fiscal acima para liberar a conferência deste item';
+                }
+                if (inpRecebida) {
+                    inpRecebida.value = '0';
+                    inpRecebida.disabled = true;
+                    inpRecebida.readOnly = true;
+                    inpRecebida.className = 'form-control form-control-sm text-center bg-secondary-subtle text-muted';
+                    inpRecebida.style.cursor = 'not-allowed';
+                    inpRecebida.title = 'Marque a caixinha da Nota Fiscal acima para liberar a conferência deste item';
+                }
+            } else {
+                tr.className = '';
+                tr.style.opacity = '1';
+                tr.style.backgroundColor = '';
+                if (badgeEl) badgeEl.innerHTML = '<span class="d-inline-block ms-2 badge bg-success-subtle text-success border border-success-subtle small"><i class="fas fa-check-circle me-1"></i>Liberado para conferência</span>';
+                const estavaDesabilitado = (inpRecebida && inpRecebida.disabled);
+                if (inputEl) {
+                    inputEl.disabled = false;
+                    inputEl.readOnly = false;
+                    inputEl.className = 'form-control form-control-sm text-center rec-parcial-item-qtd';
+                    inputEl.style.cursor = '';
+                    inputEl.title = 'Informe a quantidade recusada se houver avaria';
+                }
+                if (inpRecebida) {
+                    inpRecebida.disabled = false;
+                    inpRecebida.readOnly = false;
+                    inpRecebida.className = 'form-control form-control-sm text-center rec-parcial-item-recebida';
+                    inpRecebida.style.cursor = '';
+                    inpRecebida.title = 'Informe a quantidade efetivamente recebida nesta remessa';
+                    if (estavaDesabilitado && parseFloat(inpRecebida.value || 0) === 0 && parseFloat(inputEl?.value || 0) === 0) {
+                        inpRecebida.value = inpRecebida.dataset.total || '0';
+                    }
+                }
+            }
+        });
+
+        verificarObrigatoriedadeRecParcial();
+    }
+
+    function ajustarQtdRecebimentoParcial(idx, origem) {
+        const inpRecebida = document.getElementById(`inpRecParcialRecebida${idx}`);
+        const inpRecusada = document.getElementById(`inpRecParcialItem${idx}`);
+        if (!inpRecebida || !inpRecusada) return;
+
+        const total = parseFloat(inpRecebida.dataset.total) || 0;
+        let valRecebida = parseFloat(inpRecebida.value) || 0;
+        let valRecusada = parseFloat(inpRecusada.value) || 0;
+
+        if (valRecebida < 0) { valRecebida = 0; inpRecebida.value = 0; }
+        if (valRecusada < 0) { valRecusada = 0; inpRecusada.value = 0; }
+
+        if (origem === 'recusada') {
+            if (valRecusada > total) { valRecusada = total; inpRecusada.value = total; }
+            valRecebida = Math.max(0, total - valRecusada);
+            inpRecebida.value = valRecebida;
+        } else if (origem === 'recebida') {
+            if (valRecebida > total) { valRecebida = total; inpRecebida.value = total; }
+            // Não existe recebimento parcial de item: o que não foi recebido é recusado.
+            valRecusada = Math.max(0, total - valRecebida);
+            inpRecusada.value = valRecusada;
+        }
+
+        verificarObrigatoriedadeRecParcial();
+    }
+
+    function verificarObrigatoriedadeRecParcial() {
+        const temRecusa = Array.from(document.querySelectorAll('.rec-parcial-item-qtd'))
+            .some(inp => parseFloat(inp.value) > 0);
+        document.getElementById('recParcialObsReq')?.classList.toggle('d-none', !temRecusa);
+        document.getElementById('recParcialFotosReq')?.classList.toggle('d-none', !temRecusa);
+    }
+
+    async function confirmarRecebimentoParcial() {
+        const asn_id = document.getElementById('receberParcialAsnId').value;
+        const obs    = document.getElementById('receberParcialObs').value.trim();
+        const fotosInp = document.getElementById('receberParcialFotosInput');
+        
+        const notasSelecionadas = [];
+        document.querySelectorAll('.receber-parcial-nota-check:checked:not(:disabled)').forEach(cb => {
+            notasSelecionadas.push(cb.value);
+        });
+
+        if (notasSelecionadas.length === 0) {
+            alert('Selecione ao menos uma nota pendente para registrar o recebimento.');
+            return;
+        }
+
+        const produtosRecusados = [];
+        const itensConferencia = [];
+        _itensReceberParcial.forEach((it, idx) => {
+            const inpRecebida = document.getElementById(`inpRecParcialRecebida${idx}`);
+            const inpRecusada = document.getElementById(`inpRecParcialItem${idx}`);
+            if (!inpRecebida || !inpRecusada || inpRecebida.disabled) return;
+
+            const qtdRecb = parseFloat(inpRecebida.value) || 0;
+            const qtdRec  = parseFloat(inpRecusada.value) || 0;
+
+            if (qtdRec > 0) {
+                produtosRecusados.push({
+                    sequencia:    it.sequencia,
+                    codprod:      it.codprod,
+                    descrprod:    it.descrprod,
+                    qtd_recusada: qtdRec,
+                });
+            }
+            itensConferencia.push({
+                sequencia:    it.sequencia,
+                codprod:      it.codprod,
+                descrprod:    it.descrprod,
+                nota:         it.nota,
+                nf_orig:      it.nf_orig,
+                nfd:          it.nfd,
+                avaria_id:    it.avaria_id,
+                qtd_recebida: qtdRecb,
+                qtd_recusada: qtdRec,
+                qtd_orig_nf:  it.qtdneg,
+            });
+        });
+
+        if (produtosRecusados.length > 0) {
+            const obsErr = document.getElementById('recParcialObsErr');
+            const fotErr = document.getElementById('recParcialFotosErr');
+            let bloqueado = false;
+            if (!obs) {
+                obsErr?.classList.remove('d-none');
+                bloqueado = true;
+            } else {
+                obsErr?.classList.add('d-none');
+            }
+            if (!fotosInp || fotosInp.files.length === 0) {
+                fotErr?.classList.remove('d-none');
+                bloqueado = true;
+            } else {
+                fotErr?.classList.add('d-none');
+            }
+            if (bloqueado) return;
+        }
+
+        const btn = document.querySelector('#modalReceberParcial .btn-info');
+        const oldHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Registrando...';
+
+        try {
+            if (produtosRecusados.length > 0 && fotosInp && fotosInp.files.length > 0) {
+                const statEl = document.getElementById('recParcialFotosStatus');
+                if (statEl) statEl.textContent = 'Enviando fotos...';
+                try {
+                    const fd = new FormData();
+                    fd.append('asn_id', asn_id);
+                    for (const f of fotosInp.files) fd.append('fotos', f);
+                    await fetch(API_UPLOAD_FOTOS_ASN, { method: 'POST', body: fd });
+                } catch(upErr) {
+                    console.warn('Erro ao enviar fotos no recebimento parcial:', upErr);
+                }
+            }
+
+            const res = await fetch(API_RECEBER_PARCIAL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    asn_id: asn_id,
+                    notas_recebidas: notasSelecionadas,
+                    observacao: obs,
+                    produtos_recusados: produtosRecusados,
+                    itens_conferencia: itensConferencia
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message || 'Recebimento parcial registrado com sucesso!', 'success');
+                modalReceberParcial.hide();
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                showToast('Erro: ' + (data.error || 'Falha ao registrar recebimento parcial'), 'danger');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('Erro de conexão com o servidor.', 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
+    }
+  
+</script>
+{% endblock %}

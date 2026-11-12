@@ -1,0 +1,215 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block tab_content %}
+<div class="param-card">
+    <div class="param-card-header">
+        <h5><i class="fas fa-hand-holding-usd me-2 text-success"></i>Regras de Indenização</h5>
+        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalIndeniz">
+            <i class="fas fa-plus me-1"></i>Nova Regra
+        </button>
+    </div>
+    <div class="param-card-body p-0">
+        <div class="alert alert-info m-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Como funciona:</strong> As regras definem o percentual de reembolso e prazo de pagamento
+            por transportadora e tipo de avaria. Use <code>*</code> como curinga (qualquer transportadora/tipo).
+            Regras mais específicas têm prioridade.
+        </div>
+
+        {% if regras %}
+        <table class="param-table table mb-0">
+            <thead>
+                <tr>
+                    <th>Transportadora</th>
+                    <th>Tipo de Avaria</th>
+                    <th>% Reembolso</th>
+                    <th>Valor Máximo</th>
+                    <th>Prazo (dias)</th>
+                    <th>Status</th>
+                    <th width="110">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in regras %}
+                <tr id="row-indeniz-{{ r.id }}">
+                    <td>
+                        {% if r.transportadora == '*' %}
+                            <span class="badge bg-secondary">Qualquer</span>
+                        {% else %}
+                            <strong>{{ r.transportadora }}</strong>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.tipo_avaria == '*' %}
+                            <span class="badge bg-secondary">Qualquer</span>
+                        {% else %}
+                            {{ r.tipo_avaria }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-success fs-6">{{ r.percentual_reemb }}%</span>
+                    </td>
+                    <td>
+                        {% if r.valor_max %}
+                            R$ {{ r.valor_max }}
+                        {% else %}
+                            <span class="text-muted">Sem teto</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.prazo_dias }} dias</td>
+                    <td>
+                        {% if r.ativo == 'sim' %}
+                            <span class="badge bg-success">Ativa</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inativa</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-primary btn-sm me-1"
+                                onclick="editarIndeniz('{{ r.id }}', {{ r | tojson }})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm"
+                                onclick="confirmarExclusao('/wms/parametrizacao/api/indenizacao', '{{ r.id }}', '{{ r.transportadora }} / {{ r.tipo_avaria }}', () => location.reload())">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="param-empty">
+            <i class="fas fa-hand-holding-usd d-block"></i>
+            <p class="mb-0">Nenhuma regra de indenização configurada.</p>
+            <small class="text-muted">As regras definem automaticamente o percentual de reembolso.</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Modal Criar / Editar Regra de Indenização ── #}
+<div class="modal fade" id="modalIndeniz" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-hand-holding-usd me-2"></i>
+                    <span id="modalIndenizTitulo">Nova Regra de Indenização</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="indenizId">
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Transportadora</label>
+                        <select id="indenizTransportadora" class="form-select">
+                            <option value="*">* (Qualquer transportadora)</option>
+                            {% for t in transportadoras %}
+                            <option value="{{ t }}">{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Use * para aplicar a todas.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Tipo de Avaria</label>
+                        <input type="text" id="indenizTipoAvaria" class="form-control"
+                               placeholder="Ex: Quebra, Amassado, Molhado — ou * para qualquer" value="*">
+                        <small class="text-muted">Digite * para aplicar a qualquer tipo.</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">% de Reembolso <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" id="indenizPercentual" class="form-control"
+                                   min="0" max="100" step="0.01" placeholder="Ex: 80">
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <small class="text-muted">Percentual sobre o valor da NF.</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Valor Máximo (teto)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" id="indenizValorMax" class="form-control"
+                                   min="0" step="0.01" placeholder="Deixe vazio = sem teto">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Prazo de Pagamento (dias)</label>
+                        <div class="input-group">
+                            <input type="number" id="indenizPrazo" class="form-control"
+                                   min="1" value="30">
+                            <span class="input-group-text">dias</span>
+                        </div>
+                        <small class="text-muted">Após a data de registro da avaria.</small>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Prioridade:</strong> Regras mais específicas (transportadora + tipo definidos)
+                    têm prioridade sobre regras com curingas. Se houver conflito, a mais específica vence.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarIndeniz()">
+                    <i class="fas fa-save me-1"></i>Salvar Regra
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tab_scripts %}
+<script>
+const API_INDENIZ = '/wms/parametrizacao/api/indenizacao';
+let modalIndeniz = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    modalIndeniz = new bootstrap.Modal(document.getElementById('modalIndeniz'));
+});
+
+function editarIndeniz(id, dados) {
+    document.getElementById('indenizId').value = id;
+    document.getElementById('indenizTransportadora').value = dados.transportadora || '*';
+    document.getElementById('indenizTipoAvaria').value = dados.tipo_avaria || '*';
+    document.getElementById('indenizPercentual').value = dados.percentual_reemb || '';
+    document.getElementById('indenizValorMax').value = dados.valor_max || '';
+    document.getElementById('indenizPrazo').value = dados.prazo_dias || 30;
+    document.getElementById('modalIndenizTitulo').textContent = 'Editar Regra de Indenização';
+    modalIndeniz.show();
+}
+
+async function salvarIndeniz() {
+    const id = document.getElementById('indenizId').value;
+    const payload = {
+        transportadora:  document.getElementById('indenizTransportadora').value,
+        tipo_avaria:     document.getElementById('indenizTipoAvaria').value.trim() || '*',
+        percentual_reemb: parseFloat(document.getElementById('indenizPercentual').value),
+        valor_max:       document.getElementById('indenizValorMax').value || '',
+        prazo_dias:      parseInt(document.getElementById('indenizPrazo').value) || 30,
+    };
+
+    if (!payload.percentual_reemb && payload.percentual_reemb !== 0) {
+        showParamToast('Informe o percentual de reembolso', 'warning');
+        return;
+    }
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_INDENIZ}/${id}` : API_INDENIZ;
+    const res = await paramApi(url, method, payload);
+
+    if (res.success) {
+        showParamToast(id ? 'Regra atualizada!' : 'Regra criada!');
+        modalIndeniz.hide();
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showParamToast(res.error || 'Erro ao salvar', 'danger');
+    }
+}
+</script>
+{% endblock %}

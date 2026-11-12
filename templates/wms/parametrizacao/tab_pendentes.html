@@ -1,0 +1,191 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block tab_content %}
+<div class="param-card">
+    <div class="param-card-header">
+        <h5><i class="fas fa-filter me-2 text-success"></i>Regras de Exclusão de Pendentes</h5>
+        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalRegra">
+            <i class="fas fa-plus me-2"></i>Nova Regra
+        </button>
+    </div>
+    <div class="param-card-body p-0">
+        <div class="alert alert-info m-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Como funciona:</strong> Itens que satisfazem <em>todas</em> as condições de uma mesma regra são
+            <strong>excluídos</strong> da lista de avarias pendentes. Campos em branco = curinga (qualquer valor).
+        </div>
+
+        {% if rules %}
+        <table class="param-table table mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Local</th>
+                    <th>Etiqueta</th>
+                    <th>Status Indenização</th>
+                    <th>Status Estoque</th>
+                    <th>Ativo</th>
+                    <th>Criado por</th>
+                    <th width="110">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in rules %}
+                <tr id="row-rule-{{ rule.id }}">
+                    <td><code>{{ rule.id }}</code></td>
+                    <td>{{ rule.local or '—' }}</td>
+                    <td>{{ rule.etiqueta or '—' }}</td>
+                    <td>{{ rule.status_indenizacao or '—' }}</td>
+                    <td>{{ rule.status_estoque or '—' }}</td>
+                    <td>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox"
+                                   {{ 'checked' if rule.ativo == 'sim' else '' }}
+                                   onchange="toggleRule('{{ rule.id }}', '{{ rule.ativo }}')">
+                        </div>
+                    </td>
+                    <td class="text-muted small">{{ rule.criado_por or '—' }}</td>
+                    <td>
+                        <button class="btn btn-outline-primary btn-sm me-1"
+                                onclick="editarRegra('{{ rule.id }}', {{ rule.to_dict() | tojson }})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm"
+                                onclick="excluirRegra('{{ rule.id }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="param-empty">
+            <i class="fas fa-filter d-block"></i>
+            <p class="mb-0">Nenhuma regra de exclusão configurada.</p>
+            <small class="text-muted">Crie regras para filtrar avarias da lista de pendentes.</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Modal Criar / Editar Regra ── #}
+<div class="modal fade" id="modalRegra" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-filter me-2"></i><span id="modalRegraTitulo">Nova Regra</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="regraId">
+                <div class="alert alert-secondary small">
+                    Preencha apenas os campos que devem ser verificados. Campos em branco funcionam como curinga.
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Local</label>
+                        <select id="regraLocal" class="form-select">
+                            <option value="">(qualquer local)</option>
+                            {% for loc in locals_list %}
+                            <option value="{{ loc }}">{{ loc }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Status da Etiqueta</label>
+                        <select id="regraEtiqueta" class="form-select">
+                            <option value="">(qualquer status)</option>
+                            {% for op in etiqueta_options %}
+                            <option value="{{ op }}">{{ op }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Status de Indenização</label>
+                        <select id="regraIndStatus" class="form-select">
+                            <option value="">(qualquer)</option>
+                            {% for s in status_indenizacao_list %}
+                            <option value="{{ s.status }}">{{ s.status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Status de Estoque</label>
+                        <select id="regraEstStatus" class="form-select">
+                            <option value="">(qualquer)</option>
+                            {% for s in status_estoque_list %}
+                            <option value="{{ s.status }}">{{ s.status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarRegra()">
+                    <i class="fas fa-save me-1"></i>Salvar Regra
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tab_scripts %}
+<script>
+const API_RULES = '/wms/parametrizacao/api/rules';
+let modalRegra = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    modalRegra = new bootstrap.Modal(document.getElementById('modalRegra'));
+});
+
+function editarRegra(id, dados) {
+    document.getElementById('regraId').value = id;
+    document.getElementById('regraLocal').value = dados.local || '';
+    document.getElementById('regraEtiqueta').value = dados.etiqueta || '';
+    document.getElementById('regraIndStatus').value = dados.status_indenizacao || '';
+    document.getElementById('regraEstStatus').value = dados.status_estoque || '';
+    document.getElementById('modalRegraTitulo').textContent = 'Editar Regra';
+    modalRegra.show();
+}
+
+async function salvarRegra() {
+    const id = document.getElementById('regraId').value;
+    const payload = {
+        local:               document.getElementById('regraLocal').value,
+        etiqueta:            document.getElementById('regraEtiqueta').value,
+        status_indenizacao:  document.getElementById('regraIndStatus').value,
+        status_estoque:      document.getElementById('regraEstStatus').value,
+    };
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_RULES}/${id}` : API_RULES;
+    const res = await paramApi(url, method, payload);
+
+    if (res.success) {
+        showParamToast(id ? 'Regra atualizada!' : 'Regra criada!');
+        modalRegra.hide();
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showParamToast(res.error || 'Erro ao salvar', 'danger');
+    }
+}
+
+async function toggleRule(id, ativoAtual) {
+    const novoAtivo = ativoAtual === 'sim';  // será invertido no service
+    const res = await paramApi(`${API_RULES}/${id}/toggle`, 'POST', { ativo: !novoAtivo });
+    if (res.success) {
+        showParamToast('Status alterado!');
+    } else {
+        showParamToast(res.error || 'Erro', 'danger');
+        setTimeout(() => location.reload(), 500);
+    }
+}
+
+async function excluirRegra(id) {
+    await confirmarExclusao(API_RULES, id, id, () => location.reload());
+}
+</script>
+{% endblock %}

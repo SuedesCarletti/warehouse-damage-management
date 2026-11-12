@@ -1,0 +1,624 @@
+{% extends "base.html" %}
+
+{% block title %}Importação em Lote - WMS{% endblock %}
+
+{% block extra_head %}
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1rem;
+    }
+    .table-responsive::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <!-- Cabeçalho -->
+        <div class="col-12 mb-4">
+            <h2><i class="fas fa-file-upload me-2"></i>Importação em Lote de Avarias</h2>
+            <p class="text-muted">Importe múltiplas avarias de uma só vez usando arquivo Excel ou CSV</p>
+        </div>
+    </div>
+
+    <!-- Card de Instruções -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Instruções de Uso</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2"><strong>Download do Template:</strong> Clique no botão abaixo para baixar o template com a estrutura correta</li>
+                        <li class="mb-2"><strong>Preencher Dados:</strong> Preencha o arquivo com os dados das avarias seguindo o formato do template</li>
+                        <li class="mb-2"><strong>Validação (Opcional):</strong> Use "Validar Arquivo" para verificar erros antes de importar</li>
+                        <li class="mb-2"><strong>Importação:</strong> Clique em "Processar e Importar" para registrar as avarias no sistema</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Template e Upload -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload de Arquivo</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formUpload">
+                        <div class="mb-3">
+                            <label for="fileInput" class="form-label">Selecione o arquivo Excel ou CSV</label>
+                            <input class="form-control form-control-lg" type="file" id="fileInput" name="file" accept=".xlsx,.xls,.csv" required>
+                            <small class="form-text text-muted">Formatos aceitos: .xlsx, .xls, .csv</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="chunkSize" class="form-label">Tamanho do Lote</label>
+                            <select class="form-select" id="chunkSize" name="chunk_size">
+                                <option value="10">10 linhas</option>
+                                <option value="50">50 linhas</option>
+                                <option value="100" selected>100 linhas (Recomendado)</option>
+                                <option value="500">500 linhas</option>
+                                <option value="1000">1000 linhas</option>
+                            </select>
+                            <small class="form-text text-muted">Define quantas linhas serão processadas por vez</small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-warning btn-lg" id="btnValidar">
+                                <i class="fas fa-check-circle me-2"></i>Validar Arquivo (Sem Importar)
+                            </button>
+                            <button type="button" class="btn btn-success btn-lg" id="btnImportar">
+                                <i class="fas fa-database me-2"></i>Processar e Importar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="btnLimpar">
+                                <i class="fas fa-times me-2"></i>Limpar
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Loader -->
+                    <div id="loader" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2 text-muted" id="loaderText">Processando arquivo...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-download me-2"></i>Template</h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-file-excel fa-5x text-success mb-3"></i>
+                    <p class="mb-3">Baixe o template com a estrutura correta para preenchimento</p>
+                    <a href="/wms/batch/api/template" class="btn btn-success btn-lg w-100">
+                        <i class="fas fa-download me-2"></i>Baixar Template
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Resultados -->
+    <div id="resultadosContainer" style="display: none;">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Resumo do Processamento</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Cards de Estatísticas -->
+                        <div class="row text-center mb-3">
+                            <div class="col-md-2">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h3 id="statTotal" class="mb-0 text-primary">0</h3>
+                                        <small class="text-muted">Total</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h3 id="statValidadas" class="mb-0 text-info">0</h3>
+                                        <small class="text-muted">Validadas</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h3 id="statImportadas" class="mb-0 text-success">0</h3>
+                                        <small class="text-muted">Importadas</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h3 id="statErros" class="mb-0 text-danger">0</h3>
+                                        <small class="text-muted">Erros</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h3 id="statTempo" class="mb-0 text-secondary">0s</h3>
+                                        <small class="text-muted">Tempo</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h3 id="statProgress" class="mb-0 text-warning">0%</h3>
+                                        <small class="text-muted">Progresso</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Barra de Progresso -->
+                        <div class="mb-3">
+                            <div class="progress" style="height: 25px;">
+                                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Tabelas de Resultados -->
+                        <ul class="nav nav-tabs mb-3" id="resultTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="importadas-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#importadas" type="button" role="tab">
+                                    <i class="fas fa-check-circle text-success me-2"></i>Importadas <span id="badgeImportadas" class="badge bg-success">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="erros-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#erros" type="button" role="tab">
+                                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>Erros <span id="badgeErros" class="badge bg-danger">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="validacao-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#validacao" type="button" role="tab">
+                                    <i class="fas fa-info-circle text-info me-2"></i>Validação <span id="badgeValidacao" class="badge bg-info">0</span>
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="resultTabContent">
+                            <!-- Tab Importadas -->
+                            <div class="tab-pane fade show active" id="importadas" role="tabpanel">
+                                <div class="table-responsive" style="max-height: 400px;">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-success sticky-top">
+                                            <tr>
+                                                <th>Linha</th>
+                                                <th>Empresa</th>
+                                                <th>Nota</th>
+                                                <th>Qtd Avariada</th>
+                                                <th>Transportadora</th>
+                                                <th>ID Gerado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tabelaImportadas">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Tab Erros -->
+                            <div class="tab-pane fade" id="erros" role="tabpanel">
+                                <div class="table-responsive" style="max-height: 400px;">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-danger sticky-top">
+                                            <tr>
+                                                <th>Linha</th>
+                                                <th>Empresa</th>
+                                                <th>Nota</th>
+                                                <th>Erro</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tabelaErros">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Tab Validação -->
+                            <div class="tab-pane fade" id="validacao" role="tabpanel">
+                                <div class="table-responsive" style="max-height: 400px;">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-info sticky-top">
+                                            <tr>
+                                                <th>Linha</th>
+                                                <th>Empresa</th>
+                                                <th>Nota</th>
+                                                <th>Status</th>
+                                                <th>Detalhes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tabelaValidacao">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-primary" id="btnExportarResultados">
+                                <i class="fas fa-download me-2"></i>Exportar Resultados
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="btnNovaImportacao">
+                                <i class="fas fa-redo me-2"></i>Nova Importação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const uploadUrl = '/wms/batch/api/upload';
+        let validationMode = false;
+
+        // Elementos DOM
+        const fileInput = document.getElementById('fileInput');
+        const btnValidar = document.getElementById('btnValidar');
+        const btnImportar = document.getElementById('btnImportar');
+        const btnLimpar = document.getElementById('btnLimpar');
+        const btnNovaImportacao = document.getElementById('btnNovaImportacao');
+        const btnExportarResultados = document.getElementById('btnExportarResultados');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loaderText');
+        const resultadosContainer = document.getElementById('resultadosContainer');
+        const formUpload = document.getElementById('formUpload');
+
+        // Event Listeners
+        btnLimpar.addEventListener('click', function() {
+            formUpload.reset();
+            resultadosContainer.style.display = 'none';
+            validationMode = false;
+        });
+
+        btnNovaImportacao.addEventListener('click', function() {
+            btnLimpar.click();
+        });
+
+        btnValidar.addEventListener('click', function() {
+            validationMode = true;
+            processarArquivo();
+        });
+
+        btnImportar.addEventListener('click', function() {
+            validationMode = false;
+            processarArquivo();
+        });
+
+        btnExportarResultados.addEventListener('click', function() {
+            alert('Funcionalidade de exportação será implementada em breve.');
+        });
+
+        function processarArquivo() {
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Por favor, selecione um arquivo.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('chunk_size', document.getElementById('chunkSize').value);
+            formData.append('validation_only', validationMode);
+
+            // Mostrar loader
+            loader.style.display = 'block';
+            loaderText.textContent = validationMode ? 'Validando arquivo...' : 'Processando e importando...';
+
+            // Resetar estatísticas
+            resetarEstatisticas();
+
+            fetch(uploadUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loader.style.display = 'none';
+                
+                if (data.success) {
+                    exibirResultados(data);
+                } else {
+                    alert('Erro: ' + data.error);
+                }
+            })
+            .catch(error => {
+                loader.style.display = 'none';
+                console.error('Erro:', error);
+                alert('Erro ao processar arquivo: ' + error.message);
+            });
+        }
+
+        function resetarEstatisticas() {
+            document.getElementById('statTotal').textContent = '0';
+            document.getElementById('statValidadas').textContent = '0';
+            document.getElementById('statImportadas').textContent = '0';
+            document.getElementById('statErros').textContent = '0';
+            document.getElementById('statTempo').textContent = '0s';
+            document.getElementById('statProgress').textContent = '0%';
+            
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            
+            document.getElementById('badgeImportadas').textContent = '0';
+            document.getElementById('badgeErros').textContent = '0';
+            document.getElementById('badgeValidacao').textContent = '0';
+            
+            document.getElementById('tabelaImportadas').innerHTML = '';
+            document.getElementById('tabelaErros').innerHTML = '';
+            document.getElementById('tabelaValidacao').innerHTML = '';
+        }
+
+        function exibirResultados(data) {
+            console.log('📊 Exibindo resultados da importação:', data);
+            
+            // ✅ Compatibilidade com diferentes nomes de campo
+            const results = data.resultados || data.results || {};
+            
+            // ✅ Validar estrutura
+            if (!results || typeof results !== 'object') {
+                console.error('❌ Resultados inválidos:', data);
+                alert('Erro: Resposta do servidor inválida');
+                return;
+            }
+            
+            // ✅ Extrair dados com valores padrão
+            const totalLinhas = results.total_linhas || 0;
+            const validadas = results.validadas || 0;
+            const importadas = results.importadas || 0;
+            const comErro = results.com_erro || 0;
+            const comAviso = results.com_aviso || 0;
+            const tempo = results.tempo_processamento || 0;
+            
+            // ✅ Arrays de erros e avisos
+            const erros = Array.isArray(results.erros) ? results.erros : [];
+            const avisos = Array.isArray(results.avisos) ? results.avisos : [];
+            
+            console.log(`📈 Estatísticas: Total=${totalLinhas}, Válidas=${validadas}, Importadas=${importadas}, Erros=${erros.length}`);
+            
+            // ========================================
+            // ATUALIZAR ESTATÍSTICAS
+            // ========================================
+            document.getElementById('statTotal').textContent = totalLinhas;
+            document.getElementById('statValidadas').textContent = validadas;
+            document.getElementById('statImportadas').textContent = importadas;
+            document.getElementById('statErros').textContent = comErro;
+            document.getElementById('statTempo').textContent = tempo.toFixed(2) + 's';
+            
+            // Calcular progresso
+            const progress = totalLinhas > 0 ? Math.round((importadas / totalLinhas) * 100) : 0;
+            document.getElementById('statProgress').textContent = progress + '%';
+            
+            // Atualizar barra de progresso
+            const progressBar = document.getElementById('progressBar');
+            if (progressBar) {
+                progressBar.style.width = progress + '%';
+                progressBar.textContent = progress + '%';
+                progressBar.setAttribute('aria-valuenow', progress);
+            }
+            
+            // ========================================
+            // ATUALIZAR BADGES (NÚMEROS, NÃO OBJETOS!)
+            // ========================================
+            // ✅ CORREÇÃO CRÍTICA: Usar .length dos arrays, não os arrays inteiros
+            document.getElementById('badgeImportadas').textContent = importadas;
+            document.getElementById('badgeErros').textContent = erros.length;  // ✅ .length!
+            document.getElementById('badgeValidacao').textContent = validadas;
+            
+            // ========================================
+            // PREENCHER TABELA DE IMPORTADAS
+            // ========================================
+            const tabelaImportadas = document.getElementById('tabelaImportadas');
+            if (importadas > 0) {
+                tabelaImportadas.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>${importadas}</strong> ${importadas === 1 ? 'avaria importada' : 'avarias importadas'} com sucesso!
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tabelaImportadas.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            Nenhuma avaria importada
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            // ========================================
+            // PREENCHER TABELA DE ERROS
+            // ========================================
+            const tabelaErros = document.getElementById('tabelaErros');
+            if (erros.length > 0) {
+                console.log(`❌ Exibindo ${erros.length} erros`);
+                
+                let htmlErros = '';
+                erros.forEach(erro => {
+                    htmlErros += `
+                        <tr>
+                            <td>${erro.linha || '-'}</td>
+                            <td>${erro.campo || '-'}</td>
+                            <td><code>${erro.valor || '-'}</code></td>
+                            <td class="text-danger">
+                                <i class="fas fa-exclamation-circle me-1"></i>
+                                ${erro.erro || 'Erro desconhecido'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tabelaErros.innerHTML = htmlErros;
+            } else {
+                tabelaErros.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Nenhum erro encontrado
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            // ========================================
+            // PREENCHER TABELA DE VALIDAÇÃO (AVISOS)
+            // ========================================
+            const tabelaValidacao = document.getElementById('tabelaValidacao');
+            if (avisos.length > 0) {
+                console.log(`⚠️ Exibindo ${avisos.length} avisos`);
+                
+                let htmlAvisos = '';
+                avisos.forEach(aviso => {
+                    htmlAvisos += `
+                        <tr>
+                            <td>${aviso.linha || '-'}</td>
+                            <td>${aviso.campo || '-'}</td>
+                            <td><code>${aviso.valor || '-'}</code></td>
+                            <td class="text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                ${aviso.aviso || aviso.erro || 'Aviso'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tabelaValidacao.innerHTML = htmlAvisos;
+            } else {
+                tabelaValidacao.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Nenhum aviso
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            // ========================================
+            // SCROLL PARA RESULTADOS
+            // ========================================
+            setTimeout(() => {
+                const resultadosCard = document.querySelector('#resultados-importacao');
+                if (resultadosCard) {
+                    resultadosCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+            
+            console.log('✅ Resultados exibidos com sucesso!');
+        }
+    
+        function preencherTabelaImportadas(dados) {
+            const tbody = document.getElementById('tabelaImportadas');
+            tbody.innerHTML = '';
+            
+            if (dados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhuma avaria importada</td></tr>';
+                return;
+            }
+
+            dados.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.linha || '-'}</td>
+                    <td>${item.cod_empresa || '-'}</td>
+                    <td>${item.nota || '-'}</td>
+                    <td>${item.qtd_avariada || '-'}</td>
+                    <td>${item.transportadora || '-'}</td>
+                    <td><code>${item.id || '-'}</code></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function preencherTabelaErros(dados) {
+            const tbody = document.getElementById('tabelaErros');
+            tbody.innerHTML = '';
+            
+            if (dados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhum erro encontrado</td></tr>';
+                return;
+            }
+
+            dados.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.linha || '-'}</td>
+                    <td>${item.cod_empresa || '-'}</td>
+                    <td>${item.nota || '-'}</td>
+                    <td class="text-danger">${item.erro || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function preencherTabelaValidacao(dados) {
+            const tbody = document.getElementById('tabelaValidacao');
+            tbody.innerHTML = '';
+            
+            if (dados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum dado de validação</td></tr>';
+                return;
+            }
+
+            dados.forEach(item => {
+                const statusClass = item.valido ? 'text-success' : 'text-danger';
+                const statusIcon = item.valido ? 'fa-check-circle' : 'fa-times-circle';
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.linha || '-'}</td>
+                    <td>${item.cod_empresa || '-'}</td>
+                    <td>${item.nota || '-'}</td>
+                    <td class="${statusClass}">
+                        <i class="fas ${statusIcon} me-1"></i>
+                        ${item.valido ? 'Válido' : 'Inválido'}
+                    </td>
+                    <td>${item.detalhes || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    });
+</script>
+{% endblock %}

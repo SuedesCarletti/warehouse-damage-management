@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+{% block title %}Permissões & Níveis — {{ empresa }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Cabeçalho ─────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center mb-4">
+    <div class="me-3 p-3 rounded-3" style="background:linear-gradient(135deg,#10b981,#059669)">
+      <i class="fas fa-shield-alt text-white fa-lg"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Permissões & Níveis</h4>
+      <small class="text-muted">{{ empresa }} · Defina o que cada perfil pode acessar</small>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      <a href="{{ url_for('admin_empresa.empresa_panel') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Painel
+      </a>
+      <button class="btn btn-success" onclick="salvarTodasPermissoes()" id="btnSalvar">
+        <i class="fas fa-save me-1"></i> Salvar Alterações
+      </button>
+    </div>
+  </div>
+
+  {# ── Como funciona ──────────────────────────────────────────────────── #}
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <div class="d-flex">
+      <i class="fas fa-info-circle fa-lg me-3 mt-1 text-info"></i>
+      <div>
+        <strong>Como as permissões funcionam:</strong>
+        <span class="ms-1">Cargo + Departamento tem prioridade máxima → Só Departamento → Só Cargo → Nível do Sistema.</span>
+        <br><small class="text-muted">Ex: "Analista" no "TI" pode ter permissões diferentes de "Analista" no "RH", mesmo sendo o mesmo cargo.</small>
+      </div>
+    </div>
+  </div>
+
+  {# ── Tabs ───────────────────────────────────────────────────────────── #}
+  <ul class="nav nav-tabs mb-4" id="tabsPermissoes">
+    <li class="nav-item">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabNivel">
+        <i class="fas fa-layer-group me-1"></i> Por Nível
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDepto">
+        <i class="fas fa-sitemap me-1"></i> Por Departamento
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCargo">
+        <i class="fas fa-briefcase me-1"></i> Por Cargo
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCombo">
+        <i class="fas fa-puzzle-piece me-1"></i> Cargo + Depto
+        <span class="badge bg-success ms-1">Máx. Prioridade</span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# TAB 1: Por Nível (padrão global do sistema)                           #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    <div class="tab-pane fade show active" id="tabNivel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+          <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-layer-group text-primary me-2"></i>
+            Permissões Padrão por Nível do Sistema
+          </h6>
+          <small class="text-muted">Aplicadas quando não há regra específica de cargo/departamento</small>
+        </div>
+        <div class="card-body p-0">
+          {{ _render_matrix(matrix_nivel, 'nivel', niveis_sistema, telas_por_modulo) }}
+        </div>
+      </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# TAB 2: Por Departamento                                                #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    <div class="tab-pane fade" id="tabDepto">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-sitemap text-warning me-2"></i>
+              Permissões por Departamento
+            </h6>
+            <small class="text-muted">Aplica-se a todos os cargos daquele departamento</small>
+          </div>
+          <button class="btn btn-sm btn-warning ms-auto" data-bs-toggle="modal" data-bs-target="#modalAddDepto">
+            <i class="fas fa-plus me-1"></i> Adicionar Departamento
+          </button>
+        </div>
+        <div class="card-body p-0">
+          {% if departamentos %}
+            {{ _render_matrix(matrix_depto, 'departamento', departamentos, telas_por_modulo) }}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-sitemap fa-3x mb-3 d-block opacity-25"></i>
+              <p>Nenhum departamento configurado ainda.</p>
+              <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalAddDepto">
+                <i class="fas fa-plus me-1"></i> Adicionar Departamento
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# TAB 3: Por Cargo                                                       #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    <div class="tab-pane fade" id="tabCargo">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-briefcase text-info me-2"></i>
+              Permissões por Cargo
+            </h6>
+            <small class="text-muted">Aplica-se ao cargo em qualquer departamento</small>
+          </div>
+          <button class="btn btn-sm btn-info ms-auto" data-bs-toggle="modal" data-bs-target="#modalAddCargo">
+            <i class="fas fa-plus me-1"></i> Adicionar Cargo
+          </button>
+        </div>
+        <div class="card-body p-0">
+          {% if cargos %}
+            {{ _render_matrix(matrix_cargo, 'cargo', cargos, telas_por_modulo) }}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-briefcase fa-3x mb-3 d-block opacity-25"></i>
+              <p>Nenhum cargo configurado ainda.</p>
+              <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#modalAddCargo">
+                <i class="fas fa-plus me-1"></i> Adicionar Cargo
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    {# TAB 4: Cargo + Departamento (máxima prioridade)                       #}
+    {# ══════════════════════════════════════════════════════════════════════ #}
+    <div class="tab-pane fade" id="tabCombo">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-puzzle-piece text-success me-2"></i>
+              Permissões por Cargo + Departamento
+              <span class="badge bg-success ms-1">Prioridade Máxima</span>
+            </h6>
+            <small class="text-muted">Sobrescreve todas as outras regras</small>
+          </div>
+          <button class="btn btn-sm btn-success ms-auto" data-bs-toggle="modal" data-bs-target="#modalAddCombo">
+            <i class="fas fa-plus me-1"></i> Nova Combinação
+          </button>
+        </div>
+        <div class="card-body">
+          {% if combos %}
+            {% for combo in combos %}
+            <div class="border rounded-3 p-3 mb-3">
+              <div class="d-flex align-items-center mb-3">
+                <span class="badge bg-info me-2">{{ combo.departamento }}</span>
+                <i class="fas fa-plus text-muted mx-1"></i>
+                <span class="badge bg-primary me-2">{{ combo.cargo }}</span>
+                <button class="btn btn-sm btn-outline-danger ms-auto"
+                  onclick="removerCombo('{{ combo.departamento }}', '{{ combo.cargo }}')">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+              {{ _render_matrix(combo.matrix, 'combo', [combo.departamento + '::' + combo.cargo], telas_por_modulo, combo_id=combo.id) }}
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-puzzle-piece fa-3x mb-3 d-block opacity-25"></i>
+              <p>Nenhuma combinação cargo+departamento cadastrada.</p>
+              <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAddCombo">
+                <i class="fas fa-plus me-1"></i> Nova Combinação
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>{# /tab-content #}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MACRO: Renderiza matriz de checkboxes                                       #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{% macro _render_matrix(matrix, tipo, perfis, telas_por_modulo, combo_id=None) %}
+<div class="table-responsive">
+  <table class="table table-bordered table-sm align-middle mb-0 perm-matrix">
+    <thead class="table-dark">
+      <tr>
+        <th class="sticky-col" style="min-width:180px">Módulo / Tela</th>
+        {% for perfil in perfis %}
+        <th class="text-center" style="min-width:120px">
+          <span class="small">{{ perfil.replace('::', ' + ') }}</span>
+          {% if tipo == 'nivel' %}
+          <div class="mt-1">
+            <button class="btn btn-xs btn-outline-light py-0 px-1"
+              onclick="marcarTodos('{{ tipo }}', '{{ perfil }}', true)">
+              <i class="fas fa-check-square" title="Marcar tudo"></i>
+            </button>
+            <button class="btn btn-xs btn-outline-light py-0 px-1"
+              onclick="marcarTodos('{{ tipo }}', '{{ perfil }}', false)">
+              <i class="fas fa-square" title="Desmarcar tudo"></i>
+            </button>
+          </div>
+          {% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for modulo, telas in telas_por_modulo.items() %}
+      <tr class="table-secondary">
+        <td class="fw-bold sticky-col" colspan="{{ perfis|length + 1 }}">
+          <i class="fas fa-cube me-1 text-primary"></i>
+          {{ modulo | upper }}
+        </td>
+      </tr>
+      {% for tela in telas %}
+      <tr>
+        <td class="sticky-col text-muted small ps-4">
+          <i class="fas fa-screen me-1 opacity-50"></i>{{ tela }}
+        </td>
+        {% for perfil in perfis %}
+        {% set current_val = matrix.get(perfil, {}).get(modulo, {}).get(tela, '') %}
+        <td class="text-center p-1">
+          <select class="perm-select form-select form-select-sm perm-select-{{ current_val or 'none' }}"
+            style="font-size:0.72rem;min-width:110px"
+            data-tipo="{{ tipo }}"
+            data-perfil="{{ perfil }}"
+            data-modulo="{{ modulo }}"
+            data-tela="{{ tela }}"
+            {% if combo_id %}data-combo-id="{{ combo_id }}"{% endif %}
+            onchange="onPermChange(this)">
+            <option value="" {% if not current_val %}selected{% endif %}>— Sem acesso</option>
+            <option value="visualizar" {% if current_val == 'visualizar' %}selected{% endif %}>👁 Visualizar</option>
+            <option value="editar" {% if current_val in ('editar', 'admin') or current_val is sameas true %}selected{% endif %}>✏️ Editar</option>
+          </select>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{# ══ MODAIS DE ADIÇÃO ══════════════════════════════════════════════════════ #}
+
+{# Modal: Adicionar Departamento à Matriz #}
+<div class="modal fade" id="modalAddDepto" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-sitemap me-2"></i>Permissões para Departamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Departamento</label>
+        <select class="form-select" id="selectAddDepto">
+          <option value="">Selecione...</option>
+          {% for d in departamentos %}
+          <option value="{{ d }}">{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" onclick="adicionarPerfilNaMatriz('departamento')">
+          <i class="fas fa-plus me-1"></i> Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Modal: Adicionar Cargo à Matriz #}
+<div class="modal fade" id="modalAddCargo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-briefcase me-2"></i>Permissões para Cargo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Cargo</label>
+        <select class="form-select" id="selectAddCargo">
+          <option value="">Selecione...</option>
+          {% for c in cargos %}
+          <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-info" onclick="adicionarPerfilNaMatriz('cargo')">
+          <i class="fas fa-plus me-1"></i> Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Modal: Nova combinação Cargo + Depto #}
+<div class="modal fade" id="modalAddCombo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-puzzle-piece me-2"></i>Nova Combinação Cargo + Depto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Departamento</label>
+          <select class="form-select" id="comboDepto">
+            <option value="">Selecione...</option>
+            {% for d in departamentos %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Cargo</label>
+          <select class="form-select" id="comboCargo">
+            <option value="">Selecione...</option>
+            {% for c in cargos %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-success" onclick="criarCombo()">
+          <i class="fas fa-plus me-1"></i> Criar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+<style>
+.perm-select-visualizar { background-color: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.perm-select-editar      { background-color: #dcfce7; color: #166534; border-color: #86efac; }
+.perm-select-none        { background-color: #f9fafb; color: #9ca3af; }
+</style>
+
+{% block scripts %}
+<script>
+var EMPRESA  = "{{ empresa }}";
+var URL_SALVAR = "{{ url_for('admin_empresa.api_salvar_permissoes') }}";
+var URL_COMBO  = "{{ url_for('admin_empresa.api_criar_combo_permissao') }}";
+var URL_DEL_COMBO = "{{ url_for('admin_empresa.api_remover_combo_permissao') }}";
+
+// ── Coleta todas as permissões da matriz e salva ──────────────────────────
+
+function coletarPermissoes() {
+  var resultado = { nivel: {}, departamento: {}, cargo: {}, combo: {} };
+  document.querySelectorAll('.perm-select').forEach(function(sel) {
+    var tipo   = sel.dataset.tipo;
+    var perfil = sel.dataset.perfil;
+    var modulo = sel.dataset.modulo;
+    var tela   = sel.dataset.tela;
+    if (!resultado[tipo])                resultado[tipo] = {};
+    if (!resultado[tipo][perfil])         resultado[tipo][perfil] = {};
+    if (!resultado[tipo][perfil][modulo]) resultado[tipo][perfil][modulo] = {};
+    resultado[tipo][perfil][modulo][tela] = sel.value || false;
+  });
+  return resultado;
+}
+
+async function salvarTodasPermissoes() {
+  var btn = document.getElementById('btnSalvar');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Salvando...';
+
+  var permissoes = coletarPermissoes();
+  var res = await apiPost(URL_SALVAR, { empresa: EMPRESA, permissoes: permissoes });
+
+  if (res.success) {
+    showToast('Permissões salvas com sucesso!', 'success');
+  } else {
+    showToast(res.error || 'Erro ao salvar', 'danger');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-save me-1"></i> Salvar Alterações';
+}
+
+// ── Marcar / Desmarcar todos de uma coluna ────────────────────────────────
+
+function onPermChange(sel) {
+  _mudancasPendentes = true;
+  sel.className = sel.className.replace(/perm-select-\S+/g, '').trim();
+  sel.classList.add('perm-select-' + (sel.value || 'none'));
+  var btn = document.getElementById('btnSalvar');
+  btn.classList.add('btn-warning');
+  btn.classList.remove('btn-success');
+  btn.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Salvar (mudanças pendentes)';
+}
+
+function marcarTodos(tipo, perfil, estado) {
+  var val = estado ? 'editar' : '';
+  document.querySelectorAll('.perm-select[data-tipo="' + tipo + '"][data-perfil="' + perfil + '"]')
+    .forEach(function(sel) { sel.value = val; onPermChange(sel); });
+}
+
+// ── Adicionar perfil (departamento ou cargo) à matriz via recarga ─────────
+
+async function adicionarPerfilNaMatriz(tipo) {
+  var val = '';
+  if (tipo === 'departamento') {
+    val = document.getElementById('selectAddDepto').value;
+    if (!val) return showToast('Selecione um departamento.', 'warning');
+  } else {
+    val = document.getElementById('selectAddCargo').value;
+    if (!val) return showToast('Selecione um cargo.', 'warning');
+  }
+
+  var res = await apiPost(URL_SALVAR, {
+    empresa: EMPRESA,
+    permissoes: { [tipo]: { [val]: {} } },
+    apenas_inicializar: true
+  });
+
+  if (res.success) {
+    showToast(tipo.charAt(0).toUpperCase() + tipo.slice(1) + ' adicionado!', 'success');
+    setTimeout(function() { location.reload(); }, 700);
+  } else {
+    showToast(res.error || 'Erro', 'danger');
+  }
+}
+
+// ── Criar combo cargo+departamento ────────────────────────────────────────
+
+async function criarCombo() {
+  var depto = document.getElementById('comboDepto').value;
+  var cargo = document.getElementById('comboCargo').value;
+  if (!depto || !cargo) return showToast('Selecione departamento e cargo.', 'warning');
+
+  var res = await apiPost(URL_COMBO, { empresa: EMPRESA, departamento: depto, cargo: cargo });
+  if (res.success) {
+    showToast('Combinação criada!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalAddCombo')).hide();
+    setTimeout(function() { location.reload(); }, 700);
+  } else {
+    showToast(res.error || 'Erro', 'danger');
+  }
+}
+
+async function removerCombo(depto, cargo) {
+  if (!confirm('Remover permissões específicas de "' + cargo + '" no "' + depto + '"?')) return;
+  var res = await apiPost(URL_DEL_COMBO, { empresa: EMPRESA, departamento: depto, cargo: cargo });
+  if (res.success) {
+    showToast('Combinação removida!', 'success');
+    setTimeout(function() { location.reload(); }, 700);
+  } else {
+    showToast(res.error || 'Erro', 'danger');
+  }
+}
+
+// ── Indicador visual de mudanças não salvas ───────────────────────────────
+
+var _mudancasPendentes = false;
+document.addEventListener('change', function(e) {
+  if (e.target.classList.contains('perm-select')) {
+    onPermChange(e.target);
+  }
+});
+
+window.addEventListener('beforeunload', function(e) {
+  if (_mudancasPendentes) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+async function apiPost(url, data) {
+  try {
+    var r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return r.json();
+  } catch (e) {
+    return { success: false, error: 'Erro de conexão: ' + e.message };
+  }
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  var el = document.createElement('div');
+  el.className = 'toast align-items-center text-white bg-' + type + ' border-0 position-fixed bottom-0 end-0 m-3';
+  el.style.zIndex = '9999';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = '<div class="d-flex"><div class="toast-body">' + msg + '</div>' +
+    '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  document.body.appendChild(el);
+  new bootstrap.Toast(el, { delay: 3500 }).show();
+  el.addEventListener('hidden.bs.toast', function() { el.remove(); });
+}
+</script>
+
+<style>
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 1;
+}
+.perm-matrix thead .sticky-col {
+  background: #212529;
+}
+.btn-xs {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+}
+</style>
+{% endblock %}

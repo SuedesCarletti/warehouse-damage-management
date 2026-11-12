@@ -1,0 +1,14 @@
+{% extends "admin/_usuarios_base.html" %}
+
+{# Admin Depto: vê apenas usuários do próprio depto, sem seleção de empresa #}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  window.API_CRIAR    = "{{ url_for('admin_depto.api_depto_criar_usuario') }}";
+  window.API_EDITAR   = "{{ url_for('admin_depto.api_depto_editar_usuario') }}";
+  window.API_DESATIVAR= "{{ url_for('admin_depto.api_depto_desativar_usuario') }}";
+  window.API_REATIVAR = "{{ url_for('admin_depto.api_depto_reativar_usuario') }}";
+  window.API_RESET    = "{{ url_for('admin_depto.api_depto_reset_senha') }}";
+</script>
+{% endblock %}

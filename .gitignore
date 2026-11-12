@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Environments
+.env
+.venv
+venv/
+env/
+
+# Flask / Gunicorn
+*.pid
+instance/
+flask_session/
+
+# Database
+*.db
+helpdesk.db
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+.claude/
+
+# Credenciais Google (nunca versionar)
+credentials.json
+token.pickle

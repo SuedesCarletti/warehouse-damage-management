@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Admin Depto — {{ departamento }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Cabeçalho ─────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center mb-4">
+    <div class="me-3 p-3 rounded-3" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">
+      <i class="fas fa-users-cog text-white fa-lg"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Painel Admin Departamento</h4>
+      <small class="text-muted">{{ empresa }} / {{ departamento }} · {{ session.user_email }}</small>
+    </div>
+    <a href="{{ url_for('admin_depto.depto_usuarios') }}" class="btn btn-info ms-auto text-white">
+      <i class="fas fa-users me-1"></i> Gerenciar Equipe
+    </a>
+  </div>
+
+  {# ── Stats ─────────────────────────────────────────────────────────── #}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-3 px-2">
+          <p class="text-muted mb-1 small">Membros do Depto</p>
+          <h2 class="fw-bold text-info mb-0">{{ stats.total_users }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <p class="text-muted mb-1 small">Ativos</p>
+          <h2 class="fw-bold text-success mb-0">{{ stats.ativos }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <p class="text-muted mb-1 small">Inativos</p>
+          <h2 class="fw-bold text-danger mb-0">{{ stats.inativos }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <p class="text-muted mb-1 small">Funções</p>
+          <h2 class="fw-bold text-info mb-0">{{ stats.by_nivel | length }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Distribuição do departamento ──────────────────────────────────── #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white">
+      <h6 class="mb-0 fw-semibold">
+        <i class="fas fa-chart-pie text-info me-2"></i>
+        Composição de {{ departamento }}
+      </h6>
+    </div>
+    <div class="card-body">
+      {% if stats.by_nivel %}
+      <div class="row g-2">
+        {% for nivel, total in stats.by_nivel.items() %}
+        <div class="col-6 col-md-3">
+          <div class="border rounded-3 p-3 text-center">
+            <div class="fw-bold fs-5 text-info">{{ total }}</div>
+            <div class="text-muted small">{{ nivel | replace('_',' ') | title }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="text-muted mb-0">Nenhum usuário neste departamento ainda.</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Usuários{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Cabeçalho adaptado ao nível ──────────────────────────────────────── #}
+  <div class="d-flex align-items-center mb-4">
+    <div class="me-3 p-3 rounded-3" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">
+      <i class="fas fa-users text-white fa-lg"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Gerenciar Usuários</h4>
+      <small class="text-muted">
+        {% if empresa %}{{ empresa }}{% endif %}
+        {% if departamento %} / {{ departamento }}{% endif %}
+        {% if empresa or departamento %} · {% endif %}
+        {{ users | length }} usuário(s)
+      </small>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      {# Botão de voltar - detecta contexto automaticamente #}
+      {% if request.endpoint == 'admin_global.global_usuarios' %}
+        <a href="{{ url_for('admin_global.global_panel') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Painel
+        </a>
+      {% elif request.endpoint == 'admin_empresa.empresa_usuarios' %}
+        <a href="{{ url_for('admin_empresa.empresa_panel') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Painel
+        </a>
+        <a href="{{ url_for('admin_empresa.empresa_departamentos') }}" class="btn btn-outline-info">
+          <i class="fas fa-sitemap me-1"></i> Departamentos
+        </a>
+      {% elif request.endpoint == 'admin_depto.depto_usuarios' %}
+        <a href="{{ url_for('admin_depto.depto_panel') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Painel
+        </a>
+      {% endif %}
+      
+      {# Botão criar usuário #}
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCriarUser">
+        <i class="fas fa-user-plus me-1"></i> Novo Usuário
+      </button>
+    </div>
+  </div>
+
+  {# ── Tabela ───────────────────────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="tabelaUsuarios">
+          <thead class="table-light">
+            <tr>
+              <th>Nome</th>
+              <th>Email</th>
+              <th>Empresa</th>
+              <th>Departamento</th>
+              <th>Cargo</th>
+              <th>Nível</th>
+              <th>Status</th>
+              <th class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td class="fw-semibold">{{ u.nome }}</td>
+              <td class="text-muted small">{{ u.email }}</td>
+              <td>{{ u.empresa or '—' }}</td>
+              <td>{{ u.departamento or '—' }}</td>
+              <td>{{ u.cargo or '—' }}</td>
+              <td>
+                {# Mapeamento de cores por nível — gestor mantido como alias backward-compat #}
+                {% set cores = {
+                  'admin_global':  'danger',
+                  'admin_empresa': 'warning',
+                  'admin_depto':   'info',
+                  'gestor':        'secondary',
+                  'usuario':       'secondary'
+                } %}
+                <span class="badge bg-{{ cores.get(u.nivel, 'secondary') }}">{{ u.nivel_display }}</span>
+              </td>
+              <td>
+                {% if u.is_active %}
+                  <span class="badge bg-success-subtle text-success">Ativo</span>
+                {% else %}
+                  <span class="badge bg-danger-subtle text-danger">Inativo</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="d-flex justify-content-end gap-1">
+                  {% if session.get('user_level') == 'admin_global' and not session.get('_imp_backup') and u.email != session.get('user_email') %}
+                  <button class="btn btn-sm btn-outline-info"
+                    onclick="confirmarLogarComo('{{ u.email }}', '{{ u.nome }}')" title="Navegar como este usuário">
+                    <i class="fas fa-user-secret"></i>
+                  </button>
+                  {% endif %}
+                  <button class="btn btn-sm btn-outline-primary"
+                    onclick='abrirEditar({{ u.to_safe_dict() | tojson }})' title="Editar">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  {% if u.is_active %}
+                  <button class="btn btn-sm btn-outline-warning"
+                    onclick="abrirResetSenha('{{ u.email }}', '{{ u.nome }}')" title="Redefinir Senha">
+                    <i class="fas fa-key"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger"
+                    onclick="desativarUser('{{ u.email }}', '{{ u.nome }}')" title="Desativar">
+                    <i class="fas fa-user-slash"></i>
+                  </button>
+                  {% else %}
+                  <button class="btn btn-sm btn-outline-success"
+                    onclick="reativarUser('{{ u.email }}', '{{ u.nome }}')" title="Reativar">
+                    <i class="fas fa-user-check"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">Nenhum usuário encontrado no escopo</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Criar Usuário                                                     #}
+{# ════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalCriarUser" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Novo Usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nome Completo *</label>
+            <input type="text" class="form-control" id="cNome">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email *</label>
+            <input type="email" class="form-control" id="cEmail">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Empresa *</label>
+            <select class="form-select" id="cEmpresa">
+              <option value="">Selecione...</option>
+              {% for emp in empresas %}
+              <option value="{{ emp }}"
+                {% if emp == empresa %}selected{% endif %}>{{ emp }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Departamento *</label>
+            {# admin_depto: departamento fixo pelo escopo, usa hidden + display #}
+            {% if departamento %}
+              <input type="text" class="form-control" value="{{ departamento }}" readonly>
+              <input type="hidden" id="cDepartamentoHidden" value="{{ departamento }}">
+            {% elif departamentos %}
+              <select class="form-select" id="cDepartamento">
+                <option value="">Selecione...</option>
+                {% for d in departamentos %}
+                <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="text" class="form-control" id="cDepartamento"
+                placeholder="Ex: TI, RH, Financeiro...">
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Cargo</label>
+            {% if cargos %}
+              <select class="form-select" id="cCargo">
+                <option value="">Sem cargo</option>
+                {% for c in cargos %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="text" class="form-control" id="cCargo"
+                placeholder="Ex: Analista, Supervisor...">
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Nível de Acesso *</label>
+            <select class="form-select" id="cNivel">
+              {% for n in niveis %}
+              <option value="{{ n.value }}">{{ n.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Senha *</label>
+            <input type="text" class="form-control" id="cSenha"
+              placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Confirmar Senha *</label>
+            <input type="text" class="form-control" id="cSenhaConf" autocomplete="new-password">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitCriarUser()">
+          <i class="fas fa-save me-1"></i> Criar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Editar Usuário                                                    #}
+{# ════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalEditarUser" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="eEmail">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nome</label>
+            <input type="text" class="form-control" id="eNome">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="eEmailDisplay" disabled>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Departamento</label>
+            {# admin_depto NÃO pode mudar de depto — usa readonly #}
+            {% if departamento %}
+              <input type="text" class="form-control" id="eDepartamento" readonly>
+            {% elif departamentos %}
+              <select class="form-select" id="eDepartamento">
+                <option value="">Selecione...</option>
+                {% for d in departamentos %}
+                <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="text" class="form-control" id="eDepartamento">
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Cargo</label>
+            {% if cargos %}
+              <select class="form-select" id="eCargo">
+                <option value="">Sem cargo</option>
+                {% for c in cargos %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="text" class="form-control" id="eCargo"
+                placeholder="Ex: Analista, Supervisor...">
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Nível de Acesso</label>
+            <select class="form-select" id="eNivel">
+              {% for n in niveis %}
+              <option value="{{ n.value }}">{{ n.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitEditarUser()">
+          <i class="fas fa-save me-1"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Redefinir Senha                                                   #}
+{# ════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalResetSenha" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-key me-2"></i>Redefinir Senha</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rEmail">
+        <p class="text-muted">Usuário: <strong id="rNome"></strong></p>
+        <div class="mb-3">
+          <label class="form-label">Nova Senha *</label>
+          <input type="password" class="form-control" id="rSenha" autocomplete="new-password">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Confirmar Nova Senha *</label>
+          <input type="password" class="form-control" id="rSenhaConf" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" onclick="submitResetSenha()">
+          <i class="fas fa-key me-1"></i> Redefinir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPORTANTE: cada template filho define as URLs via window.API_* ANTES deste
+// bloco ser executado, usando url_for() correto para seu blueprint.
+// Exemplo em global_usuarios.html:
+//   window.API_CRIAR  = "{{ url_for('admin_global.api_global_criar_usuario') }}";
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function submitCriarUser() {
+  const senha = document.getElementById('cSenha').value;
+  if (senha !== document.getElementById('cSenhaConf').value) {
+    return showToast('Senhas não coincidem.', 'warning');
+  }
+
+  // Suporte a departamento via select ou hidden input (admin_depto)
+  let departamento = '';
+  const deptoEl       = document.getElementById('cDepartamento');
+  const deptoHiddenEl = document.getElementById('cDepartamentoHidden');
+  if (deptoHiddenEl) {
+    departamento = deptoHiddenEl.value;
+  } else if (deptoEl) {
+    departamento = deptoEl.value;
+  }
+
+  const data = {
+    nome:         document.getElementById('cNome').value.trim(),
+    email:        document.getElementById('cEmail').value.trim(),
+    empresa:      document.getElementById('cEmpresa').value,
+    departamento: departamento,
+    cargo:        (document.getElementById('cCargo') || {}).value || '',
+    nivel:        document.getElementById('cNivel').value,
+    senha:        senha,
+  };
+
+  if (!data.nome || !data.email || !data.empresa || !data.departamento || !data.nivel || !data.senha) {
+    return showToast('Preencha todos os campos obrigatórios.', 'warning');
+  }
+
+  const res = await apiPost(window.API_CRIAR, data);
+  handleResponse(res, 'modalCriarUser', 'Usuário criado com sucesso!');
+}
+
+function abrirEditar(user) {
+  document.getElementById('eEmail').value        = user.email;
+  document.getElementById('eEmailDisplay').value = user.email;
+  document.getElementById('eNome').value         = user.nome;
+
+  // Departamento: pode ser select ou input de texto
+  const deptoEl = document.getElementById('eDepartamento');
+  if (deptoEl) deptoEl.value = user.departamento || '';
+
+  // Cargo: pode ser select ou input
+  const cargoEl = document.getElementById('eCargo');
+  if (cargoEl) cargoEl.value = user.cargo || '';
+
+  // Nível: seleciona a opção correta
+  const nivelEl = document.getElementById('eNivel');
+  if (nivelEl) {
+    Array.from(nivelEl.options).forEach(o => { o.selected = o.value === user.nivel; });
+  }
+
+  new bootstrap.Modal(document.getElementById('modalEditarUser')).show();
+}
+
+async function submitEditarUser() {
+  const deptoEl = document.getElementById('eDepartamento');
+  const cargoEl = document.getElementById('eCargo');
+  const nivelEl = document.getElementById('eNivel');
+
+  const data = {
+    email:        document.getElementById('eEmail').value,
+    nome:         document.getElementById('eNome').value.trim(),
+    departamento: deptoEl ? deptoEl.value.trim() : '',
+    cargo:        cargoEl ? cargoEl.value.trim() : '',
+    nivel:        nivelEl ? nivelEl.value : '',
+  };
+  const res = await apiPost(window.API_EDITAR, data);
+  handleResponse(res, 'modalEditarUser', 'Usuário atualizado!');
+}
+
+function abrirResetSenha(email, nome) {
+  document.getElementById('rEmail').value = email;
+  document.getElementById('rNome').textContent = nome;
+  document.getElementById('rSenha').value = '';
+  document.getElementById('rSenhaConf').value = '';
+  new bootstrap.Modal(document.getElementById('modalResetSenha')).show();
+}
+
+async function submitResetSenha() {
+  const nova_senha = document.getElementById('rSenha').value;
+  if (nova_senha !== document.getElementById('rSenhaConf').value) {
+    return showToast('Senhas não coincidem.', 'warning');
+  }
+  const data = {
+    email:     document.getElementById('rEmail').value,
+    nova_senha: nova_senha,
+  };
+  const res = await apiPost(window.API_RESET, data);
+  handleResponse(res, 'modalResetSenha', 'Senha redefinida com sucesso!');
+}
+
+async function desativarUser(email, nome) {
+  if (!confirm('Desativar o usuário "' + nome + '"?')) return;
+  const res = await apiPost(window.API_DESATIVAR, { email });
+  if (res.success) {
+    showToast('Usuário desativado.', 'success');
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao desativar', 'danger');
+  }
+}
+
+async function reativarUser(email, nome) {
+  if (!confirm('Reativar o usuário "' + nome + '"?')) return;
+  const res = await apiPost(window.API_REATIVAR, { email });
+  if (res.success) {
+    showToast('Usuário reativado.', 'success');
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao reativar', 'danger');
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function handleResponse(res, modalId, successMsg) {
+  if (res.success) {
+    showToast(successMsg, 'success');
+    const modalEl = document.getElementById(modalId);
+    if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
+    setTimeout(() => location.reload(), 800);
+  } else {
+    showToast(res.error || 'Erro ao processar.', 'danger');
+  }
+}
+
+async function apiPost(url, data) {
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return r.json();
+  } catch (e) {
+    return { success: false, error: 'Erro de conexão: ' + e.message };
+  }
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast align-items-center text-white bg-${type} border-0 position-fixed bottom-0 end-0 m-3`;
+  el.style.zIndex = '9999';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+  document.body.appendChild(el);
+  new bootstrap.Toast(el, { delay: 3500 }).show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+</script>
+{% endblock %}

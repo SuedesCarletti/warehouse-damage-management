@@ -1,0 +1,1027 @@
+{% extends "base.html" %}
+{% block title %}Permissões & Níveis — {{ empresa }}{% endblock %}
+
+{% macro _render_matrix(matrix, tipo, perfis, telas_por_modulo, combo_id=None) %}
+<div class="perm-grid-wrap px-3 py-3">
+  <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <span class="text-muted small fw-semibold me-1">Ações rápidas:</span>
+    {% for perfil in perfis %}
+    {% set pid = combo_id or perfil %}
+    <div class="d-flex align-items-center gap-1 me-3">
+      {% if perfis|length > 1 %}
+      <span class="badge bg-secondary" style="font-size:.7rem">{{ perfil }}</span>
+      {% endif %}
+      <button type="button" class="btn btn-xs btn-outline-success py-0 px-2"
+        onclick="marcarTodosNivel('{{ tipo }}','{{ pid }}','editar')" style="font-size:.7rem">
+        <i class="fas fa-check-double me-1"></i>Tudo Editar
+      </button>
+      <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2"
+        onclick="marcarTodosNivel('{{ tipo }}','{{ pid }}','visualizar')" style="font-size:.7rem">
+        <i class="fas fa-eye me-1"></i>Só Ver
+      </button>
+      <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2"
+        onclick="marcarTodosNivel('{{ tipo }}','{{ pid }}','')" style="font-size:.7rem">
+        <i class="fas fa-ban me-1"></i>Remover Tudo
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% for modulo, telas in telas_por_modulo.items() %}
+  <div class="mb-4">
+    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+      <span class="badge px-3 py-2 text-uppercase fw-bold"
+        style="background:var(--theme-primary,#6366f1);font-size:.72rem;letter-spacing:.06em">
+        <i class="fas fa-cube me-1"></i>{{ modulo }}
+      </span>
+      {% for perfil in perfis %}
+      {% set pid = combo_id or perfil %}
+      <button type="button" class="btn btn-xs btn-light border py-0 px-2"
+        onclick="marcarModulo('{{ tipo }}','{{ pid }}','{{ modulo }}','editar')" style="font-size:.65rem">
+        <i class="fas fa-check"></i> todos
+      </button>
+      <button type="button" class="btn btn-xs btn-light border py-0 px-2"
+        onclick="marcarModulo('{{ tipo }}','{{ pid }}','{{ modulo }}','')" style="font-size:.65rem">
+        <i class="fas fa-times"></i> nenhum
+      </button>
+      {% endfor %}
+    </div>
+
+    {% if perfis|length == 1 %}
+    {% set perfil = perfis[0] %}
+    {% set pid = combo_id or perfil %}
+    <div class="d-flex flex-wrap gap-2">
+      {% for tela in telas %}
+      {% set val = matrix.get(perfil, {}).get(modulo, {}).get(tela, '') %}
+      {% if val is sameas true %}{% set val = 'editar' %}{% endif %}
+      <button type="button"
+        class="perm-pill perm-pill-{{ val or 'off' }}"
+        data-tipo="{{ tipo }}" data-perfil="{{ pid }}"
+        data-modulo="{{ modulo }}" data-tela="{{ tela }}"
+        data-state="{{ val or '' }}"
+        onclick="ciclarPill(this)" title="Clique para alternar acesso">
+        <span class="pill-icon">{% if val == 'editar' or val == 'admin' %}✏️{% elif val == 'visualizar' %}👁{% else %}⊘{% endif %}</span>
+        <code class="pill-tela">{{ tela }}</code>
+      </button>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered align-middle mb-0" style="font-size:.82rem">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width:160px">Tela</th>
+            {% for perfil in perfis %}
+            <th class="text-center" style="min-width:120px">{{ perfil }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for tela in telas %}
+          <tr>
+            <td class="text-muted ps-2"><code style="font-size:.75rem">{{ tela }}</code></td>
+            {% for perfil in perfis %}
+            {% set pid = combo_id or perfil %}
+            {% set val = matrix.get(perfil, {}).get(modulo, {}).get(tela, '') %}
+            {% if val is sameas true %}{% set val = 'editar' %}{% endif %}
+            <td class="text-center p-1">
+              <button type="button"
+                class="perm-pill perm-pill-{{ val or 'off' }} perm-pill-sm"
+                data-tipo="{{ tipo }}" data-perfil="{{ pid }}"
+                data-modulo="{{ modulo }}" data-tela="{{ tela }}"
+                data-state="{{ val or '' }}"
+                onclick="ciclarPill(this)">
+                <span class="pill-icon">{% if val == 'editar' or val == 'admin' %}✏️{% elif val == 'visualizar' %}👁{% else %}⊘{% endif %}</span>
+                <span class="pill-label">{% if val == 'editar' or val == 'admin' %}Editar{% elif val == 'visualizar' %}Ver{% else %}Sem acesso{% endif %}</span>
+              </button>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-center mb-4">
+    <div class="me-3 p-3 rounded-3" style="background:linear-gradient(135deg,#10b981,#059669)">
+      <i class="fas fa-shield-alt text-white fa-lg"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Permissões & Níveis</h4>
+      <small class="text-muted">{{ empresa }} · Defina o que cada perfil pode acessar</small>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      {% if back_url is defined and back_url %}
+        <a href="{{ back_url }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Painel
+        </a>
+      {% else %}
+        <a href="{{ url_for('admin_empresa.empresa_panel') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Painel
+        </a>
+      {% endif %}
+      <button class="btn btn-success" onclick="salvarTodasPermissoes()" id="btnSalvar">
+        <i class="fas fa-save me-1"></i> Salvar Alterações
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <div class="d-flex">
+      <i class="fas fa-info-circle fa-lg me-3 mt-1 text-info"></i>
+      <div>
+        <strong>Como as permissões funcionam:</strong>
+        <span class="ms-1">Nível (base) → Departamento → Cargo → Combo (Depto+Cargo) → Exceção por Usuário (máx. prioridade)</span>
+        <br><small class="text-muted">Ex: Um usuário pode ter acesso diferente de outros do mesmo nível se uma exceção for configurada para ele.</small>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs mb-4" id="tabsPermissoes">
+    <li class="nav-item">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabNivel">
+        <i class="fas fa-layer-group me-1"></i> Por Nível
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDepto">
+        <i class="fas fa-sitemap me-1"></i> Por Departamento
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCargo">
+        <i class="fas fa-briefcase me-1"></i> Por Cargo
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCombo">
+        <i class="fas fa-puzzle-piece me-1"></i> Cargo + Depto
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabExcecoes">
+        <i class="fas fa-user-shield me-1"></i> Exceções por Usuário
+        <span class="badge bg-success ms-1">Máx. Prioridade</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPendentes">
+        <i class="fas fa-exclamation-triangle me-1"></i> Telas Pendentes
+        {% if telas_pendentes %}
+        {% set count = namespace(n=0) %}
+        {% for telas in telas_pendentes.values() %}{% set count.n = count.n + telas|length %}{% endfor %}
+        {% if count.n > 0 %}
+        <span class="badge bg-warning text-dark ms-1">{{ count.n }}</span>
+        {% endif %}
+        {% endif %}
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    {# TAB 1: Por Nível #}
+    <div class="tab-pane fade show active" id="tabNivel">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white">
+          <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-shield-alt text-primary me-2"></i>Matrix de Permissões por Nível
+          </h6>
+          <small class="text-muted">Define as permissões padrão para cada nível do sistema</small>
+        </div>
+        <div class="card-body p-0">
+          {% set niveis_na_matrix = matrix_nivel.keys() | list %}
+          {% if niveis_na_matrix %}
+            {{ _render_matrix(matrix_nivel, 'nivel', niveis_na_matrix, telas_por_modulo) }}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-layer-group fa-3x mb-3 d-block opacity-25"></i>
+              <p>Nenhum nível configurado ainda. Clique em "Salvar Alterações" para inicializar.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-users text-primary me-2"></i>Usuários — Nível Individual
+            </h6>
+            <small class="text-muted">Altere o nível de cada usuário diretamente aqui</small>
+          </div>
+          <input type="text" id="filtroUsuarioNivel" class="form-control form-control-sm w-auto"
+                 placeholder="🔍 Filtrar por nome ou e-mail..." style="min-width:220px"
+                 oninput="filtrarUsuariosNivel(this.value)">
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tabelaUsuariosNivel">
+              <thead class="table-light">
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th style="width:200px">Nível Atual</th>
+                  <th style="width:80px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in usuarios %}
+                <tr data-email="{{ u.email }}">
+                  <td class="fw-semibold">{{ u.nome }}</td>
+                  <td class="text-muted small">{{ u.email }}</td>
+                  <td>
+                    <select class="form-select form-select-sm nivel-select"
+                            data-email="{{ u.email }}"
+                            data-original="{{ u.nivel }}">
+                      {% for n in niveis_criáveis %}
+                      <option value="{{ n.value }}" {% if u.nivel == n.value %}selected{% endif %}>
+                        {{ n.label }}
+                      </option>
+                      {% endfor %}
+                      {% if u.nivel not in niveis_criáveis|map(attribute='value')|list %}
+                      <option value="{{ u.nivel }}" selected disabled>
+                        {{ u.nivel }} (atual)
+                      </option>
+                      {% endif %}
+                    </select>
+                  </td>
+                  <td>
+                    <button class="btn btn-xs btn-outline-success py-0 px-2 btn-salvar-nivel d-none"
+                            data-email="{{ u.email }}"
+                            onclick="salvarNivelUsuario('{{ u.email }}', this)"
+                            title="Salvar alteração">
+                      <i class="fas fa-check"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nenhum usuário encontrado.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# TAB 2: Por Departamento #}
+    <div class="tab-pane fade" id="tabDepto">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-sitemap text-warning me-2"></i>Permissões por Departamento
+            </h6>
+            <small class="text-muted">Aplica-se a todos os usuários daquele departamento</small>
+          </div>
+          <button class="btn btn-sm btn-warning ms-auto" data-bs-toggle="modal" data-bs-target="#modalAddDepto">
+            <i class="fas fa-plus me-1"></i> Adicionar Departamento
+          </button>
+        </div>
+        <div class="card-body p-0">
+          {% if departamentos %}
+            {{ _render_matrix(matrix_depto, 'departamento', departamentos, telas_por_modulo) }}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-sitemap fa-3x mb-3 d-block opacity-25"></i>
+              <p>Nenhum departamento configurado ainda.</p>
+              <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalAddDepto">
+                <i class="fas fa-plus me-1"></i> Adicionar Departamento
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# TAB 3: Por Cargo #}
+    <div class="tab-pane fade" id="tabCargo">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-briefcase text-info me-2"></i>Permissões por Cargo
+            </h6>
+            <small class="text-muted">Aplica-se ao cargo em qualquer departamento</small>
+          </div>
+          <button class="btn btn-sm btn-info ms-auto" data-bs-toggle="modal" data-bs-target="#modalAddCargo">
+            <i class="fas fa-plus me-1"></i> Adicionar Cargo
+          </button>
+        </div>
+        <div class="card-body p-0">
+          {% if cargos %}
+            {{ _render_matrix(matrix_cargo, 'cargo', cargos, telas_por_modulo) }}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-briefcase fa-3x mb-3 d-block opacity-25"></i>
+              <p>Nenhum cargo configurado ainda.</p>
+              <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#modalAddCargo">
+                <i class="fas fa-plus me-1"></i> Adicionar Cargo
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# TAB 4: Cargo + Departamento #}
+    <div class="tab-pane fade" id="tabCombo">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-puzzle-piece text-success me-2"></i>
+              Permissões por Cargo + Departamento
+              <span class="badge bg-warning text-dark ms-1">Alta Prioridade</span>
+            </h6>
+            <small class="text-muted">Sobrescreve todas as outras regras (exceto exceção por usuário)</small>
+          </div>
+          <button class="btn btn-sm btn-success ms-auto" data-bs-toggle="modal" data-bs-target="#modalAddCombo">
+            <i class="fas fa-plus me-1"></i> Nova Combinação
+          </button>
+        </div>
+        <div class="card-body">
+          {% if combos %}
+            {% for combo in combos %}
+            <div class="border rounded-3 p-3 mb-3">
+              <div class="d-flex align-items-center mb-3">
+                <span class="badge bg-info me-2">{{ combo.departamento }}</span>
+                <i class="fas fa-plus text-muted mx-1"></i>
+                <span class="badge bg-primary me-2">{{ combo.cargo }}</span>
+                <button class="btn btn-sm btn-outline-danger ms-auto"
+                  onclick="removerCombo('{{ combo.departamento }}', '{{ combo.cargo }}')">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+              {{ _render_matrix(combo.matrix, 'combo', [combo.departamento + '::' + combo.cargo], telas_por_modulo, combo_id=combo.id) }}
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-puzzle-piece fa-3x mb-3 d-block opacity-25"></i>
+              <p>Nenhuma combinação cargo+departamento cadastrada.</p>
+              <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAddCombo">
+                <i class="fas fa-plus me-1"></i> Nova Combinação
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# TAB 5: Exceções por Usuário #}
+    <div class="tab-pane fade" id="tabExcecoes">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="mb-0 fw-semibold">
+              <i class="fas fa-user-shield text-purple me-2"></i>Exceções por Usuário
+            </h6>
+            <small class="text-muted">As exceções SOBRESCREVEM apenas as telas especificadas; as demais são herdadas do nível/departamento/cargo</small>
+          </div>
+          <input type="text" id="filtroUsuarioExcecao" class="form-control form-control-sm w-auto"
+                 placeholder="🔍 Filtrar..." style="min-width:200px"
+                 oninput="filtrarUsuariosExcecao(this.value)">
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tabelaUsuariosExcecao">
+              <thead class="table-light">
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Nível</th>
+                  <th style="width:140px" class="text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in usuarios %}
+                <tr data-email="{{ u.email }}" data-nome="{{ u.nome }}">
+                  <td class="fw-semibold">{{ u.nome }}</td>
+                  <td class="text-muted small">{{ u.email }}</td>
+                  <td><span class="badge bg-secondary">{{ u.nivel }}</span></td>
+                  <td class="text-center">
+                    <button class="btn btn-xs btn-outline-primary py-0 px-2"
+                            onclick="abrirExcecaoUsuario('{{ u.email }}', '{{ u.nome | replace("'", "\\'") }}')"
+                            title="Configurar exceção de permissão">
+                      <i class="fas fa-sliders-h me-1"></i>Configurar
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nenhum usuário encontrado.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# TAB 3: Telas Pendentes #}
+    <div class="tab-pane fade" id="tabPendentes">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+          <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-exclamation-triangle text-warning me-2"></i>Telas sem Configuração de Permissão
+          </h6>
+          <small class="text-muted">Estas telas existem no sistema mas ainda não têm permissões configuradas para nenhum nível</small>
+        </div>
+        <div class="card-body">
+          {% if telas_pendentes %}
+            {% for modulo, telas in telas_pendentes.items() %}
+            <div class="mb-4">
+              <h6 class="text-uppercase fw-bold text-muted mb-2" style="font-size:.75rem;letter-spacing:.08em">
+                <span class="badge me-2" style="background:var(--theme-primary,#6366f1)">{{ modulo }}</span>
+              </h6>
+              <div class="d-flex flex-wrap gap-2">
+                {% for tela in telas %}
+                <span class="badge bg-warning text-dark px-3 py-2" style="font-size:.8rem">
+                  <i class="fas fa-lock me-1"></i>{{ tela }}
+                </span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+            <div class="alert alert-warning mt-3 d-flex gap-2">
+              <i class="fas fa-info-circle mt-1 flex-shrink-0"></i>
+              <div>
+                Configure as permissões para estas telas na aba <strong>Por Nível</strong>.
+                Telas sem configuração ficam inacessíveis para usuários comuns.
+              </div>
+            </div>
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-check-circle fa-3x mb-3 d-block text-success opacity-50"></i>
+              <p class="fw-semibold">Todas as telas estão configuradas!</p>
+              <small>Nenhuma tela pendente de configuração de permissão.</small>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>{# /tab-content #}
+
+</div>{# /container-fluid #}
+
+{# MODAL: Adicionar Cargo à Matriz #}
+<div class="modal fade" id="modalAddCargo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-briefcase text-info me-2"></i>Adicionar Cargo às Permissões</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label fw-semibold">Cargo</label>
+        <select class="form-select" id="selectAddCargo">
+          <option value="">Selecione...</option>
+          {% for c in cargos %}
+          {% if c not in matrix_cargo %}
+          <option value="{{ c }}">{{ c }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-info" onclick="adicionarPerfilNaMatriz('cargo')">
+          <i class="fas fa-plus me-1"></i> Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# MODAL: Adicionar Departamento à Matriz #}
+<div class="modal fade" id="modalAddDepto" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-sitemap text-warning me-2"></i>Adicionar Departamento às Permissões</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label fw-semibold">Departamento</label>
+        <select class="form-select" id="selectAddDepto">
+          <option value="">Selecione...</option>
+          {% for d in departamentos %}
+          {% if d not in matrix_depto %}
+          <option value="{{ d }}">{{ d }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" onclick="adicionarPerfilNaMatriz('departamento')">
+          <i class="fas fa-plus me-1"></i> Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# MODAL: Nova Combinação Cargo + Departamento #}
+<div class="modal fade" id="modalAddCombo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-puzzle-piece text-success me-2"></i>Nova Combinação Cargo + Departamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Departamento</label>
+          <select class="form-select" id="comboDepto">
+            <option value="">Selecione...</option>
+            {% for d in departamentos %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Cargo</label>
+          <select class="form-select" id="comboCargo">
+            <option value="">Selecione...</option>
+            {% for c in cargos %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-success" onclick="criarCombo()">
+          <i class="fas fa-plus me-1"></i> Criar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# MODAL: Configurar Exceção por Usuário #}
+<div class="modal fade" id="modalExcecaoUsuario" tabindex="-1"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-user-shield me-2"></i>
+          Exceção de Permissão — <span id="excecaoUsuarioNome"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="excecaoUsuarioEmail">
+        <div id="excecaoLoadingSpinner" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-muted">Carregando permissões...</p>
+        </div>
+        <div id="excecaoConteudo" style="display:none">
+          <div class="alert alert-info d-flex gap-2 py-2 mb-3 small">
+            <i class="fas fa-info-circle mt-1 flex-shrink-0"></i>
+            <div>
+              <strong>Exceção de usuário:</strong> Se configurada, substitui completamente as permissões do nível base para este usuário.
+              Para remover a exceção e voltar ao padrão do nível, clique em "Remover Exceção".
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+            <span class="text-muted small fw-semibold">Ações rápidas:</span>
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="excecaoMarcarTodos('editar')">
+              <i class="fas fa-check-double me-1"></i>Tudo Editar
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="excecaoMarcarTodos('visualizar')">
+              <i class="fas fa-eye me-1"></i>Só Ver
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="excecaoMarcarTodos('')">
+              <i class="fas fa-ban me-1"></i>Remover Tudo
+            </button>
+          </div>
+          <div id="excecaoPills"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger me-auto" id="btnRemoverExcecao" onclick="removerExcecaoUsuario()">
+          <i class="fas fa-trash me-1"></i>Remover Exceção
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarExcecao" onclick="salvarExcecaoUsuario()">
+          <i class="fas fa-save me-1"></i>Salvar Exceção
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.perm-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  border-radius: 20px; border: 1.5px solid; padding: .28rem .7rem;
+  font-size: .75rem; font-weight: 500; cursor: pointer;
+  transition: all .12s ease; user-select: none; line-height: 1.3;
+}
+.perm-pill:hover { filter: brightness(.92); transform: scale(1.04); }
+.perm-pill.perm-pill-sm { font-size: .7rem; padding: .18rem .5rem; min-width: 90px; justify-content: center; }
+.perm-pill-off  { background:#f1f3f5; color:#868e96; border-color:#dee2e6; }
+.perm-pill-off:hover { background:#e9ecef; }
+.perm-pill-visualizar { background:#dbeafe; color:#1d4ed8; border-color:#93c5fd; }
+.perm-pill-visualizar:hover { background:#bfdbfe; }
+.perm-pill-editar, .perm-pill-admin { background:#dcfce7; color:#166534; border-color:#86efac; }
+.perm-pill-editar:hover, .perm-pill-admin:hover { background:#bbf7d0; }
+.perm-pill .pill-tela { font-size:.68rem; opacity:.85; }
+@keyframes pulse-save { 0%,100%{box-shadow:0 0 0 0 rgba(234,179,8,.5)} 50%{box-shadow:0 0 0 8px rgba(234,179,8,0)} }
+#btnSalvar.pendente { animation: pulse-save 1.5s infinite; }
+</style>
+<script>
+var EMPRESA          = "{{ empresa }}";
+var URL_SALVAR       = "{{ url_for('admin_empresa.api_salvar_permissoes') }}";
+var URL_SALVAR_NIVEL = "{{ url_for('admin_empresa.api_empresa_editar_usuario') }}";
+var URL_COMBO          = "{{ url_for('admin_empresa.api_criar_combo_permissao') }}";
+var URL_DEL_COMBO      = "{{ url_for('admin_empresa.api_remover_combo_permissao') }}";
+var URL_SALVAR_EXCECAO = "{{ url_for('admin_empresa.api_salvar_excecao_usuario') }}";
+var URL_GET_EXCECAO    = "{{ url_for('admin_empresa.api_get_excecao_usuario') }}";
+var URL_GET_PERM_EFETIVAS = "{{ url_for('admin_empresa.api_get_permissoes_efetivas_usuario') }}";
+var TELAS_POR_MODULO   = {{ telas_por_modulo | tojson }};
+var _mudancasPendentes = false;
+
+// ── COLETA E SALVA PERMISSÕES DE NÍVEL ─────────────────────────────────────
+
+function coletarPermissoes() {
+  var resultado = { nivel: {} };
+  document.querySelectorAll('.perm-pill[data-tipo="nivel"]').forEach(function(btn) {
+    var perfil = btn.dataset.perfil;
+    var modulo = btn.dataset.modulo;
+    var tela   = btn.dataset.tela;
+    var state  = btn.dataset.state || '';
+    if (!resultado.nivel[perfil])          resultado.nivel[perfil] = {};
+    if (!resultado.nivel[perfil][modulo])  resultado.nivel[perfil][modulo] = {};
+    resultado.nivel[perfil][modulo][tela] = state || false;
+  });
+  return resultado;
+}
+
+function ciclarPill(btn) {
+  var states = ['', 'visualizar', 'editar'];
+  var cur = btn.dataset.state || '';
+  var next = states[(states.indexOf(cur) + 1) % states.length];
+  _setPillState(btn, next);
+  _markPendente();
+}
+
+function _setPillState(btn, state) {
+  btn.dataset.state = state;
+  btn.className = btn.className.replace(/perm-pill-\S+/g, '').trim();
+  btn.classList.add('perm-pill-' + (state || 'off'));
+  var icon = btn.querySelector('.pill-icon');
+  var label = btn.querySelector('.pill-label');
+  if (icon) icon.textContent = state === 'editar' || state === 'admin' ? '✏️' : state === 'visualizar' ? '👁' : '⊘';
+  if (label) label.textContent = state === 'editar' || state === 'admin' ? 'Editar' : state === 'visualizar' ? 'Ver' : 'Sem acesso';
+}
+
+function marcarTodosNivel(tipo, perfil, state) {
+  document.querySelectorAll('.perm-pill[data-tipo="' + tipo + '"][data-perfil="' + perfil + '"]')
+    .forEach(function(btn) { _setPillState(btn, state); });
+  _markPendente();
+}
+
+function marcarModulo(tipo, perfil, modulo, state) {
+  document.querySelectorAll('.perm-pill[data-tipo="' + tipo + '"][data-perfil="' + perfil + '"][data-modulo="' + modulo + '"]')
+    .forEach(function(btn) { _setPillState(btn, state); });
+  _markPendente();
+}
+
+function _markPendente() {
+  _mudancasPendentes = true;
+  var btn = document.getElementById('btnSalvar');
+  btn.classList.add('btn-warning', 'pendente');
+  btn.classList.remove('btn-success');
+  btn.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Salvar (mudanças pendentes)';
+}
+
+async function salvarTodasPermissoes() {
+  var btn = document.getElementById('btnSalvar');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Salvando...';
+
+  var permissoes = coletarPermissoes();
+  var res = await apiPost(URL_SALVAR, { empresa: EMPRESA, permissoes: permissoes });
+
+  if (res.success) {
+    showToast('Permissões salvas com sucesso!', 'success');
+  } else {
+    showToast(res.error || 'Erro ao salvar', 'danger');
+  }
+
+  btn.disabled = false;
+  btn.classList.remove('btn-warning', 'pendente');
+  btn.classList.add('btn-success');
+  btn.innerHTML = '<i class="fas fa-save me-1"></i> Salvar Alterações';
+  _mudancasPendentes = false;
+}
+
+// ── NÍVEL DO USUÁRIO ────────────────────────────────────────────────────────
+
+async function salvarNivelUsuario(email, btn) {
+  const row = btn.closest('tr');
+  const sel = row.querySelector('.nivel-select');
+  const novoNivel = sel.value;
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  const res = await apiPost(URL_SALVAR_NIVEL, { email: email, nivel: novoNivel });
+
+  if (res.success) {
+    sel.dataset.original = novoNivel;
+    btn.classList.add('d-none');
+    showToast('Nível atualizado com sucesso!', 'success');
+  } else {
+    showToast(res.error || 'Erro ao atualizar nível', 'danger');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-check"></i>';
+}
+
+function filtrarUsuariosNivel(termo) {
+  const t = termo.toLowerCase();
+  document.querySelectorAll('#tabelaUsuariosNivel tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(t) ? '' : 'none';
+  });
+}
+
+// ── CARGO / DEPARTAMENTO / COMBO ───────────────────────────────────────────
+
+async function adicionarPerfilNaMatriz(tipo) {
+  var val = tipo === 'departamento'
+    ? document.getElementById('selectAddDepto').value
+    : document.getElementById('selectAddCargo').value;
+  if (!val) return showToast('Selecione um ' + tipo + '.', 'warning');
+
+  var res = await apiPost(URL_SALVAR, {
+    empresa: EMPRESA,
+    permissoes: { [tipo]: { [val]: {} } },
+    apenas_inicializar: true
+  });
+
+  if (res.success) {
+    showToast(tipo.charAt(0).toUpperCase() + tipo.slice(1) + ' adicionado!', 'success');
+    setTimeout(function() { location.reload(); }, 700);
+  } else {
+    showToast(res.error || 'Erro', 'danger');
+  }
+}
+
+async function criarCombo() {
+  var depto = document.getElementById('comboDepto').value;
+  var cargo = document.getElementById('comboCargo').value;
+  if (!depto || !cargo) return showToast('Selecione departamento e cargo.', 'warning');
+
+  var res = await apiPost(URL_COMBO, { empresa: EMPRESA, departamento: depto, cargo: cargo });
+  if (res.success) {
+    showToast('Combinação criada!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalAddCombo')).hide();
+    setTimeout(function() { location.reload(); }, 700);
+  } else {
+    showToast(res.error || 'Erro', 'danger');
+  }
+}
+
+async function removerCombo(depto, cargo) {
+  if (!confirm('Remover permissões específicas de "' + cargo + '" no "' + depto + '"?')) return;
+  var res = await apiPost(URL_DEL_COMBO, { empresa: EMPRESA, departamento: depto, cargo: cargo });
+  if (res.success) {
+    showToast('Combinação removida!', 'success');
+    setTimeout(function() { location.reload(); }, 700);
+  } else {
+    showToast(res.error || 'Erro', 'danger');
+  }
+}
+
+// ── EXCEÇÕES POR USUÁRIO ────────────────────────────────────────────────────
+
+function filtrarUsuariosExcecao(termo) {
+  const t = termo.toLowerCase();
+  document.querySelectorAll('#tabelaUsuariosExcecao tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(t) ? '' : 'none';
+  });
+}
+
+async function abrirExcecaoUsuario(email, nome) {
+  document.getElementById('excecaoUsuarioEmail').value = email;
+  document.getElementById('excecaoUsuarioNome').textContent = nome + ' (' + email + ')';
+  document.getElementById('excecaoLoadingSpinner').style.display = '';
+  document.getElementById('excecaoConteudo').style.display = 'none';
+
+  var modal = new bootstrap.Modal(document.getElementById('modalExcecaoUsuario'));
+  modal.show();
+
+  // Carrega detalhamento de permissões efetivas (herdado + exceções)
+  var res = await apiPost(URL_GET_PERM_EFETIVAS, { empresa: EMPRESA, email: email });
+  var detail = (res.success && res.detail) ? res.detail : { herdado: {}, excecoes: {}, efetivo: {} };
+  var herdado = detail.herdado || {};
+  var excecoes = detail.excecoes || {};
+
+  // Monta pills de exceção mostrando valor herdado e exceção explícita
+  var container = document.getElementById('excecaoPills');
+  container.innerHTML = '';
+
+  for (var modulo in TELAS_POR_MODULO) {
+    var telas = TELAS_POR_MODULO[modulo];
+    var modDiv = document.createElement('div');
+    modDiv.className = 'mb-4';
+    modDiv.innerHTML = '<div class="d-flex align-items-center gap-2 mb-2">' +
+      '<span class="badge px-3 py-2 text-uppercase fw-bold" style="background:var(--theme-primary,#6366f1);font-size:.72rem">' +
+      '<i class="fas fa-cube me-1"></i>' + modulo + '</span>' +
+      '<button type="button" class="btn btn-xs btn-light border py-0 px-2" ' +
+      'onclick="excecaoMarcarModulo(\'' + modulo + '\',\'editar\')" style="font-size:.65rem"><i class="fas fa-check"></i> todos</button>' +
+      '<button type="button" class="btn btn-xs btn-light border py-0 px-2" ' +
+      'onclick="excecaoMarcarModulo(\'' + modulo + '\',\'\')" style="font-size:.65rem"><i class="fas fa-times"></i> nenhum</button>' +
+      '</div><div class="d-flex flex-wrap gap-2" id="excecao_pills_' + modulo + '">';
+
+    telas.forEach(function(tela) {
+      var excVal = '';
+      var temExcecao = excecoes[modulo] && excecoes[modulo][tela];
+      if (temExcecao) {
+        excVal = excecoes[modulo][tela];
+        if (excVal === true) excVal = 'editar';
+      }
+      // Valor herdado (sem a exceção do usuário)
+      var herdadoVal = (herdado[modulo] && herdado[modulo][tela]) ? herdado[modulo][tela] : '';
+      if (herdadoVal === true) herdadoVal = 'editar';
+
+      // Estado atual da pill: exceção se existir, senão herdado
+      var val = temExcecao ? excVal : herdadoVal;
+      var icon = val === 'editar' || val === 'admin' ? '✏️' : val === 'visualizar' ? '👁' : '⊘';
+
+      // Badge "herdado" para telas sem exceção explícita
+      var herdadoBadge = !temExcecao && herdadoVal
+        ? '<span class="badge bg-secondary ms-1" style="font-size:.6rem;vertical-align:middle" title="Valor herdado do perfil base">herdado</span>'
+        : '';
+
+      modDiv.innerHTML += '<button type="button" class="perm-pill perm-pill-excecao perm-pill-' + (val || 'off') + '" ' +
+        'data-tipo="usuario" data-modulo="' + modulo + '" data-tela="' + tela + '" data-state="' + (excVal || '') + '" ' +
+        'data-herdado="' + herdadoVal + '" data-tem-excecao="' + (temExcecao ? '1' : '0') + '" ' +
+        'onclick="ciclarPillExcecao(this)">' +
+        '<span class="pill-icon">' + icon + '</span>' +
+        '<code class="pill-tela">' + tela + '</code>' + herdadoBadge + '</button>';
+    });
+
+    modDiv.innerHTML += '</div>';
+    container.appendChild(modDiv);
+  }
+
+  document.getElementById('excecaoLoadingSpinner').style.display = 'none';
+  document.getElementById('excecaoConteudo').style.display = '';
+}
+
+function ciclarPillExcecao(btn) {
+  var states = ['', 'visualizar', 'editar'];
+  var cur = btn.dataset.state || '';
+  var next = states[(states.indexOf(cur) + 1) % states.length];
+  btn.dataset.state = next;
+  btn.dataset.temExcecao = next ? '1' : '0';
+  btn.className = btn.className.replace(/perm-pill-\S+/g, '').trim();
+  // Se não há exceção explícita, mostra o valor herdado na pill
+  var displayVal = next || btn.dataset.herdado || '';
+  btn.classList.add('perm-pill', 'perm-pill-excecao', 'perm-pill-' + (displayVal || 'off'));
+  var icon = btn.querySelector('.pill-icon');
+  if (icon) icon.textContent = displayVal === 'editar' || displayVal === 'admin' ? '✏️' : displayVal === 'visualizar' ? '👁' : '⊘';
+  // Atualiza badge herdado: mostra se sem exceção e há valor herdado, oculta se há exceção
+  var herdadoBadge = btn.querySelector('.badge');
+  if (herdadoBadge) {
+    herdadoBadge.style.display = (!next && btn.dataset.herdado) ? '' : 'none';
+  } else if (!next && btn.dataset.herdado) {
+    var badge = document.createElement('span');
+    badge.className = 'badge bg-secondary ms-1';
+    badge.style.cssText = 'font-size:.6rem;vertical-align:middle';
+    badge.title = 'Valor herdado do perfil base';
+    badge.textContent = 'herdado';
+    btn.appendChild(badge);
+  }
+}
+
+function excecaoMarcarTodos(state) {
+  document.querySelectorAll('.perm-pill-excecao').forEach(function(btn) {
+    btn.dataset.state = state;
+    btn.className = btn.className.replace(/perm-pill-\S+/g, '').trim();
+    btn.classList.add('perm-pill', 'perm-pill-excecao', 'perm-pill-' + (state || 'off'));
+    var icon = btn.querySelector('.pill-icon');
+    if (icon) icon.textContent = state === 'editar' || state === 'admin' ? '✏️' : state === 'visualizar' ? '👁' : '⊘';
+  });
+}
+
+function excecaoMarcarModulo(modulo, state) {
+  document.querySelectorAll('.perm-pill-excecao[data-modulo="' + modulo + '"]').forEach(function(btn) {
+    btn.dataset.state = state;
+    btn.className = btn.className.replace(/perm-pill-\S+/g, '').trim();
+    btn.classList.add('perm-pill', 'perm-pill-excecao', 'perm-pill-' + (state || 'off'));
+    var icon = btn.querySelector('.pill-icon');
+    if (icon) icon.textContent = state === 'editar' || state === 'admin' ? '✏️' : state === 'visualizar' ? '👁' : '⊘';
+  });
+}
+
+async function salvarExcecaoUsuario() {
+  var email = document.getElementById('excecaoUsuarioEmail').value;
+  var btn = document.getElementById('btnSalvarExcecao');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+
+  var permissoes = {};
+  document.querySelectorAll('.perm-pill-excecao').forEach(function(pill) {
+    var modulo = pill.dataset.modulo;
+    var tela   = pill.dataset.tela;
+    var state  = pill.dataset.state || '';
+    // Only include telas that have an explicit exception set (data-state non-empty)
+    if (!permissoes[modulo]) permissoes[modulo] = {};
+    permissoes[modulo][tela] = state || false;
+  });
+
+  var res = await apiPost(URL_SALVAR_EXCECAO, {
+    empresa: EMPRESA,
+    email: email,
+    permissoes: permissoes
+  });
+
+  if (res.success) {
+    showToast('Exceção salva para ' + email, 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalExcecaoUsuario')).hide();
+  } else {
+    showToast(res.error || 'Erro ao salvar exceção', 'danger');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Exceção';
+}
+
+async function removerExcecaoUsuario() {
+  var email = document.getElementById('excecaoUsuarioEmail').value;
+  if (!confirm('Remover toda a exceção de ' + email + ' e voltar ao padrão do nível?')) return;
+
+  var res = await apiPost(URL_SALVAR_EXCECAO, {
+    empresa: EMPRESA,
+    email: email,
+    permissoes: {}
+  });
+
+  if (res.success) {
+    showToast('Exceção removida. Usuário usa o padrão do nível.', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalExcecaoUsuario')).hide();
+  } else {
+    showToast(res.error || 'Erro ao remover exceção', 'danger');
+  }
+}
+
+// ── HELPERS ─────────────────────────────────────────────────────────────────
+
+async function apiPost(url, data) {
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return r.json();
+  } catch (e) {
+    return { success: false, error: 'Erro de conexão: ' + e.message };
+  }
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  const el = document.createElement('div');
+  el.className = 'toast align-items-center text-white bg-' + type + ' border-0 position-fixed bottom-0 end-0 m-3';
+  el.style.zIndex = '9999';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = '<div class="d-flex"><div class="toast-body">' + msg + '</div>' +
+    '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  document.body.appendChild(el);
+  new bootstrap.Toast(el, { delay: 3500 }).show();
+  el.addEventListener('hidden.bs.toast', function() { el.remove(); });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.nivel-select').forEach(function(select) {
+    select.addEventListener('change', function() {
+      const row = this.closest('tr');
+      const btn = row.querySelector('.btn-salvar-nivel');
+      btn.classList.toggle('d-none', this.value === this.dataset.original);
+    });
+  });
+});
+</script>
+{% endblock %}

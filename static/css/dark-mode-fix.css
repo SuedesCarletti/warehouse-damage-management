@@ -1,0 +1,796 @@
+/**
+ * dark-mode-fix.css
+ * Sistema completo de cores para suporte a Dark Mode
+ * ✅ VERSÃO 2.0 - Correção de cabeçalhos table-warning
+ */
+
+/* ============================================================================
+   1. VARIÁVEIS CSS ESTENDIDAS
+   ============================================================================ */
+
+:root {
+    /* Cores de Texto */
+    --text-color: #212529;
+    --text-muted-color: #6c757d;
+    --text-on-primary: #ffffff;
+    --text-on-light: #000000;
+    
+    /* Backgrounds */
+    --bg-color: #f4f6f9;
+    --bg-content-color: #ffffff;
+    --bg-hover: #e9ecef;
+    --bg-light: #f8f9fa;
+    
+    /* Borders */
+    --border-color: #dee2e6;
+    --border-color-light: #e9ecef;
+    
+    /* ✅ Cores para tabelas no modo CLARO */
+    --table-bg: #ffffff;
+    --table-hover-bg: #f8f9fa;
+    --table-text: #212529;
+    --table-border: #dee2e6;
+    
+    /* ✅ NOVO: Cores para cabeçalhos table-warning */
+    --table-warning-bg: #fff3cd;
+    --table-warning-text: #856404;
+    --table-warning-border: #ffeaa7;
+    
+    /* Status Colors */
+    --status-open: #ffc107;
+    --status-progress: #17a2b8;
+    --status-resolved: #28a745;
+    --status-closed: #6c757d;
+    
+    /* Badge Colors */
+    --badge-light-bg: #e9ecef;
+    --badge-light-text: #212529;
+    --badge-dark-bg: #343a40;
+    --badge-dark-text: #ffffff;
+    
+    /* Icons */
+    --icon-primary: var(--theme-primary);
+    --icon-secondary: #6c757d;
+    --icon-light: #ffffff;
+    
+    /* Cards e Modals */
+    --card-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    --card-border: var(--border-color);
+    
+    /* Sidebar */
+    --sidebar-text: rgba(255,255,255,0.8);
+    --sidebar-hover: rgba(255,255,255,0.1);
+}
+
+/* ============================================================================
+   2. DARK MODE - OVERRIDE COMPLETO
+   ============================================================================ */
+
+.dark-mode {
+    /* Cores de Texto */
+    --text-color: #e0e0e0;
+    --text-muted-color: #a0a0a0;
+    --text-on-primary: #ffffff;
+    --text-on-light: #e0e0e0;
+    
+    /* Backgrounds */
+    --bg-color: #121212;
+    --bg-content-color: #1e1e1e;
+    --bg-hover: #2a2a2a;
+    --bg-light: #2a2a2a;
+    
+    /* ✅ Cores para tabelas no modo ESCURO */
+    --table-bg: #1e1e1e;
+    --table-hover-bg: #2d2d2d;
+    --table-text: #e0e0e0;
+    --table-border: #444;
+    
+    /* ✅ NOVO: Cores para cabeçalhos table-warning no dark mode */
+    --table-warning-bg: #b8860b;
+    --table-warning-text: #fff;
+    --table-warning-border: #daa520;
+    
+    /* Borders */
+    --border-color: #444;
+    --border-color-light: #333;
+    
+    /* Status Colors - Mais vibrantes no dark */
+    --status-open: #ffc107;
+    --status-progress: #3dd5f3;
+    --status-resolved: #4caf50;
+    --status-closed: #9e9e9e;
+    
+    /* Badge Colors - Invertidas */
+    --badge-light-bg: #2a2a2a;
+    --badge-light-text: #e0e0e0;
+    --badge-dark-bg: #424242;
+    --badge-dark-text: #e0e0e0;
+    
+    /* Icons - Brancos no dark */
+    --icon-light: #ffffff;
+    --icon-secondary: #b0b0b0;
+    
+    /* Cards e Modals */
+    --card-shadow: 0 5px 15px rgba(0,0,0,0.4);
+    --card-border: #444;
+}
+
+/* ============================================================================
+   3. APLICAÇÕES GLOBAIS
+   ============================================================================ */
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ============================================================================
+   4. CORREÇÕES ESPECÍFICAS - TABELAS
+   ============================================================================ */
+
+/* Base da tabela */
+.table {
+    color: var(--table-text) !important;
+    background-color: var(--table-bg);
+}
+
+/* Cabeçalho da tabela (padrão) */
+.table thead th {
+    background-color: var(--bg-light);
+    border-color: var(--table-border);
+    color: var(--text-color) !important;
+}
+
+/* Células da tabela */
+.table tbody td {
+    border-color: var(--table-border);
+    color: var(--table-text) !important;
+    background-color: var(--table-bg);
+}
+
+/* 🔥 CORREÇÃO CRÍTICA: Hover nas linhas da tabela */
+.table-hover tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+/* 🔥 Garantir que o texto permaneça visível ao hover */
+.table-hover tbody tr:hover td {
+    color: var(--table-text) !important;
+}
+
+/* Tabelas listradas */
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark-mode .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Tabelas com bordas */
+.table-bordered {
+    border-color: var(--table-border);
+}
+
+.table-bordered th,
+.table-bordered td {
+    border-color: var(--table-border);
+}
+
+/* ============================================================================
+   5. 🔥 CORREÇÃO ESPECÍFICA - TABLE WARNING (CABEÇALHOS AMARELOS/VERDES)
+   ============================================================================ */
+
+/* Cabeçalho table-warning - MODO CLARO */
+.table-warning thead,
+.table-warning thead th,
+thead.table-warning,
+thead.table-warning th {
+    background-color: var(--table-warning-bg) !important;
+    color: var(--table-warning-text) !important;
+    border-color: var(--table-warning-border) !important;
+}
+
+/* Cabeçalho table-warning - MODO ESCURO */
+.dark-mode .table-warning thead,
+.dark-mode .table-warning thead th,
+.dark-mode thead.table-warning,
+.dark-mode thead.table-warning th {
+    background-color: var(--table-warning-bg) !important;
+    color: var(--table-warning-text) !important;
+    border-color: var(--table-warning-border) !important;
+}
+
+/* ✅ Garantir que o texto no cabeçalho warning seja sempre legível */
+.table-warning thead th {
+    font-weight: 600 !important;
+}
+
+/* ✅ Sticky headers mantêm a cor correta */
+.table-warning thead.sticky-top th {
+    background-color: var(--table-warning-bg) !important;
+    color: var(--table-warning-text) !important;
+}
+
+/* 🔥 Outras variantes de table coloridas */
+.table-success thead,
+.table-success thead th,
+thead.table-success,
+thead.table-success th {
+    background-color: #d4edda !important;
+    color: #155724 !important;
+    border-color: #c3e6cb !important;
+}
+
+.dark-mode .table-success thead,
+.dark-mode .table-success thead th,
+.dark-mode thead.table-success,
+.dark-mode thead.table-success th {
+    background-color: #28a745 !important;
+    color: #fff !important;
+    border-color: #34ce57 !important;
+}
+
+.table-info thead,
+.table-info thead th,
+thead.table-info,
+thead.table-info th {
+    background-color: #d1ecf1 !important;
+    color: #0c5460 !important;
+    border-color: #bee5eb !important;
+}
+
+.dark-mode .table-info thead,
+.dark-mode .table-info thead th,
+.dark-mode thead.table-info,
+.dark-mode thead.table-info th {
+    background-color: #17a2b8 !important;
+    color: #fff !important;
+    border-color: #20c9e0 !important;
+}
+
+/* ============================================================================
+   6. CORREÇÕES ESPECÍFICAS - BADGES
+   ============================================================================ */
+
+.badge.bg-light,
+.badge-light {
+    background-color: var(--badge-light-bg) !important;
+    color: var(--badge-light-text) !important;
+}
+
+.badge.bg-dark,
+.badge-dark {
+    background-color: var(--badge-dark-bg) !important;
+    color: var(--badge-dark-text) !important;
+}
+
+.badge.text-dark {
+    color: var(--text-color) !important;
+}
+
+/* ============================================================================
+   7. CORREÇÕES ESPECÍFICAS - ÍCONES
+   ============================================================================ */
+
+.navbar-brand i,
+.navbar i.text-primary {
+    color: var(--theme-primary) !important;
+}
+
+.dark-mode .navbar-brand i,
+.dark-mode .card-header i,
+.dark-mode .stats-card i {
+    color: var(--icon-light) !important;
+}
+
+.card-header i,
+.card-title i {
+    color: inherit;
+}
+
+.fas.fa-check-circle { color: var(--status-resolved); }
+.fas.fa-times-circle { color: var(--status-closed); }
+.fas.fa-exclamation-circle { color: var(--status-open); }
+.fas.fa-spinner { color: var(--status-progress); }
+
+/* ============================================================================
+   8. CORREÇÕES ESPECÍFICAS - TEXTOS
+   ============================================================================ */
+
+.text-dark {
+    color: var(--text-color) !important;
+}
+
+.text-muted {
+    color: var(--text-muted-color) !important;
+}
+
+/* ============================================================================
+   9. CORREÇÕES ESPECÍFICAS - BACKGROUNDS
+   ============================================================================ */
+
+.bg-light {
+    background-color: var(--bg-light) !important;
+    color: var(--text-on-light) !important;
+}
+
+.bg-white {
+    background-color: var(--bg-content-color) !important;
+}
+
+/* ============================================================================
+   10. CORREÇÕES ESPECÍFICAS - STATUS BADGES
+   ============================================================================ */
+
+.status-aberto,
+.status-badge.status-aberto,
+.badge.bg-warning {
+    background-color: var(--status-open) !important;
+    color: #000 !important;
+}
+
+.status-andamento,
+.status-badge.status-em-andamento,
+.badge.bg-info {
+    background-color: var(--status-progress) !important;
+    color: #fff !important;
+}
+
+.status-resolvido,
+.status-badge.status-resolvido,
+.badge.bg-success {
+    background-color: var(--status-resolved) !important;
+    color: #fff !important;
+}
+
+.status-fechado,
+.badge.bg-secondary {
+    background-color: var(--status-closed) !important;
+    color: #fff !important;
+}
+
+/* ============================================================================
+   11. CORREÇÕES ESPECÍFICAS - PRIORIDADES
+   ============================================================================ */
+
+.priority-baixa { color: var(--status-resolved); }
+.priority-media { color: var(--status-open); }
+.priority-alta { color: #dc3545; }
+.priority-critica { 
+    color: #dc3545; 
+    font-weight: bold;
+}
+
+/* ============================================================================
+   12. CORREÇÕES ESPECÍFICAS - CARDS DE MÓDULO
+   ============================================================================ */
+
+.module-card {
+    background-color: var(--bg-content-color);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.module-card:hover {
+    box-shadow: 0 10px 20px var(--theme-primary-shadow);
+}
+
+.dark-mode .module-card .fas {
+    opacity: 0.9;
+}
+
+/* ============================================================================
+   13. CORREÇÕES ESPECÍFICAS - STATS CARDS
+   ============================================================================ */
+
+.stats-card {
+    background-color: var(--bg-content-color);
+    border-color: var(--border-color);
+}
+
+.stats-card h3,
+.stats-card p {
+    color: var(--text-color);
+}
+
+.dark-mode .stats-card .fas {
+    filter: brightness(1.5);
+}
+
+/* ============================================================================
+   14. CORREÇÕES ESPECÍFICAS - MODALS
+   ============================================================================ */
+
+.modal-content {
+    background-color: var(--bg-content-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.modal-header {
+    border-color: var(--border-color);
+}
+
+.modal-footer {
+    border-color: var(--border-color);
+}
+
+/* ============================================================================
+   15. CORREÇÕES ESPECÍFICAS - FORMS
+   ============================================================================ */
+
+.form-control,
+.form-select {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--bg-light);
+    border-color: var(--theme-primary);
+    color: var(--text-color);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted-color);
+    opacity: 0.6;
+}
+
+.dark-mode .form-select,
+.dark-mode select {
+    background-color: var(--bg-light) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+.dark-mode .form-select option,
+.dark-mode select option {
+    background-color: var(--bg-content-color);
+    color: var(--text-color);
+}
+
+/* ============================================================================
+   16. CORREÇÕES ESPECÍFICAS - DROPDOWN
+   ============================================================================ */
+
+.dropdown-menu {
+    background-color: var(--bg-content-color);
+    border-color: var(--border-color);
+}
+
+.dropdown-item {
+    color: var(--text-color);
+}
+
+.dropdown-item:hover {
+    background-color: var(--bg-hover);
+}
+
+/* ============================================================================
+   17. CORREÇÕES ESPECÍFICAS - ALERTS
+   ============================================================================ */
+
+.alert {
+    border-color: var(--border-color);
+}
+
+.dark-mode .alert {
+    filter: brightness(0.9);
+}
+
+/* ============================================================================
+   18. FIX PARA ELEMENTOS INLINE COM CORES HARDCODED
+   ============================================================================ */
+
+[style*="color: #000"],
+[style*="color: black"],
+[style*="color: #212529"] {
+    color: var(--text-color) !important;
+}
+
+.dark-mode [style*="background: #fff"],
+.dark-mode [style*="background: white"],
+.dark-mode [style*="background-color: #fff"],
+.dark-mode [style*="background-color: white"] {
+    background-color: var(--bg-content-color) !important;
+}
+
+/* ============================================================================
+   19. CORREÇÕES ESPECÍFICAS - CARDS
+   ============================================================================ */
+
+.card {
+    background-color: var(--bg-content-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.card-header {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.card-footer {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+}
+
+/* ============================================================================
+   20. CORREÇÃO PARA NAVBAR
+   ============================================================================ */
+
+.navbar {
+    background-color: var(--bg-content-color) !important;
+}
+
+.navbar-toggler {
+    border-color: var(--border-color);
+}
+
+/* ============================================================================
+   21. CORREÇÃO PARA PAGINAÇÃO
+   ============================================================================ */
+
+.pagination .page-link {
+    background-color: var(--bg-content-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.pagination .page-link:hover {
+    background-color: var(--bg-hover);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--theme-primary);
+    border-color: var(--theme-primary);
+}
+
+/* ============================================================================
+   22. UTILIDADES FINAIS
+   ============================================================================ */
+
+.dark-mode .bg-light *,
+.dark-mode .bg-white * {
+    color: var(--text-color);
+}
+
+.dark-mode ::-webkit-scrollbar {
+    background-color: var(--bg-color);
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-muted-color);
+}
+
+/* ============================================================================
+   23. 🔥 CORREÇÃO ADICIONAL: Remover backgrounds brancos forçados
+   ============================================================================ */
+
+.dark-mode tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+.dark-mode .table-hover tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+.dark-mode .table-hover tbody tr:hover * {
+    color: var(--table-text) !important;
+}
+
+/* ============================================================================
+   PATCH 3 — Correção: Dark Mode no modal de Detalhes da Avaria (Observação)
+   ============================================================================
+   ARQUIVO ALVO: static/css/consultar-avarias.css  (ou dark-mode-fix.css)
+   
+   ONDE: Adicionar no FINAL do arquivo.
+   
+   CAUSA DO BUG: A observação no modal de detalhes usa a classe .obs-dark-safe
+   (introduzida pelo PATCH 2). Porém os demais elementos do modal
+   (table-bordered, table-striped, badges) também precisavam de ajuste
+   porque as tabelas dentro do modal em dark mode ficavam com backgrounds
+   de celulas brancas (#fff) fixadas pelo Bootstrap.
+   
+   O PATCH 2 substituiu a div com bg-light pela classe .obs-dark-safe,
+   e este arquivo define como ela se comporta em cada tema.
+   ============================================================================ */
+
+/* ─── Caixa de observação — modo claro ────────────────────────────────────── */
+.obs-dark-safe {
+    background-color: #f8f9fa;
+    color: #212529;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Caixa de observação — modo escuro ───────────────────────────────────── */
+body.dark-mode .obs-dark-safe,
+[data-bs-theme="dark"] .obs-dark-safe {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+}
+
+/* ─── Tabelas dentro do modal de detalhes em dark mode ────────────────────── */
+/* Bootstrap força bg branco nas células — precisa sobrescrever */
+body.dark-mode #detalhesConteudo .table,
+body.dark-mode #detalhesConteudo .table td,
+body.dark-mode #detalhesConteudo .table th,
+[data-bs-theme="dark"] #detalhesConteudo .table,
+[data-bs-theme="dark"] #detalhesConteudo .table td,
+[data-bs-theme="dark"] #detalhesConteudo .table th {
+    background-color: var(--bg-content-color, #1e1e1e) !important;
+    color: var(--text-color, #e0e0e0) !important;
+    border-color: var(--border-color, #444) !important;
+}
+
+/* ─── Thead especial (table-success, table-info) no modal em dark mode ─────── */
+body.dark-mode #detalhesConteudo thead.table-success th,
+[data-bs-theme="dark"] #detalhesConteudo thead.table-success th {
+    background-color: #1a4a2e !important;
+    color: #a8d5b5 !important;
+    border-color: #2d6a42 !important;
+}
+
+/* ─── Listras de tabela (table-striped) no modal em dark mode ─────────────── */
+body.dark-mode #detalhesConteudo .table-striped tbody tr:nth-child(odd) td,
+[data-bs-theme="dark"] #detalhesConteudo .table-striped tbody tr:nth-child(odd) td {
+    background-color: #252525 !important;
+}
+
+body.dark-mode #detalhesConteudo .table-striped tbody tr:nth-child(even) td,
+[data-bs-theme="dark"] #detalhesConteudo .table-striped tbody tr:nth-child(even) td {
+    background-color: #1e1e1e !important;
+}
+
+/* ─── Badges mantêm cores no dark mode ────────────────────────────────────── */
+body.dark-mode #detalhesConteudo .badge,
+[data-bs-theme="dark"] #detalhesConteudo .badge {
+    filter: brightness(1.15);
+}
+
+/* ─── Títulos de seção do modal em dark mode ──────────────────────────────── */
+body.dark-mode #detalhesConteudo h6.text-success,
+[data-bs-theme="dark"] #detalhesConteudo h6.text-success {
+    color: var(--theme-success, #4caf50) !important;
+    border-bottom-color: #2d6a42 !important;
+}
+
+body.dark-mode #detalhesConteudo h6.text-info,
+[data-bs-theme="dark"] #detalhesConteudo h6.text-info {
+    color: var(--theme-info, #3dd5f3) !important;
+    border-bottom-color: #1a5a6a !important;
+}
+
+body.dark-mode #detalhesConteudo h6.text-primary,
+[data-bs-theme="dark"] #detalhesConteudo h6.text-primary {
+    color: var(--theme-primary, #4d9cf0) !important;
+    border-bottom-color: #1a3a6a !important;
+}
+
+body.dark-mode #detalhesConteudo h6.text-warning,
+[data-bs-theme="dark"] #detalhesConteudo h6.text-warning {
+    color: var(--theme-warning, #ffc107) !important;
+    border-bottom-color: #6a4a00 !important;
+}
+
+body.dark-mode #detalhesConteudo h6.text-secondary,
+[data-bs-theme="dark"] #detalhesConteudo h6.text-secondary {
+    color: #aaa !important;
+    border-bottom-color: #444 !important;
+}
+
+/* ─── Texto muted dentro de detalhes ──────────────────────────────────────── */
+body.dark-mode #detalhesConteudo .text-muted,
+[data-bs-theme="dark"] #detalhesConteudo .text-muted {
+    color: #888 !important;
+}
+
+/* ─── HR (divisores) dentro de detalhes ──────────────────────────────────── */
+body.dark-mode #detalhesConteudo hr,
+[data-bs-theme="dark"] #detalhesConteudo hr {
+    border-color: #444;
+    opacity: 0.5;
+}
+
+/* ─── code (ex: ID da avaria) em dark mode ────────────────────────────────── */
+body.dark-mode #detalhesConteudo code,
+[data-bs-theme="dark"] #detalhesConteudo code {
+    background-color: #2a3a2a;
+    color: #6fcf97;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+/* ============================================================================
+   CORREÇÃO — Sugestões de NF (list-group-item) no tema escuro
+   ============================================================================ */
+
+.dark-mode .list-group-item {
+    background-color: var(--bg-content-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.dark-mode .list-group-item-action:hover,
+.dark-mode .list-group-item-action:focus {
+    background-color: var(--bg-hover);
+    color: var(--text-color);
+}
+
+.dark-mode #listaSugestoesLote .list-group-item {
+    background-color: var(--bg-light);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.dark-mode #listaSugestoesLote .list-group-item strong {
+    color: var(--theme-primary-light, #6ea8fe);
+}
+
+.dark-mode #listaSugestoesLote .list-group-item .text-muted {
+    color: var(--text-muted-color) !important;
+}
+
+/* Badge de NF selecionada — ajuste para dark */
+.dark-mode #listaNFsSelecionadas .badge {
+    opacity: .92;
+}
+
+/* ============================================================================
+   24. RESPONSIVIDADE MOBILE - TABELAS EM FORMATO DE CARDS E TOUCH
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    /* Transforma a tabela em Cards no Mobile */
+    .table-mobile-cards thead {
+        display: none !important;
+    }
+    .table-mobile-cards tbody, 
+    .table-mobile-cards tr, 
+    .table-mobile-cards td {
+        display: block;
+        width: 100%;
+    }
+    .table-mobile-cards tr {
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 0.5rem;
+        background-color: var(--bg-content-color);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+    }
+    .table-mobile-cards td {
+        text-align: right;
+        padding: 0.75rem 1rem 0.75rem 50% !important;
+        position: relative;
+        border-top: none !important;
+        border-bottom: 1px solid var(--border-color-light) !important;
+    }
+    .table-mobile-cards td:last-child {
+        border-bottom: none !important;
+    }
+    .table-mobile-cards td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 1rem;
+        width: 45%;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-muted-color);
+        white-space: nowrap;
+    }
+}

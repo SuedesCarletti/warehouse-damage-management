@@ -1,0 +1,942 @@
+{% extends "base.html" %}
+{% block title %}Portal ASN — {{ nome_transportadora }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+/* ─── Portal Transportadora ─── */
+.asn-portal-header {
+    background: linear-gradient(135deg, #1a3a5c 0%, #0d2240 100%);
+    border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem; color: white;
+    position: relative; overflow: hidden;
+}
+.asn-portal-header::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+        -45deg, transparent, transparent 30px,
+        rgba(255,255,255,.02) 30px, rgba(255,255,255,.02) 31px
+    );
+}
+.asn-portal-header h2 { margin: 0; font-size: 1.5rem; }
+.asn-portal-header p  { margin: .4rem 0 0; opacity: .75; }
+
+.stat-asn { background: rgba(255,255,255,.1); border-radius: 10px; padding: 1rem 1.5rem; text-align: center; }
+.stat-asn .num { font-size: 2rem; font-weight: 700; line-height: 1; }
+.stat-asn .lbl { font-size: .78rem; opacity: .8; text-transform: uppercase; letter-spacing: .05em; }
+
+.asn-card-list { display: flex; flex-direction: column; gap: 1rem; }
+.asn-item { background: var(--bg-content-color, #fff); border: 1px solid var(--border-color, #dee2e6); border-radius: 10px; padding: 1.25rem; box-shadow: 0 2px 5px rgba(0,0,0,.03); transition: transform 0.15s, box-shadow 0.15s; border-left: 4px solid #17a2b8; }
+.asn-item:hover { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(0,0,0,.08); }
+.asn-item.atrasado { border-left-color: #dc3545; }
+.asn-item.recebido { border-left-color: #28a745; }
+
+.form-section { background: var(--bg-content-color, #fff); border: 1px solid var(--border-color, #dee2e6); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 2px 5px rgba(0,0,0,.02); }
+.form-section h6 { color: var(--theme-primary, #1a3a5c); font-weight: 600; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color, #dee2e6); padding-bottom: .5rem; }
+
+/* Cartão de nota individual */
+.nota-row {
+    background: var(--bg-light, #f8f9fa);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 8px;
+    padding: .75rem;
+}
+
+.dark-mode .asn-portal-header { background: linear-gradient(135deg, #0d1f3a 0%, #08162b 100%); }
+.dark-mode .form-section { background: #1e1e1e; border-color: #444; }
+.dark-mode .form-section h6 { color: #4d9cf0; border-color: #333; }
+.dark-mode .asn-item { background: #1e1e1e; border-color: #333; }
+.dark-mode .nota-row { background: #252525; border-color: #444; }
+
+/* ── Dark mode: corrige select/horário invisível ── */
+.dark-mode .form-select,
+.dark-mode select {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    border-color: #555 !important;
+}
+.dark-mode .form-select option,
+.dark-mode select option {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+/* Flatpickr dark mode */
+.dark-mode .flatpickr-calendar {
+    background: #2a2a2a;
+    border-color: #555;
+    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+}
+.dark-mode .flatpickr-day { color: #e0e0e0; }
+.dark-mode .flatpickr-day:hover { background: #3a3a3a; }
+.dark-mode .flatpickr-day.selected { background: var(--theme-primary, #28a745); border-color: var(--theme-primary, #28a745); }
+.dark-mode .flatpickr-day.flatpickr-disabled { color: #555 !important; }
+.dark-mode .flatpickr-months,
+.dark-mode .flatpickr-month { background: #222; color: #e0e0e0; fill: #e0e0e0; }
+.dark-mode .flatpickr-current-month input.cur-year { color: #e0e0e0; }
+.dark-mode .flatpickr-weekday { color: #a0a0a0; }
+.dark-mode .flatpickr-prev-month svg,
+.dark-mode .flatpickr-next-month svg { fill: #e0e0e0; }
+
+/* Ajustes Mobile */
+@media (max-width: 768px) {
+    .asn-portal-header { padding: 1.5rem; text-align: center; }
+    .asn-portal-header h2 { font-size: 1.3rem; }
+    .stat-asn { padding: 0.75rem; margin-bottom: 0.5rem; }
+    .form-section { padding: 1.25rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Cabeçalho ── #}
+<div class="asn-portal-header">
+    <div class="row align-items-center">
+        <div class="col-md-7">
+            <h2><i class="fas fa-truck me-2"></i>Portal de Agendamentos</h2>
+            <p>Bem-vindo(a), <strong>{{ nome_transportadora }}</strong>. Registre aqui suas entregas de devoluções.</p>
+        </div>
+        <div class="col-md-5 mt-4 mt-md-0">
+            <div class="row g-2">
+                <div class="col-12 col-sm-4">
+                    <div class="stat-asn">
+                        <div class="num text-warning">{{ stats.agendados }}</div>
+                        <div class="lbl">Agendados</div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-4">
+                    <div class="stat-asn">
+                        <div class="num text-success">{{ stats.recebidos }}</div>
+                        <div class="lbl">Recebidos</div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-4">
+                    <div class="stat-asn">
+                        <div class="num {{ 'text-danger' if stats.atrasados > 0 else 'text-light' }}">{{ stats.atrasados }}</div>
+                        <div class="lbl">Atrasados</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    {# ── Coluna esquerda: Formulário ── #}
+    <div class="col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2 text-success"></i>Novo Agendamento</h5>
+        </div>
+
+        <div class="form-section">
+            <h6><i class="fas fa-file-invoice me-2"></i>Dados da Nota</h6>
+            <div id="notasContainer"></div>
+            <button type="button" class="btn btn-outline-success btn-sm mt-1" onclick="adicionarNota()">
+                <i class="fas fa-plus me-1"></i>Adicionar outra nota
+            </button>
+
+            <div class="row g-3 mt-1">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Empresa Destino</label>
+                    <input type="text" id="asnEmpresaDest" class="form-control"
+                           value="{{ empresa_dest }}" readonly style="background: var(--bg-color, #f4f6f9)">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h6><i class="fas fa-calendar-alt me-2"></i>Logística</h6>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Data de Entrega <span class="text-danger">*</span></label>
+                    <input type="text" id="asnData" class="form-control" placeholder="Selecione a data" readonly>
+                    <div class="form-text text-muted" id="asnDataAjuda">Carregando dias disponíveis...</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Horário <span class="text-danger">*</span></label>
+                    <select id="asnHorario" class="form-select" disabled>
+                        <option value="">Selecione uma data primeiro</option>
+                    </select>
+                    <div class="form-text text-muted" id="asnHorarioAjuda">Carregando horários disponíveis...</div>
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label fw-semibold">Nome do Motorista <span class="text-danger">*</span></label>
+                    <input type="text" id="asnMotorista" class="form-control" placeholder="Nome completo">
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold">Placa do Veículo <span class="text-danger">*</span></label>
+                    <input type="text" id="asnPlaca" class="form-control" placeholder="AAA-0A00" maxlength="8">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h6><i class="fas fa-comment me-2"></i>Observação</h6>
+            <textarea id="asnDescricao" class="form-control" rows="3"
+                      placeholder="Descreva brevemente o motivo da devolução ou o estado do produto..."></textarea>
+        </div>
+
+        <button class="btn btn-success btn-lg w-100 shadow-sm" onclick="criarAsn()">
+            <i class="fas fa-calendar-check me-2"></i>Confirmar Agendamento
+        </button>
+    </div>
+
+    {# ── Coluna direita: Histórico ── #}
+    <div class="col-lg-6">
+        <h5 class="mb-3"><i class="fas fa-history me-2 text-secondary"></i>Meus Agendamentos</h5>
+
+        {% if meus_asns %}
+        <div class="asn-card-list">
+            {% for asn in meus_asns[:20] %}
+            <div class="asn-item {{ 'atrasado' if asn.atrasado else '' }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                        <span class="badge bg-{{ asn.tipo_nota_badge }} px-2 py-1">{{ asn.tipo_nota }}</span>
+                        <span class="fw-bold fs-6">{{ asn.nota }}</span>
+                        {% if asn.cte %}<small class="text-muted">CT-e: {{ asn.cte }}</small>{% endif %}
+                        {% if asn.volumes %}<small class="text-muted">{{ asn.volumes }} vol.</small>{% endif %}
+                    </div>
+                    <span class="badge bg-{{ asn.status_badge }}">{{ asn.status_label }}</span>
+                </div>
+
+                {# Notas adicionais com suporte ao formato estendido TYPE:NUM~CTE~VOL #}
+                {% if asn.notas_adicionais %}
+                    {% for extra in asn.notas_adicionais.split(',') %}
+                        {% set e = extra.strip() %}
+                        {% if e %}
+                            {% set partes = e.split('~') %}
+                            {% set tipo_num = partes[0].split(':') %}
+                            {% set etipo = tipo_num[0].strip() if tipo_num|length > 1 else 'NF' %}
+                            {% set enum  = tipo_num[1].strip() if tipo_num|length > 1 else partes[0] %}
+                            {% set ecte  = partes[1].strip() if partes|length > 1 else '' %}
+                            {% set evol  = partes[2].strip() if partes|length > 2 else '' %}
+                            <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                                <span class="badge bg-secondary px-2 py-1">{{ etipo }}</span>
+                                <span class="fw-semibold">{{ enum }}</span>
+                                {% if ecte %}<small class="text-muted">CT-e: {{ ecte }}</small>{% endif %}
+                                {% if evol %}<small class="text-muted">{{ evol }} vol.</small>{% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                <div class="d-flex gap-3 mt-2 small text-muted flex-wrap">
+                    {% if asn.data_prevista %}
+                        <span class="{{ 'text-danger fw-semibold' if asn.atrasado else '' }}">
+                            <i class="fas fa-calendar me-1"></i>{{ format_date_br(asn.data_prevista, include_time=False) }}
+                            {% if asn.atrasado %}<small>(atrasado {{ asn.dias_ate_entrega|abs }} dia(s))</small>{% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+                {% if asn.descricao_avaria %}
+                <div class="small text-muted mt-1 fst-italic">{{ asn.descricao_avaria[:80] }}{{ '...' if asn.descricao_avaria|length > 80 else '' }}</div>
+                {% endif %}
+                {% if asn.avaria_id %}
+                <div class="small text-success mt-1"><i class="fas fa-check-circle me-1"></i>Avaria: {{ asn.avaria_id }}</div>
+                {% endif %}
+                {% if asn.status == 'agendado' %}
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-outline-info btn-sm"
+                            onclick="abrirModalEditarPortal('{{ asn.id }}', '{{ asn.nota }}', '{{ asn.tipo_nota }}', '{{ asn.notas_adicionais | default('') | e }}', '{{ asn.cte | default('') }}', '{{ asn.volumes | default('') }}', '{{ asn.descricao_avaria | default('') | e }}', '{{ asn.data_prevista | default('') }}')">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="cancelarAsn('{{ asn.id }}')">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-truck fa-3x mb-3 opacity-25"></i>
+            <p>Nenhum agendamento encontrado.<br>Use o formulário ao lado para criar seu primeiro ASN.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{# ── Modal Editar ASN (transportadora) ── #}
+<div class="modal fade" id="modalEditarPortal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Agendamento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editarPortalAsnId">
+                <div class="alert alert-warning py-2 mb-3">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Você pode editar os dados da nota enquanto o agendamento estiver <strong>aguardando processamento</strong>.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-2"><i class="fas fa-file-invoice me-2"></i>Dados das Notas</label>
+                    <div id="editarPortalNotasContainer"></div>
+                    <button type="button" class="btn btn-outline-info btn-sm mt-1" onclick="adicionarNotaEdicao()">
+                        <i class="fas fa-plus me-1"></i>Adicionar outra nota
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-2"><i class="fas fa-calendar-alt me-2"></i>Dia e Horário de Atendimento</label>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" id="editarPortalData" class="form-control" placeholder="Selecione a data" readonly>
+                            <div class="form-text text-muted" id="editarPortalDataAjuda">Carregando dias disponíveis...</div>
+                        </div>
+                        <div class="col-md-6">
+                            <select id="editarPortalHorario" class="form-select" disabled>
+                                <option value="">Selecione uma data primeiro</option>
+                            </select>
+                            <div class="form-text text-muted" id="editarPortalHorarioAjuda">Carregando horários disponíveis...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Descrição / Observação</label>
+                    <textarea id="editarPortalDescricao" class="form-control" rows="2"
+                              placeholder="Ex: Produto com embalagem danificada..."></textarea>
+                </div>
+                <div id="editarPortalResultado" class="d-none mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-info text-white" id="btnConfirmarEditarPortal" onclick="confirmarEdicaoPortal()">
+                    <i class="fas fa-save me-1"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Toast ── #}
+<div id="asnToast" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;min-width:280px;"></div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+<script>
+const API_CRIAR   = '/wms/asn/api/criar';
+const API_CANCEL  = '/wms/asn/api/cancelar';
+const API_EDITAR  = '/wms/asn/api/editar';
+const API_CONFIG_ATENDIMENTO = '/wms/asn/api/config-atendimento';
+
+/* Configuração de dias/horários de atendimento — definida pelo operador WMS
+   (botão "Configurar Atendimento" na Fila), não mais fixa no código. */
+let _configAtendimento = { dias_permitidos: [1, 2, 3], dias_permitidos_js: [2, 3, 4], slots: [] };
+const NOMES_DIAS_JS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+async function carregarConfigAtendimento() {
+    try {
+        const res  = await fetch(API_CONFIG_ATENDIMENTO, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) {
+            _configAtendimento = data;
+        }
+    } catch (e) {
+        console.error('Erro ao carregar configuração de atendimento:', e);
+    }
+    return _configAtendimento;
+}
+
+function atualizarTextoAjudaAtendimento() {
+    const diasTxt = (_configAtendimento.dias_permitidos_js || [])
+        .slice().sort((a, b) => a - b)
+        .map(d => NOMES_DIAS_JS[d]).join(', ');
+    const horarioTxt = (_configAtendimento.hora_inicio && _configAtendimento.hora_fim)
+        ? `Das ${_configAtendimento.hora_inicio} às ${_configAtendimento.hora_fim} (intervalos de ${_configAtendimento.intervalo_min} min).`
+        : '';
+    ['asnDataAjuda', 'editarPortalDataAjuda'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = diasTxt ? `Disponível: ${diasTxt}.` : '';
+    });
+    ['asnHorarioAjuda', 'editarPortalHorarioAjuda'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = horarioTxt;
+    });
+}
+
+/* ── Helpers ── */
+function showToast(msg, type = 'success') {
+    const colors = { success: 'bg-success', danger: 'bg-danger', warning: 'bg-warning text-dark' };
+    const el = document.createElement('div');
+    el.className = `toast align-items-center text-white ${colors[type] || 'bg-success'} border-0`;
+    el.setAttribute('role', 'alert');
+    el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+    document.getElementById('asnToast').appendChild(el);
+    new bootstrap.Toast(el, { delay: 4000 }).show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
+/* ── Template de linha de nota (com CTE e volumes individuais) ── */
+function criarHtmlNota(isFirst) {
+    const req = isFirst ? ' <span class="text-danger">*</span>' : '';
+    return `
+    <div class="nota-row mb-2">
+        <div class="row g-2 mb-2">
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem;width:45px">NF</span>
+                    <input type="text" class="form-control nota-nf" placeholder="Número da NF">
+                </div>
+            </div>
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem;width:45px">NFD</span>
+                    <input type="text" class="form-control nota-nfd" placeholder="Número da NFD">
+                </div>
+            </div>
+        </div>
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem">CT-e${req}</span>
+                    <input type="text" class="form-control nota-cte" placeholder="CT-e desta nota">
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem">Vol.${req}</span>
+                    <input type="number" class="form-control nota-volumes" min="1" placeholder="Qtd">
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="button" class="btn btn-outline-danger btn-sm nota-rem" title="Remover"
+                        style="${isFirst ? 'display:none' : ''}" onclick="removerNota(this)">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+        </div>
+        <div class="nota-error text-danger small d-none mt-1">Informe ao menos NF ou NFD.</div>
+        <div class="nota-error-cte text-danger small d-none mt-1">Informe o CT-e desta nota.</div>
+        <div class="nota-error-vol text-danger small d-none mt-1">Informe a quantidade de volumes.</div>
+    </div>`;
+}
+
+/* ── Inicializar primeira nota ── */
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('notasContainer').innerHTML = criarHtmlNota(true);
+    await carregarConfigAtendimento();
+    inicializarDatepicker();
+    inicializarDatepickerEdicao();
+    atualizarTextoAjudaAtendimento();
+});
+
+/* ── Flatpickr: dias habilitados conforme _configAtendimento (configurável pelo operador) ── */
+function inicializarDatepicker() {
+    if (typeof flatpickr === 'undefined') {
+        /* Fallback: usa input date nativo com validação manual */
+        const inp = document.getElementById('asnData');
+        inp.type = 'date';
+        inp.min  = new Date().toISOString().split('T')[0];
+        inp.addEventListener('focus', async () => {
+            await carregarConfigAtendimento();
+            atualizarTextoAjudaAtendimento();
+        });
+        inp.addEventListener('change', () => {
+            if (!inp.value) return;
+            const dow = new Date(inp.value + 'T12:00:00').getDay();
+            if (!_configAtendimento.dias_permitidos_js.includes(dow)) {
+                showToast('Dia da semana fora da janela de atendimento configurada.', 'warning');
+                inp.value = '';
+                resetarHorarios();
+            } else {
+                carregarSlotsDisponiveis(inp.value);
+            }
+        });
+        return;
+    }
+
+    flatpickr.localize(flatpickr.l10ns.pt);
+    flatpickr('#asnData', {
+        minDate: 'today',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd/m/Y',
+        disable: [
+            (date) => !_configAtendimento.dias_permitidos_js.includes(date.getDay())
+        ],
+        locale: 'pt',
+        onChange: async (selectedDates, dateStr) => {
+            if (dateStr) {
+                await carregarSlotsDisponiveis(dateStr);
+            } else {
+                resetarHorarios();
+            }
+        },
+        onOpen: async (_sd, _ds, instance) => {
+            /* Busca a config mais recente a cada abertura do calendário — evita
+               ficar com dias/horários desatualizados numa aba já aberta há tempo. */
+            await carregarConfigAtendimento();
+            atualizarTextoAjudaAtendimento();
+            instance.redraw();
+        },
+    });
+}
+
+/* ── Flatpickr do modal de edição (mesma janela configurável) ── */
+let flatpickrEdicaoInstance = null;
+function inicializarDatepickerEdicao() {
+    if (typeof flatpickr === 'undefined') {
+        const inp = document.getElementById('editarPortalData');
+        inp.type = 'date';
+        inp.min  = new Date().toISOString().split('T')[0];
+        inp.addEventListener('focus', async () => {
+            await carregarConfigAtendimento();
+            atualizarTextoAjudaAtendimento();
+        });
+        inp.addEventListener('change', () => {
+            if (!inp.value) return;
+            const dow = new Date(inp.value + 'T12:00:00').getDay();
+            if (!_configAtendimento.dias_permitidos_js.includes(dow)) {
+                showToast('Dia da semana fora da janela de atendimento configurada.', 'warning');
+                inp.value = '';
+                resetarHorarios('editarPortalHorario');
+            } else {
+                const asnId = document.getElementById('editarPortalAsnId').value;
+                carregarSlotsDisponiveis(inp.value, 'editarPortalHorario', asnId);
+            }
+        });
+        return;
+    }
+
+    flatpickr.localize(flatpickr.l10ns.pt);
+    flatpickrEdicaoInstance = flatpickr('#editarPortalData', {
+        minDate: 'today',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd/m/Y',
+        disable: [
+            (date) => !_configAtendimento.dias_permitidos_js.includes(date.getDay())
+        ],
+        locale: 'pt',
+        onChange: async (selectedDates, dateStr) => {
+            if (dateStr) {
+                const asnId = document.getElementById('editarPortalAsnId').value;
+                await carregarSlotsDisponiveis(dateStr, 'editarPortalHorario', asnId);
+            } else {
+                resetarHorarios('editarPortalHorario');
+            }
+        },
+        onOpen: async (_sd, _ds, instance) => {
+            await carregarConfigAtendimento();
+            atualizarTextoAjudaAtendimento();
+            instance.redraw();
+        },
+    });
+}
+
+function resetarHorarios(selectId = 'asnHorario') {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Selecione uma data primeiro</option>';
+    select.disabled = true;
+}
+
+/* ── Carrega apenas slots disponíveis (remove os ocupados) ──
+   asnId: se informado, o próprio agendamento é excluído da checagem de
+          ocupação (permite manter o horário atual ao editar).
+   manterHorario: horário a pré-selecionar após carregar as opções. */
+async function carregarSlotsDisponiveis(data, selectId = 'asnHorario', asnId = '', manterHorario = '') {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Verificando disponibilidade...</option>';
+    select.disabled = true;
+    try {
+        let url = `/wms/asn/api/slots-disponiveis?data=${data}`;
+        if (asnId) url += `&asn_id=${encodeURIComponent(asnId)}`;
+        const res  = await fetch(url);
+        const json = await res.json();
+        const ocupados   = json.ocupados || [];
+        const disponiveis = (_configAtendimento.slots || []).filter(s => !ocupados.includes(s));
+
+        select.innerHTML = '';
+        if (disponiveis.length === 0) {
+            select.innerHTML = '<option value="">Sem horários disponíveis neste dia</option>';
+        } else {
+            select.innerHTML = '<option value="">Selecione o horário</option>';
+            disponiveis.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                select.appendChild(opt);
+            });
+            select.disabled = false;
+            if (manterHorario && disponiveis.includes(manterHorario)) {
+                select.value = manterHorario;
+            }
+        }
+    } catch (e) {
+        select.innerHTML = '<option value="">Erro ao carregar horários</option>';
+        select.disabled = false;
+    }
+}
+
+/* ── Múltiplas notas ── */
+function adicionarNota() {
+    const container = document.getElementById('notasContainer');
+    const div = document.createElement('div');
+    div.innerHTML = criarHtmlNota(false);
+    container.appendChild(div.firstElementChild);
+    atualizarBotoesRemover('#notasContainer');
+}
+
+function adicionarNotaEdicao() {
+    const container = document.getElementById('editarPortalNotasContainer');
+    const isFirst = container.children.length === 0;
+    const div = document.createElement('div');
+    div.innerHTML = criarHtmlNota(isFirst);
+    container.appendChild(div.firstElementChild);
+    atualizarBotoesRemover('#editarPortalNotasContainer');
+}
+
+function removerNota(btn) {
+    btn.closest('.nota-row').remove();
+    atualizarBotoesRemover('#notasContainer');
+    atualizarBotoesRemover('#editarPortalNotasContainer');
+}
+
+function atualizarBotoesRemover(selector) {
+    const container = document.querySelector(selector);
+    if (!container) return;
+    const rows = container.querySelectorAll('.nota-row');
+    rows.forEach((row, index) => {
+        const btn = row.querySelector('.nota-rem');
+        if (btn) btn.style.display = index === 0 ? 'none' : '';
+    });
+}
+
+/* ── Criar ASN ── */
+async function criarAsn() {
+    /* Obter data do flatpickr (input oculto) ou do input direto */
+    const inputData = document.getElementById('asnData');
+    const data = inputData._flatpickr
+        ? (inputData._flatpickr.selectedDates[0]
+            ? inputData._flatpickr.formatDate(inputData._flatpickr.selectedDates[0], 'Y-m-d')
+            : '')
+        : inputData.value;
+    const horario = document.getElementById('asnHorario').value;
+
+    if (!data) { showToast('Informe a data de entrega', 'warning'); return; }
+    const dow = new Date(data + 'T12:00:00').getDay();
+    if (!_configAtendimento.dias_permitidos_js.includes(dow)) { showToast('Dia da semana fora da janela de atendimento configurada', 'warning'); return; }
+    if (!horario) { showToast('Selecione o horário de entrega', 'warning'); return; }
+
+    const motorista = document.getElementById('asnMotorista').value.trim();
+    if (!motorista) { showToast('Informe o nome do motorista', 'warning'); document.getElementById('asnMotorista').focus(); return; }
+
+    const placa = document.getElementById('asnPlaca').value.trim();
+    if (!placa) { showToast('Informe a placa do veículo', 'warning'); document.getElementById('asnPlaca').focus(); return; }
+
+    /* Validação e montagem das notas */
+    const rows = document.querySelectorAll('#notasContainer .nota-row');
+    let hasError = false;
+
+    rows.forEach((row, index) => {
+        const nf  = row.querySelector('.nota-nf').value.trim();
+        const nfd = row.querySelector('.nota-nfd').value.trim();
+        const cte = row.querySelector('.nota-cte').value.trim();
+        const vol = row.querySelector('.nota-volumes').value.trim();
+        const err    = row.querySelector('.nota-error');
+        const errCte = row.querySelector('.nota-error-cte');
+        const errVol = row.querySelector('.nota-error-vol');
+        
+        if (!nf && !nfd) { err.classList.remove('d-none'); hasError = true; }
+        else              { err.classList.add('d-none'); }
+        
+        if (index === 0) {
+            if (!cte) { errCte.classList.remove('d-none'); hasError = true; }
+            else      { errCte.classList.add('d-none'); }
+            if (!vol) { errVol.classList.remove('d-none'); hasError = true; }
+            else      { errVol.classList.add('d-none'); }
+        } else {
+            errCte.classList.add('d-none');
+            errVol.classList.add('d-none');
+        }
+    });
+    if (hasError) { showToast('Preencha todos os campos obrigatórios das notas', 'warning'); return; }
+
+    /* Monta array de notas com CTE e volumes individuais */
+    const notasLista = [];
+    rows.forEach(row => {
+        const nf  = row.querySelector('.nota-nf').value.trim();
+        const nfd = row.querySelector('.nota-nfd').value.trim();
+        const cte = row.querySelector('.nota-cte').value.trim();
+        const vol = row.querySelector('.nota-volumes').value.trim();
+        if (nf || nfd) {
+            notasLista.push({ tipo: nfd ? 'NFD' : 'NF', numero: nfd || nf, cte, volumes: vol });
+        }
+    });
+
+    /* Primeira nota → campos principais; demais → notas_adicionais (TYPE:NUM~CTE~VOL) */
+    const primeira = notasLista[0] || {};
+    const notasAdicionais = notasLista.slice(1)
+        .map(n => `${n.tipo}:${n.numero}~${n.cte}~${n.volumes}`)
+        .join(',');
+
+    const payload = {
+        notas_lista:      notasLista,
+        nota:             primeira.numero || '',
+        tipo_nota:        primeira.tipo   || 'NF',
+        cte:              primeira.cte    || '',
+        volumes:          primeira.volumes || '',
+        notas_adicionais: notasAdicionais,
+        data_prevista:    `${data} ${horario}`,
+        nome_motorista:   document.getElementById('asnMotorista').value.trim(),
+        placa_veiculo:    document.getElementById('asnPlaca').value.trim().toUpperCase(),
+        descricao_avaria: document.getElementById('asnDescricao').value.trim(),
+        empresa_dest:     document.getElementById('asnEmpresaDest').value,
+    };
+
+    const btn = document.querySelector('[onclick="criarAsn()"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Criando agendamento...';
+
+    try {
+        const res = await fetch(API_CRIAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data_resp = await res.json();
+
+        if (data_resp.success) {
+            showToast(`✅ ${data_resp.message}`);
+            if (data_resp.redirect) {
+                setTimeout(() => { window.location.href = data_resp.redirect; }, 1000);
+            } else {
+                setTimeout(() => location.reload(), 1200);
+            }
+        } else {
+            showToast(data_resp.error || 'Erro ao criar agendamento', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-calendar-check me-2"></i>Confirmar Agendamento';
+        }
+    } catch (e) {
+        showToast('Erro de conexão: ' + e.message, 'danger');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-calendar-check me-2"></i>Confirmar Agendamento';
+    }
+}
+
+function abrirModalEditarPortal(asnId, nota, tipoNota, notasAdicionais, cte, volumes, descricao, dataPrevista) {
+    document.getElementById('editarPortalAsnId').value          = asnId;
+    document.getElementById('editarPortalDescricao').value      = descricao || '';
+    atualizarTextoAjudaAtendimento();
+
+    /* Dia/horário atuais do agendamento */
+    const dataAtual    = (dataPrevista || '').slice(0, 10);
+    const horarioAtual = (dataPrevista || '').slice(11, 16);
+    if (flatpickrEdicaoInstance) {
+        flatpickrEdicaoInstance.setDate(dataAtual || null, false);
+    } else {
+        document.getElementById('editarPortalData').value = dataAtual;
+    }
+    if (dataAtual) {
+        carregarSlotsDisponiveis(dataAtual, 'editarPortalHorario', asnId, horarioAtual);
+    } else {
+        resetarHorarios('editarPortalHorario');
+    }
+
+    const container = document.getElementById('editarPortalNotasContainer');
+    container.innerHTML = '';
+    
+    // Primeira nota
+    const div1 = document.createElement('div');
+    div1.innerHTML = criarHtmlNota(true);
+    const row1 = div1.firstElementChild;
+    if (tipoNota === 'NFD') {
+        row1.querySelector('.nota-nfd').value = nota || '';
+    } else {
+        row1.querySelector('.nota-nf').value = nota || '';
+    }
+    row1.querySelector('.nota-cte').value = cte || '';
+    row1.querySelector('.nota-volumes').value = volumes || '';
+    container.appendChild(row1);
+
+    // Notas adicionais
+    if (notasAdicionais) {
+        const extras = notasAdicionais.split(',');
+        extras.forEach(ext => {
+            const e = ext.trim();
+            if (e) {
+                const partes = e.split('~');
+                const tipoNum = partes[0].split(':');
+                const etipo = tipoNum.length > 1 ? tipoNum[0].trim() : 'NF';
+                const enumero = tipoNum.length > 1 ? tipoNum[1].trim() : partes[0];
+                const ecte = partes.length > 1 ? partes[1].trim() : '';
+                const evol = partes.length > 2 ? partes[2].trim() : '';
+
+                const divEx = document.createElement('div');
+                divEx.innerHTML = criarHtmlNota(false);
+                const rowEx = divEx.firstElementChild;
+                if (etipo === 'NFD') {
+                    rowEx.querySelector('.nota-nfd').value = enumero;
+                } else {
+                    rowEx.querySelector('.nota-nf').value = enumero;
+                }
+                rowEx.querySelector('.nota-cte').value = ecte;
+                rowEx.querySelector('.nota-volumes').value = evol;
+                container.appendChild(rowEx);
+            }
+        });
+    }
+    
+    atualizarBotoesRemover('#editarPortalNotasContainer');
+
+    const resultado = document.getElementById('editarPortalResultado');
+    resultado.className = 'd-none';
+    resultado.innerHTML = '';
+    const btn = document.getElementById('btnConfirmarEditarPortal');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Alterações';
+
+    new bootstrap.Modal(document.getElementById('modalEditarPortal')).show();
+}
+
+async function confirmarEdicaoPortal() {
+    const asnId  = document.getElementById('editarPortalAsnId').value;
+    const resultado = document.getElementById('editarPortalResultado');
+    const btn    = document.getElementById('btnConfirmarEditarPortal');
+
+    const container = document.getElementById('editarPortalNotasContainer');
+    const rows = container.querySelectorAll('.nota-row');
+    let hasError = false;
+    const notasLista = [];
+
+    rows.forEach((row, index) => {
+        const nf  = row.querySelector('.nota-nf').value.trim();
+        const nfd = row.querySelector('.nota-nfd').value.trim();
+        const cte = row.querySelector('.nota-cte').value.trim();
+        const vol = row.querySelector('.nota-volumes').value.trim();
+        const err    = row.querySelector('.nota-error');
+        const errCte = row.querySelector('.nota-error-cte');
+        const errVol = row.querySelector('.nota-error-vol');
+        
+        if (!nf && !nfd) { err.classList.remove('d-none'); hasError = true; }
+        else              { err.classList.add('d-none'); }
+        
+        if (index === 0) {
+            if (!cte) { errCte.classList.remove('d-none'); hasError = true; }
+            else      { errCte.classList.add('d-none'); }
+            if (!vol) { errVol.classList.remove('d-none'); hasError = true; }
+            else      { errVol.classList.add('d-none'); }
+        } else {
+            errCte.classList.add('d-none');
+            errVol.classList.add('d-none');
+        }
+
+        if (nf || nfd) {
+            notasLista.push({ tipo: nfd ? 'NFD' : 'NF', numero: nfd || nf, cte, volumes: vol });
+        }
+    });
+
+    if (hasError) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Preencha os campos obrigatórios das notas.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+
+    if (notasLista.length === 0) return;
+
+    /* Dia/horário de atendimento */
+    const inputDataEdit = document.getElementById('editarPortalData');
+    const dataEdit = inputDataEdit._flatpickr
+        ? (inputDataEdit._flatpickr.selectedDates[0]
+            ? inputDataEdit._flatpickr.formatDate(inputDataEdit._flatpickr.selectedDates[0], 'Y-m-d')
+            : '')
+        : inputDataEdit.value;
+    const horarioEdit = document.getElementById('editarPortalHorario').value;
+
+    if (!dataEdit) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Selecione o dia de atendimento.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+    const dowEdit = new Date(dataEdit + 'T12:00:00').getDay();
+    if (!_configAtendimento.dias_permitidos_js.includes(dowEdit)) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Dia da semana fora da janela de atendimento configurada.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+    if (!horarioEdit) {
+        resultado.className = 'alert alert-warning py-2';
+        resultado.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Selecione o horário de atendimento.';
+        resultado.classList.remove('d-none');
+        return;
+    }
+
+    const primeira = notasLista[0];
+    const notasAdicionais = notasLista.slice(1)
+        .map(n => `${n.tipo}:${n.numero}~${n.cte}~${n.volumes}`)
+        .join(',');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+    resultado.className = 'd-none';
+
+    try {
+        const res  = await fetch(API_EDITAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asn_id:           asnId,
+                nota:             primeira.numero,
+                tipo_nota:        primeira.tipo,
+                notas_adicionais: notasAdicionais,
+                cte:              primeira.cte,
+                volumes:          primeira.volumes,
+                descricao_avaria: document.getElementById('editarPortalDescricao').value.trim(),
+                data_prevista:    `${dataEdit} ${horarioEdit}`,
+            }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            resultado.className = 'alert alert-success py-2';
+            resultado.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.message}`;
+            resultado.classList.remove('d-none');
+            showToast('Agendamento atualizado com sucesso!', 'success');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            resultado.className = 'alert alert-danger py-2';
+            resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>${data.error}`;
+            resultado.classList.remove('d-none');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Alterações';
+        }
+    } catch(e) {
+        resultado.className = 'alert alert-danger py-2';
+        resultado.innerHTML = `<i class="fas fa-times-circle me-1"></i>Erro de conexão: ${e.message}`;
+        resultado.classList.remove('d-none');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Alterações';
+    }
+}
+
+async function cancelarAsn(id) {
+    const motivo = prompt(`Motivo do cancelamento do agendamento:`);
+    if (motivo === null) return;
+
+    const res = await fetch(API_CANCEL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asn_id: id, motivo: motivo || 'Cancelado pelo usuário' }),
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast('Agendamento cancelado');
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showToast(data.error || 'Erro ao cancelar', 'danger');
+    }
+}
+</script>
+{% endblock %}

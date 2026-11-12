@@ -1,0 +1,248 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block tab_content %}
+<div class="param-card">
+    <div class="param-card-header">
+        <h5><i class="fas fa-funnel-dollar me-2 text-warning"></i>Funil de Cobrança</h5>
+        <button class="btn btn-success btn-sm" onclick="abrirModalNovo()">
+            <i class="fas fa-plus me-1"></i>Nova Etapa
+        </button>
+    </div>
+    <div class="param-card-body p-0">
+        <div class="alert alert-info m-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Como funciona:</strong> O sistema avalia diariamente as avarias e dispara as etapas de cobrança
+            conforme os dias configurados após o registro da avaria. A ordem das etapas define a sequência de escalação.
+        </div>
+
+        {% if etapas %}
+        <table class="param-table table mb-0">
+            <thead>
+                <tr>
+                    <th>Ordem</th>
+                    <th>Etapa</th>
+                    <th>Dias após avaria</th>
+                    <th>Ação</th>
+                    <th>Destinatário</th>
+                    <th>Status</th>
+                    <th width="110">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in etapas %}
+                <tr>
+                    <td><span class="badge bg-secondary">{{ e.ordem }}</span></td>
+                    <td><strong>{{ e.nome_etapa }}</strong></td>
+                    <td>{{ e.dias_apos_avaria }} dias</td>
+                    <td>
+                        {% if e.acao == 'email' %}<span class="badge bg-info">Email</span>
+                        {% elif e.acao == 'notificacao' %}<span class="badge bg-warning text-dark">Notificação</span>
+                        {% else %}<span class="badge bg-success">Email + Notificação</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if e.destinatario == 'transportadora' %}<i class="fas fa-truck me-1"></i>Transportadora
+                        {% elif e.destinatario == 'gestor' %}<i class="fas fa-user-tie me-1"></i>Gestor
+                        {% else %}<i class="fas fa-users me-1"></i>Ambos{% endif %}
+                    </td>
+                    <td>
+                        {% if e.ativo == 'sim' %}<span class="badge bg-success">Ativa</span>
+                        {% else %}<span class="badge bg-secondary">Inativa</span>{% endif %}
+                    </td>
+                    <td>
+                        {# ✅ FIX: dados em data-* para evitar quebra de HTML com aspas no JSON #}
+                        <button class="btn btn-outline-primary btn-sm me-1 btn-editar-etapa"
+                                data-id="{{ e.id }}"
+                                data-nome="{{ e.nome_etapa }}"
+                                data-ordem="{{ e.ordem }}"
+                                data-dias="{{ e.dias_apos_avaria }}"
+                                data-acao="{{ e.acao }}"
+                                data-destinatario="{{ e.destinatario }}"
+                                data-template="{{ e.template_email or '' }}"
+                                title="Editar etapa">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm"
+                                onclick="confirmarExclusao('/wms/parametrizacao/api/cobranca', '{{ e.id }}', '{{ e.nome_etapa }}', () => location.reload())">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="param-empty">
+            <i class="fas fa-funnel-dollar d-block"></i>
+            <p class="mb-0">Nenhuma etapa de cobrança configurada.</p>
+            <small class="text-muted">Configure o fluxo de cobrança de indenizações.</small>
+        </div>
+
+        {# ── Sugestão de funil padrão ── #}
+        <div class="p-3">
+            <div class="alert alert-success">
+                <i class="fas fa-magic me-2"></i>
+                <strong>Quer começar com um funil padrão?</strong>
+                <button class="btn btn-success btn-sm ms-3" onclick="criarFunilPadrao()">
+                    <i class="fas fa-bolt me-1"></i>Criar Funil Padrão (3 etapas)
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Modal Criar / Editar Etapa ── #}
+<div class="modal fade" id="modalCobranca" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-funnel-dollar me-2"></i>
+                    <span id="modalCobrancaTitulo">Nova Etapa do Funil</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="cobrancaId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nome da Etapa <span class="text-danger">*</span></label>
+                    <input type="text" id="cobrancaNome" class="form-control"
+                           placeholder="Ex: 1ª Cobrança, Escalação Gestão, Jurídico...">
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Ordem</label>
+                        <input type="number" id="cobrancaOrdem" class="form-control" min="1" value="1">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Dias após avaria <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" id="cobrancaDias" class="form-control" min="1" value="15">
+                            <span class="input-group-text">dias</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Ação</label>
+                        <select id="cobrancaAcao" class="form-select">
+                            {% for valor, label in acoes %}
+                            <option value="{{ valor }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Destinatário</label>
+                        <select id="cobrancaDestinatario" class="form-select">
+                            {% for valor, label in destinatarios %}
+                            <option value="{{ valor }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label fw-semibold">Template de Email (opcional)</label>
+                    <input type="text" id="cobrancaTemplate" class="form-control"
+                           placeholder="Ex: cobranca_inicial, escalacao_gestao...">
+                    <small class="text-muted">Nome do template configurado no módulo de email.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-warning" onclick="salvarEtapa()">
+                    <i class="fas fa-save me-1"></i>Salvar Etapa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tab_scripts %}
+<script>
+const API_COBRANCA = '/wms/parametrizacao/api/cobranca';
+let modalCobranca = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    modalCobranca = new bootstrap.Modal(document.getElementById('modalCobranca'));
+
+    // ✅ FIX: Event delegation para botões de editar (evita problemas com JSON em onclick)
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-editar-etapa');
+        if (!btn) return;
+
+        const id          = btn.dataset.id;
+        const nome        = btn.dataset.nome;
+        const ordem       = btn.dataset.ordem;
+        const dias        = btn.dataset.dias;
+        const acao        = btn.dataset.acao;
+        const destinatario= btn.dataset.destinatario;
+        const template    = btn.dataset.template;
+
+        document.getElementById('cobrancaId').value           = id;
+        document.getElementById('cobrancaNome').value          = nome;
+        document.getElementById('cobrancaOrdem').value         = ordem;
+        document.getElementById('cobrancaDias').value          = dias;
+        document.getElementById('cobrancaAcao').value          = acao;
+        document.getElementById('cobrancaDestinatario').value  = destinatario;
+        document.getElementById('cobrancaTemplate').value      = template;
+        document.getElementById('modalCobrancaTitulo').textContent = 'Editar Etapa';
+        modalCobranca.show();
+    });
+});
+
+function abrirModalNovo() {
+    // Limpa campos e abre para criação
+    document.getElementById('cobrancaId').value           = '';
+    document.getElementById('cobrancaNome').value          = '';
+    document.getElementById('cobrancaOrdem').value         = 1;
+    document.getElementById('cobrancaDias').value          = 15;
+    document.getElementById('cobrancaAcao').value          = 'email';
+    document.getElementById('cobrancaDestinatario').value  = 'transportadora';
+    document.getElementById('cobrancaTemplate').value      = '';
+    document.getElementById('modalCobrancaTitulo').textContent = 'Nova Etapa do Funil';
+    modalCobranca.show();
+}
+
+async function salvarEtapa() {
+    const id = document.getElementById('cobrancaId').value;
+    const payload = {
+        nome_etapa:       document.getElementById('cobrancaNome').value.trim(),
+        ordem:            parseInt(document.getElementById('cobrancaOrdem').value),
+        dias_apos_avaria: parseInt(document.getElementById('cobrancaDias').value),
+        acao:             document.getElementById('cobrancaAcao').value,
+        destinatario:     document.getElementById('cobrancaDestinatario').value,
+        template_email:   document.getElementById('cobrancaTemplate').value.trim(),
+    };
+
+    if (!payload.nome_etapa || !payload.dias_apos_avaria) {
+        showParamToast('Preencha os campos obrigatórios', 'warning');
+        return;
+    }
+
+    const method = id ? 'PUT' : 'POST';
+    const url    = id ? `${API_COBRANCA}/${id}` : API_COBRANCA;
+    const res    = await paramApi(url, method, payload);
+
+    if (res.success) {
+        showParamToast(id ? 'Etapa atualizada!' : 'Etapa criada!');
+        modalCobranca.hide();
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showParamToast(res.error || 'Erro ao salvar', 'danger');
+    }
+}
+
+async function criarFunilPadrao() {
+    const etapasPadrao = [
+        { nome_etapa: '1ª Cobrança',        ordem: 1, dias_apos_avaria: 15, acao: 'email',       destinatario: 'transportadora' },
+        { nome_etapa: 'Escalação — Gestão',  ordem: 2, dias_apos_avaria: 30, acao: 'ambos',       destinatario: 'ambos' },
+        { nome_etapa: 'Jurídico',             ordem: 3, dias_apos_avaria: 60, acao: 'notificacao', destinatario: 'gestor' },
+    ];
+
+    for (const etapa of etapasPadrao) {
+        await paramApi(API_COBRANCA, 'POST', etapa);
+    }
+    showParamToast('Funil padrão criado com 3 etapas!');
+    setTimeout(() => location.reload(), 1000);
+}
+</script>
+{% endblock %}

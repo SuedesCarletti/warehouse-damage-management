@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+
+{% block title %}WMS - Gerenciar Status{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-tags me-2 text-success"></i>Gerenciar Status de Avarias
+            </h2>
+            <div>
+                <a href="{{ url_for('wms.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar ao Dashboard
+                </a>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAddStatus">
+                    <i class="fas fa-plus me-2"></i>Adicionar Status
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Informações -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Importante:</strong> Os status controlam o ciclo de vida das avarias. 
+            Você pode adicionar, editar, reordenar (arraste as linhas) e desativar status conforme necessário.
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Status -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Status Cadastrados
+                    <span class="badge bg-light text-dark float-end">{{ status_list|length }} status</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="statusTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;"><i class="fas fa-grip-vertical text-muted"></i></th>
+                                <th style="width: 80px;">Ordem</th>
+                                <th style="width: 200px;">Status</th>
+                                <th style="width: 100px;">Cor</th>
+                                <th>Descrição</th>
+                                <th style="width: 100px;">Tipo</th>
+                                <th style="width: 100px;">Status</th>
+                                <th style="width: 150px;" class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statusTableBody" class="sortable">
+                            {% for status in status_list %}
+                            <tr data-status-name="{{ status.status }}">
+                                <td class="text-center handle" style="cursor: move;">
+                                    <i class="fas fa-grip-vertical text-muted"></i>
+                                </td>
+                                <td><strong>{{ status.ordem }}</strong></td>
+                                <td>
+                                    <span class="badge p-2" style="background-color: {{ status.cor }}; color: white; min-width: 150px;">
+                                        {{ status.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <input type="color" class="form-control form-control-color" value="{{ status.cor }}" 
+                                           onchange="quickUpdateColor('{{ status.status }}', this.value)" 
+                                           title="Clique para mudar a cor">
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ status.descricao or '-' }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ status.status_type | title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if status.ativo == 'sim' %}
+                                    <span class="badge bg-success">Ativo</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inativo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" 
+                                                onclick="editStatus('{{ status.status }}', '{{ status.cor }}', '{{ status.ativo }}', {{ status.ordem }}, '{{ status.descricao }}', '{{ status.status_type }}')"
+                                                title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% if status.ativo == 'sim' %}
+                                        <button class="btn btn-outline-warning" 
+                                                onclick="toggleStatusActive('{{ status.status }}', 'nao')"
+                                                title="Desativar">
+                                            <i class="fas fa-eye-slash"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-outline-success" 
+                                                onclick="toggleStatusActive('{{ status.status }}', 'sim')"
+                                                title="Ativar">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Adicionar Status -->
+<div class="modal fade" id="modalAddStatus" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Adicionar Novo Status
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formAddStatus">
+                    <div class="mb-3">
+                        <label class="form-label">Nome do Status *</label>
+                        <input type="text" class="form-control" id="addStatusName" 
+                               placeholder="Ex: Aguardando Coleta" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Status *</label>
+                        <select class="form-select" id="addStatusType" required>
+                            <option value="geral">Geral</option>
+                            <option value="estoque">Estoque</option>
+                            <option value="indenizacao">Indenização</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cor</label>
+                        <input type="color" class="form-control form-control-color" 
+                               id="addStatusCor" value="#6c757d">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ordem</label>
+                        <input type="number" class="form-control" id="addStatusOrdem" 
+                               value="{{ status_list|length + 1 }}" min="1">
+                        <small class="form-text text-muted">Posição na lista de status</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea class="form-control" id="addStatusDescricao" rows="2" 
+                                  placeholder="Breve descrição do status"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="addStatus()">
+                    <i class="fas fa-save me-2"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Status -->
+<div class="modal fade" id="modalEditStatus" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Editar Status
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditStatus">
+                    <input type="hidden" id="editStatusOriginalName">
+                    <div class="mb-3">
+                        <label class="form-label">Nome do Status</label>
+                        <input type="text" class="form-control" id="editStatusName" readonly>
+                        <small class="text-muted">O nome não pode ser alterado</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Status *</label>
+                        <select class="form-select" id="editStatusType" required>
+                            <option value="geral">Geral</option>
+                            <option value="estoque">Estoque</option>
+                            <option value="indenizacao">Indenização</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cor</label>
+                        <input type="color" class="form-control form-control-color" id="editStatusCor">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ordem</label>
+                        <input type="number" class="form-control" id="editStatusOrdem" min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea class="form-control" id="editStatusDescricao" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Situação</label>
+                        <select class="form-select" id="editStatusAtivo">
+                            <option value="sim">Ativo</option>
+                            <option value="nao">Inativo</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="updateStatus()">
+                    <i class="fas fa-save me-2"></i>Atualizar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Sortable.js para drag-and-drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+// ==================== SORTABLE (Drag-and-Drop para Reordenar) ====================
+const sortable = new Sortable(document.getElementById('statusTableBody'), {
+    handle: '.handle',
+    animation: 150,
+    onEnd: function(evt) {
+        saveNewOrder();
+    }
+});
+
+function saveNewOrder() {
+    const rows = document.querySelectorAll('#statusTableBody tr');
+    const newOrder = [];
+    
+    rows.forEach((row, index) => {
+        const statusName = row.getAttribute('data-status-name');
+        newOrder.push(statusName);
+        // Atualizar número visual
+        row.querySelector('td:nth-child(2) strong').textContent = index + 1;
+    });
+    
+    // Enviar nova ordem para o servidor
+    fetch('/wms/status/api/reorder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({order: newOrder})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Ordem atualizada com sucesso!', 'success');
+        } else {
+            showToast('❌ Erro: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showToast('❌ Erro ao salvar ordem', 'danger');
+    });
+}
+
+// ==================== ADICIONAR STATUS ====================
+function addStatus() {
+    const name = document.getElementById('addStatusName').value.trim();
+    const statusType = document.getElementById('addStatusType').value; // ◠› NOVO: Obter tipo
+    const cor = document.getElementById('addStatusCor').value;
+    const ordem = document.getElementById('addStatusOrdem').value;
+    const descricao = document.getElementById('addStatusDescricao').value.trim();
+    
+    if (!name) {
+        alert('Nome do status é obrigatório!');
+        return;
+    }
+    
+    const data = {
+        status: name,
+        cor: cor,
+        ordem: parseInt(ordem),
+        descricao: descricao,
+        ativo: 'sim',
+        status_type: statusType // ◠› Enviar tipo
+    };
+    
+    fetch('/wms/status/api/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Status adicionado com sucesso!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('❌ Erro: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showToast('❌ Erro ao adicionar status', 'danger');
+    });
+}
+
+// ==================== EDITAR STATUS ====================
+// ◠› Atualizar assinatura para receber o statusType
+function editStatus(name, cor, ativo, ordem, descricao, statusType) {
+    document.getElementById('editStatusOriginalName').value = name;
+    document.getElementById('editStatusName').value = name;
+    document.getElementById('editStatusCor').value = cor;
+    document.getElementById('editStatusOrdem').value = ordem;
+    document.getElementById('editStatusDescricao').value = descricao;
+    document.getElementById('editStatusAtivo').value = ativo;
+    document.getElementById('editStatusType').value = statusType; // ◠› Preencher tipo
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalEditStatus'));
+    modal.show();
+}
+
+function updateStatus() {
+    const originalName = document.getElementById('editStatusOriginalName').value;
+    const cor = document.getElementById('editStatusCor').value;
+    const ordem = document.getElementById('editStatusOrdem').value;
+    const descricao = document.getElementById('editStatusDescricao').value.trim();
+    const ativo = document.getElementById('editStatusAtivo').value;
+    const statusType = document.getElementById('editStatusType').value; // ◠› Obter tipo
+    
+    const data = {
+        cor: cor,
+        ordem: parseInt(ordem),
+        descricao: descricao,
+        ativo: ativo,
+        status_type: statusType // ◠› Incluir tipo
+    };
+    
+    fetch(`/wms/status/api/update/${encodeURIComponent(originalName)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Status atualizado com sucesso!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('❌ Erro: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showToast('❌ Erro ao atualizar status', 'danger');
+    });
+}
+
+// ==================== ALTERAR COR RAPIDAMENTE ====================
+function quickUpdateColor(statusName, newColor) {
+    fetch(`/wms/status/api/update/${encodeURIComponent(statusName)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cor: newColor})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Cor atualizada!', 'success');
+            // Atualizar badge visualmente
+            const badge = document.querySelector(`tr[data-status-name="${statusName}"] .badge`);
+            if (badge) badge.style.backgroundColor = newColor;
+        } else {
+            showToast('❌ Erro: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showToast('❌ Erro ao atualizar cor', 'danger');
+    });
+}
+
+// ==================== ATIVAR/DESATIVAR STATUS ====================
+function toggleStatusActive(statusName, newStatus) {
+    const action = newStatus === 'sim' ? 'ativar' : 'desativar';
+    if (!confirm(`Tem certeza que deseja ${action} o status "${statusName}"?`)) {
+        return;
+    }
+    
+    fetch(`/wms/status/api/update/${encodeURIComponent(statusName)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ativo: newStatus})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`✅ Status ${action === 'ativar' ? 'ativado' : 'desativado'} com sucesso!`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('❌ Erro: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showToast('❌ Erro ao alterar status', 'danger');
+    });
+}
+
+// ==================== TOAST DE NOTIFICAÇÃO ====================
+function showToast(message, type = 'info') {
+    // Criar toast container se não existir
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+    }
+    
+    // Criar toast
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    container.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl, {delay: 3000});
+    toast.show();
+    
+    // Remover após esconder
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+}
+</script>
+{% endblock %}

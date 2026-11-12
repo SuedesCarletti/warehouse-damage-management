@@ -1,0 +1,162 @@
+{# _avaria_rows.html
+   PARTIAL — usado pelo endpoint de fragment após salvar avaria.
+   ⚠️  Manter sincronizado com o loop <tr> de registrar_avarias.html
+#}
+{% for row in avarias_pendentes %}
+{% set av = row.avaria %}
+{% set item = row.item %}
+
+<tr data-avaria-id="{{ av.id }}"
+    data-status-estoque="{{ av.status_estoque|default('', true) }}"
+    data-status-indenizacao="{{ av.status_indenizacao|default('', true) }}"
+    data-data-registro="{{ av.data_registro[:10] if av.data_registro else '' }}"
+    data-prazo-pagamento="{{ av.prazo_pagamento[:10] if av.prazo_pagamento else '' }}"
+    data-data-pagamento="{{ av.data_pagamento[:10] if av.data_pagamento else '' }}"
+    data-data-entrega="{{ av.data_entrega[:10] if av.data_entrega else '' }}"
+    data-data-protocolo-mkt="{{ av.data_protocolo_mkt[:10] if av.data_protocolo_mkt else '' }}"
+    data-data-coleta="{{ av.data_coleta[:10] if av.data_coleta else '' }}"
+    data-data-finalizacao="{{ av.data_finalizacao[:10] if av.data_finalizacao else '' }}"
+    data-data-triagem="{{ item.data_triagem[:10] if item and item.data_triagem else '' }}"
+    data-data-identificacao="{{ item.data_identificacao[:10] if item and item.data_identificacao else '' }}"
+    data-searchable-content="{{ ' | '.join([
+        av.id or '', av.cod_empresa or '', av.nota or '', av.nfd or '',
+        av.volume or '', av.transportadora or '', av.cte or '',
+        av.valor_nf or '', av.valor_nfd or '', av.nfp or '', av.valor_nfp or '',
+        av.motivo_devolucao or '', av.cod_motivo_devolucao or '',
+        av.motivo_inicial or '', av.data_protocolo_mkt or '',
+        av.cod_motivo_inicial or '', av.indenizacao or '', av.valor_indenizacao or '',
+        av.prazo_pagamento or '', av.data_pagamento or '', av.data_entrega or '',
+        av.data_coleta or '', av.cod_rastreio_correios or '', av.observacao or '',
+        av.data_registro or '', av.status_estoque or '', av.status_indenizacao or '',
+        av.quantidade or '', av.registrado_por or '', av.empresa or '',
+        av.etiqueta_inicial_impressa or '', av.cod_triagem or '',
+        av.observacao_final or '', av.data_finalizacao or '', av.finalizado_por or '',
+        item.codprod|default('', true)|string,
+        item.descrprod|default('', true)|string,
+        item.qtd_avariada|default('', true)|string,
+        item.localizacao|default('', true)|string,
+        item.id_etiqueta|default('', true)|string,
+        item.status_etiqueta|default('', true)|string
+    ]) | lower }}">
+
+    {% if row.first_row %}
+    <td class="text-center" rowspan="{{ row.rowspan }}">
+        <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-info"
+                    onclick="verDetalhesAvaria('{{ av.id }}')"
+                    title="Ver Detalhes"><i class="fas fa-eye"></i></button>
+            <button class="btn btn-outline-primary"
+                    onclick="abrirModalEditarAvaria('{{ av.id }}')"
+                    title="Editar Avaria"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-outline-warning"
+                    onclick="gerarTodasEtiquetasAvaria('{{ av.id }}')"
+                    title="Gerar etiquetas para TODOS os produtos"><i class="fas fa-tags"></i></button>
+        </div>
+    </td>
+    {% endif %}
+
+    <!-- Col 1: Ações do item (sem rowspan) -->
+    <td class="text-center">
+        {% if item %}
+        <div class="d-flex flex-wrap gap-1 justify-content-center">
+            {% if not item.id_etiqueta %}
+                <button class="btn btn-success btn-sm"
+                        onclick="gerarEtiquetaIndividual('{{ av.id }}', {{ item.sequencia }})"
+                        title="Gerar etiqueta"><i class="fas fa-tag"></i></button>
+            {% elif item.prefixo_estoque == '00' and item.status_etiqueta == 'ativa' %}
+                <button class="btn btn-primary btn-sm"
+                        onclick="abrirModalTriagem('{{ item.id_etiqueta }}', '{{ item.descrprod | replace("'", "\\'") }}', '{{ av.id }}', {{ item.sequencia }})"
+                        title="Triar produto"><i class="fas fa-exchange-alt"></i></button>
+                {% if item.qtd_avariada > 1 %}
+                <button class="btn btn-warning btn-sm"
+                        onclick="abrirModalMovimentacao('{{ item.id_etiqueta }}', '{{ item.descrprod | replace("'", "\\'") }}', '{{ av.id }}', {{ item.sequencia }}, {{ item.qtd_avariada }}, '{{ item.codprod }}')"
+                        title="Quebrar (Qtd: {{ item.qtd_avariada }})"><i class="fas fa-cut"></i></button>
+                {% endif %}
+                <button class="btn btn-info btn-sm"
+                        onclick="imprimirEtiqueta('{{ item.id_etiqueta }}')"
+                        title="Imprimir etiqueta"><i class="fas fa-print"></i></button>
+            {% elif item.status_etiqueta == 'ativa' %}
+                <button class="btn btn-warning btn-sm"
+                        onclick="abrirModalMovimentacao('{{ item.id_etiqueta }}', '{{ item.descrprod | replace("'", "\\'") }}', '{{ av.id }}', {{ item.sequencia }}, {{ item.qtd_avariada }}, '{{ item.codprod }}')"
+                        title="Movimentar (Qtd: {{ item.qtd_avariada }})"><i class="fas fa-dolly"></i></button>
+                <button class="btn btn-info btn-sm"
+                        onclick="imprimirEtiqueta('{{ item.id_etiqueta }}')"
+                        title="Reimprimir etiqueta"><i class="fas fa-print"></i></button>
+            {% else %}
+                <span class="text-muted small" title="Finalizado"><i class="fas fa-check-circle"></i></span>
+            {% endif %}
+            {% if item.id_etiqueta or item.status_etiqueta in ['recusada', 'recusado_asn'] %}
+            <button class="btn btn-sm {% if item.link_fotos_drive %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+                    onclick="adicionarFotos('{{ item.id_etiqueta or "" }}', '{{ av.id }}', {{ item.sequencia }})"
+                    title="{% if item.link_fotos_drive %}Editar fotos{% else %}Adicionar fotos{% endif %}">
+                <i class="fas fa-camera"></i></button>
+            {% endif %}
+            
+            {% if item.status_etiqueta not in ['baixada', 'recusada', 'recusado_asn'] and not item.id_etiqueta %}
+            <button class="btn btn-danger btn-sm"
+                    onclick="abrirModalRecusarItemAvaria('{{ av.id }}', {{ item.sequencia }}, {{ item.qtd_avariada or av.quantidade or 1 }}, '{{ item.descrprod | replace('\'', '\\\'') }}')"
+                    title="Recusar Item"><i class="fas fa-ban"></i></button>
+            {% endif %}
+        </div>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+
+    {% if row.first_row %}
+    <td rowspan="{{ row.rowspan }}">{{ av.cod_empresa }}</td>
+    <td rowspan="{{ row.rowspan }}" data-search="{{ av.nota }}">{{ av.nota }}</td>
+    <td rowspan="{{ row.rowspan }}" data-search="{{ av.nfd }}">{{ av.nfd or '-' }}</td>
+    {% endif %}
+
+    <td data-search="{{ item.codprod|default('', true) }}"><small class="text-primary">{{ item.codprod|default('N/A', true) }}</small></td>
+    <td><small>{{ item.descrprod|default('—', true) }}</small></td>
+    <td class="text-center"><strong class="text-danger">{{ item.qtd_avariada|default('', true) }}</strong></td>
+    <td>
+        {% set loc_atual = item.localizacao if item and item.localizacao|trim else (item.codlocalorig if item and item.codlocalorig|trim else '—') %}
+        {% set is_pendente = item.has_lote_pendente if item and item.has_lote_pendente is defined else False %}
+        {% set codlocal_p = item.codlocal_pendente if item and item.codlocal_pendente is defined else '' %}
+        <small class="badge bg-light text-dark">
+            {% if is_pendente and codlocal_p %}
+                {{ codlocal_p }} <span class="text-warning fw-bold" title="Pendente Aprovação">[P]</span>
+            {% elif is_pendente %}
+                {{ loc_atual }} <span class="text-warning fw-bold" title="Pendente Aprovação">[P]</span>
+            {% else %}
+                {{ loc_atual }}
+            {% endif %}
+        </small>
+    </td>
+    <td>
+        <span id="etiqueta-{{ av.id }}-{{ (item.sequencia|default('', true)) }}" class="badge bg-secondary">
+            {{ item.id_etiqueta|default('—', true) }}
+        </span>
+    </td>
+    <td>
+        {% if item and item.status_etiqueta == 'ativa' %}
+            <span class="badge bg-success">Ativa</span>
+        {% elif item and item.status_etiqueta == 'baixada' %}
+            <span class="badge bg-danger">Baixada</span>
+        {% elif item and item.status_etiqueta == 'recusada' %}
+            <span class="badge bg-dark">Recusada</span>
+        {% elif item %}
+            <span class="badge bg-warning text-dark">Pendente</span>
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+
+    {% if row.first_row %}
+    <td rowspan="{{ row.rowspan }}">{{ av.quantidade }}</td>
+    <td rowspan="{{ row.rowspan }}" data-search="{{ av.transportadora }}">{{ av.transportadora }}</td>
+    <td rowspan="{{ row.rowspan }}">
+        {% set estoque_color = status_color_map.get(av.status_estoque, '#6c757d') %}
+        <span class="badge text-white" style="background-color: {{ estoque_color }} !important;">{{ av.status_estoque }}</span>
+    </td>
+    <td rowspan="{{ row.rowspan }}">
+        {% set indenizacao_color = status_color_map.get(av.status_indenizacao, '#ffc107') %}
+        <span class="badge text-dark" style="background-color: {{ indenizacao_color }} !important;">{{ av.status_indenizacao }}</span>
+    </td>
+    <td rowspan="{{ row.rowspan }}">{{ format_date_br(av.data_registro, include_time=False) or 'N/A' }}</td>
+    {% endif %}
+</tr>
+{% endfor %}

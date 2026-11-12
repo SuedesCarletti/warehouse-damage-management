@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}MultiSoluções - Portal{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12 text-center mb-4">
+            <h1>Bem-vindo, {{ user_name }}!</h1>
+            <p class="text-muted">Selecione o módulo que deseja acessar</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        {% if 'helpdesk' in user_modules %}
+        <div class="col-md-5 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-headset fa-4x mb-3 text-primary"></i>
+                    <h3 class="card-title">HelpDesk</h3>
+                    <p class="card-text">
+                        Sistema de gerenciamento de chamados e suporte técnico.
+                    </p>
+                    <a href="{{ url_for('tickets.dashboard') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-arrow-right"></i> Acessar HelpDesk
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'wms' in user_modules %}
+        <div class="col-md-5 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-box-open fa-4x mb-3 text-success"></i>
+                    <h3 class="card-title">WMS</h3>
+                    <p class="card-text">
+                        Sistema de gerenciamento de armazém e controle de avarias.
+                    </p>
+                    <a href="{{ url_for('wms.index') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-arrow-right"></i> Acessar WMS
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <p class="text-muted">
+                <small>
+                    MultiSoluções v2.0 | 
+                    <a href="{{ url_for('auth.logout') }}">Sair</a>
+                </small>
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card:hover {
+        transform: translateY(-5px);
+        transition: transform 0.3s ease;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+    }
+</style>
+{% endblock %}

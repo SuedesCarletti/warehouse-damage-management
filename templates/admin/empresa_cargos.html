@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% block title %}Cargos — {{ empresa }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Cabeçalho ─────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center mb-4">
+    <div class="me-3 p-3 rounded-3" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">
+      <i class="fas fa-briefcase text-white fa-lg"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Cargos · {{ empresa }}</h4>
+      <small class="text-muted">{{ cargos | length }} cargo(s) cadastrado(s)</small>
+    </div>
+    <div class="ms-auto d-flex flex-wrap gap-2">
+      {# Volta para departamentos (tela irmã) #}
+      {% if back_url is defined and back_url %}
+        <a href="{{ url_for('admin_global.global_departamentos', empresa=empresa) }}"
+           class="btn btn-outline-secondary">
+          <i class="fas fa-sitemap me-1"></i> Departamentos
+        </a>
+      {% else %}
+        <a href="{{ url_for('admin_empresa.empresa_departamentos') }}"
+           class="btn btn-outline-secondary">
+          <i class="fas fa-sitemap me-1"></i> Departamentos
+        </a>
+      {% endif %}
+
+      {# Permissões #}
+      {% if back_url is defined and back_url %}
+        <a href="{{ url_for('admin_global.global_niveis', empresa=empresa) }}"
+           class="btn btn-outline-primary">
+          <i class="fas fa-shield-alt me-1"></i> Permissões
+        </a>
+      {% else %}
+        <a href="{{ url_for('admin_empresa.empresa_niveis') }}"
+           class="btn btn-outline-primary">
+          <i class="fas fa-shield-alt me-1"></i> Permissões
+        </a>
+      {% endif %}
+
+      <button class="btn btn-indigo" style="background:#6366f1;color:#fff;"
+        data-bs-toggle="modal" data-bs-target="#modalCriarCargo">
+        <i class="fas fa-plus me-1"></i> Novo Cargo
+      </button>
+    </div>
+  </div>
+
+  {# ── Cards por cargo ─────────────────────────────────────────────────── #}
+  <div class="row g-3 mb-4">
+    {% for cargo in cargos %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white d-flex align-items-center">
+          <i class="fas fa-tag text-indigo me-2" style="color:#6366f1"></i>
+          <h6 class="mb-0 fw-semibold flex-grow-1">{{ cargo }}</h6>
+          <span class="badge bg-secondary ms-2">
+            {{ users_by_cargo.get(cargo, []) | length }} usuário(s)
+          </span>
+          <div class="ms-2 d-flex gap-1">
+            {# Vincular usuário ao cargo #}
+            <button class="btn btn-sm btn-outline-success"
+              onclick="abrirVincularCargo('{{ cargo }}')"
+              title="Vincular usuário a este cargo">
+              <i class="fas fa-user-plus"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-primary"
+              onclick="abrirEditarCargo('{{ cargo }}')" title="Renomear cargo">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger"
+              onclick="excluirCargo('{{ cargo }}')" title="Excluir cargo">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Nome</th><th>Departamento</th><th>Nível</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users_by_cargo.get(cargo, []) %}
+                <tr>
+                  <td class="small fw-semibold">{{ u.nome }}</td>
+                  <td class="text-muted small">{{ u.departamento or '—' }}</td>
+                  <td>
+                    {% set cores = {
+                      'admin_global':'danger','admin_empresa':'warning',
+                      'admin_depto':'info','gestor':'secondary','usuario':'secondary'
+                    } %}
+                    <span class="badge bg-{{ cores.get(u.nivel,'secondary') }} small">
+                      {{ u.nivel_display }}
+                    </span>
+                  </td>
+                  <td class="text-end pe-2">
+                    {# Remover do cargo / mudar cargo #}
+                    <button class="btn btn-sm btn-link text-muted p-0"
+                      onclick="abrirMudarCargo('{{ u.email }}', '{{ u.nome }}', '{{ cargo }}')"
+                      title="Mudar cargo">
+                      <i class="fas fa-exchange-alt"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4" class="text-muted text-center small py-3">
+                    <i class="fas fa-user-slash opacity-25 me-1"></i>Sem usuários
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+      <div class="text-center py-5 text-muted">
+        <i class="fas fa-briefcase fa-3x mb-3 d-block opacity-25"></i>
+        <p class="mb-1">Nenhum cargo cadastrado</p>
+        <small>Clique em <strong>Novo Cargo</strong> para começar</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Usuários sem cargo ───────────────────────────────────────────────── #}
+  {% set sem_cargo = users_by_cargo.get('', []) %}
+  {% if sem_cargo %}
+  <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #6366f1 !important;">
+    <div class="card-header bg-white d-flex align-items-center">
+      <i class="fas fa-question-circle me-2" style="color:#6366f1"></i>
+      <h6 class="mb-0 fw-semibold">Usuários sem cargo</h6>
+      <span class="badge bg-secondary ms-2">{{ sem_cargo | length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Nome</th><th>Email</th><th>Departamento</th><th>Ação</th></tr>
+          </thead>
+          <tbody>
+            {% for u in sem_cargo %}
+            <tr>
+              <td class="small fw-semibold">{{ u.nome }}</td>
+              <td class="text-muted small">{{ u.email }}</td>
+              <td class="small">{{ u.departamento or '—' }}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary"
+                  onclick="abrirMudarCargo('{{ u.email }}', '{{ u.nome }}', '')">
+                  <i class="fas fa-briefcase me-1"></i>Atribuir Cargo
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Criar Cargo                                                           #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalCriarCargo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-briefcase me-2"></i>Novo Cargo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nome do Cargo *</label>
+          <input type="text" class="form-control" id="cargoNome"
+            placeholder="Ex: Analista, Supervisor, Coordenador...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitCriarCargo()">
+          <i class="fas fa-save me-1"></i> Criar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Renomear Cargo                                                        #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalEditarCargo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Renomear Cargo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cargoOriginal">
+        <div class="mb-3">
+          <label class="form-label">Novo Nome *</label>
+          <input type="text" class="form-control" id="cargoNovoNome">
+        </div>
+        <div class="alert alert-info small">
+          <i class="fas fa-info-circle me-1"></i>
+          Ao renomear, os usuários vinculados a este cargo <strong>não serão atualizados</strong>
+          automaticamente. Use "Mover usuário" para atribuir o novo nome individualmente.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitEditarCargo()">
+          <i class="fas fa-save me-1"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Vincular Usuário ao Cargo                                             #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalVincularCargo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success-subtle">
+        <h5 class="modal-title">
+          <i class="fas fa-user-plus text-success me-2"></i>
+          Vincular ao Cargo: <strong id="vcCargoNome"></strong>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="vcCargoDestino">
+        <div class="mb-3">
+          <label class="form-label">Selecione o Usuário</label>
+          <select class="form-select" id="vcUserEmail">
+            <option value="">Selecione...</option>
+            {% if todos_users is defined %}
+              {% for u in todos_users %}
+              <option value="{{ u.email }}">
+                {{ u.nome }} — {{ u.departamento or 'sem depto' }}
+                {% if u.cargo %}(cargo atual: {{ u.cargo }}){% endif %}
+              </option>
+              {% endfor %}
+            {% endif %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="submitVincularCargo()">
+          <i class="fas fa-check me-1"></i> Vincular
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Mudar Cargo de Usuário                                                #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalMudarCargo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-exchange-alt me-2"></i>Mudar Cargo
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="mcUserEmail">
+        <p>
+          Alterar cargo de <strong id="mcUserNome"></strong>
+          <span class="text-muted small" id="mcCargoAtual"></span>
+        </p>
+        <div class="mb-3">
+          <label class="form-label">Novo Cargo</label>
+          <select class="form-select" id="mcCargoDestino">
+            <option value="">— Sem cargo —</option>
+            {% for cargo in cargos %}
+            <option value="{{ cargo }}">{{ cargo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitMudarCargo()">
+          <i class="fas fa-check me-1"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var EMPRESA            = "{{ empresa }}";
+var URL_CRIAR_CARGO    = "{{ url_for('admin_empresa.api_criar_cargo') }}";
+var URL_EXCLUIR_CARGO  = "{{ url_for('admin_empresa.api_excluir_cargo') }}";
+var URL_MOVER_CARGO    = "{{ url_for('admin_empresa.api_mover_usuario_cargo') }}";
+
+// ── Criar cargo ─────────────────────────────────────────────────────────
+
+async function submitCriarCargo() {
+  const nome = document.getElementById('cargoNome').value.trim();
+  if (!nome) return showToast('Informe o nome do cargo.', 'warning');
+  const res = await apiPost(URL_CRIAR_CARGO, { empresa: EMPRESA, cargo: nome });
+  if (res.success) {
+    showToast('Cargo criado!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalCriarCargo')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao criar cargo', 'danger');
+  }
+}
+
+// ── Renomear cargo ───────────────────────────────────────────────────────
+// NOTA: criar novo + excluir antigo (não afeta usuários existentes)
+
+function abrirEditarCargo(nome) {
+  document.getElementById('cargoOriginal').value = nome;
+  document.getElementById('cargoNovoNome').value = nome;
+  new bootstrap.Modal(document.getElementById('modalEditarCargo')).show();
+}
+
+async function submitEditarCargo() {
+  const original = document.getElementById('cargoOriginal').value;
+  const novoNome = document.getElementById('cargoNovoNome').value.trim();
+  if (!novoNome) return showToast('Informe o novo nome.', 'warning');
+  if (novoNome === original) return showToast('O nome não foi alterado.', 'info');
+
+  // Cria o novo cargo
+  const resCreate = await apiPost(URL_CRIAR_CARGO, { empresa: EMPRESA, cargo: novoNome });
+  if (!resCreate.success) {
+    return showToast(resCreate.error || 'Erro ao criar novo cargo', 'danger');
+  }
+  // Remove o cargo original
+  const resDelete = await apiPost(URL_EXCLUIR_CARGO, { empresa: EMPRESA, cargo: original });
+  if (resDelete.success) {
+    showToast('Cargo renomeado! Usuários com o cargo antigo não foram alterados.', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalEditarCargo')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast('Novo cargo criado, mas erro ao remover o antigo: ' + resDelete.error, 'warning');
+    setTimeout(() => location.reload(), 1500);
+  }
+}
+
+async function excluirCargo(nome) {
+  if (!confirm(`Excluir o cargo "${nome}"?\nUsuários não serão removidos — apenas o cargo da lista.`)) return;
+  const res = await apiPost(URL_EXCLUIR_CARGO, { empresa: EMPRESA, cargo: nome });
+  if (res.success) {
+    showToast('Cargo removido!', 'success');
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao excluir cargo', 'danger');
+  }
+}
+
+// ── Vincular usuário ao cargo ────────────────────────────────────────────
+
+function abrirVincularCargo(cargoNome) {
+  document.getElementById('vcCargoNome').textContent = cargoNome;
+  document.getElementById('vcCargoDestino').value = cargoNome;
+  document.getElementById('vcUserEmail').value = '';
+  new bootstrap.Modal(document.getElementById('modalVincularCargo')).show();
+}
+
+async function submitVincularCargo() {
+  const email = document.getElementById('vcUserEmail').value;
+  const cargo = document.getElementById('vcCargoDestino').value;
+  if (!email) return showToast('Selecione um usuário.', 'warning');
+  const res = await apiPost(URL_MOVER_CARGO, { email, cargo });
+  if (res.success) {
+    showToast('Usuário vinculado ao cargo!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalVincularCargo')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao vincular', 'danger');
+  }
+}
+
+// ── Mudar cargo de um usuário específico ────────────────────────────────
+
+function abrirMudarCargo(email, nome, cargoAtual) {
+  document.getElementById('mcUserEmail').value = email;
+  document.getElementById('mcUserNome').textContent = nome;
+  document.getElementById('mcCargoAtual').textContent =
+    cargoAtual ? `(atual: ${cargoAtual})` : '(sem cargo)';
+  // Pre-seleciona o cargo atual
+  const sel = document.getElementById('mcCargoDestino');
+  Array.from(sel.options).forEach(o => { o.selected = o.value === cargoAtual; });
+  new bootstrap.Modal(document.getElementById('modalMudarCargo')).show();
+}
+
+async function submitMudarCargo() {
+  const email = document.getElementById('mcUserEmail').value;
+  const cargo = document.getElementById('mcCargoDestino').value; // pode ser ''
+  const res = await apiPost(URL_MOVER_CARGO, { email, cargo });
+  if (res.success) {
+    const msg = cargo ? `Cargo alterado para "${cargo}"!` : 'Cargo removido do usuário!';
+    showToast(msg, 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalMudarCargo')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao alterar cargo', 'danger');
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+async function apiPost(url, data) {
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return r.json();
+  } catch (e) {
+    return { success: false, error: 'Erro de conexão: ' + e.message };
+  }
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast align-items-center text-white bg-${type} border-0 position-fixed bottom-0 end-0 m-3`;
+  el.style.zIndex = '9999';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+  document.body.appendChild(el);
+  new bootstrap.Toast(el, { delay: 3500 }).show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+</script>
+{% endblock %}

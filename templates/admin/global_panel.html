@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}Painel Admin Global{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Cabeçalho ─────────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center mb-4">
+    <div class="me-3 p-3 rounded-3" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">
+      <i class="fas fa-globe text-white fa-lg"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Painel Admin Global</h4>
+      <small class="text-muted">Visão completa do sistema</small>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      <a href="{{ url_for('admin_global.global_usuarios') }}" class="btn btn-outline-primary">
+        <i class="fas fa-users me-1"></i> Usuários
+      </a>
+      <a href="{{ url_for('admin_global.global_empresas') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-building me-1"></i> Empresas
+      </a>
+      <button class="btn btn-outline-warning" onclick="recarregarCache()" title="Limpa o cache do servidor. Use quando alterar dados diretamente no Google Sheets.">
+        <i class="fas fa-sync-alt me-1"></i> Recarregar Cache
+      </button>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCriarEmpresa">
+        <i class="fas fa-plus me-1"></i> Nova Empresa
+      </button>
+    </div>
+  </div>
+  
+  {# ── Seletor de Empresa (Admin Global) ──────────────────────────────────── #}
+  {% if empresas_detalhes %}
+  <div class="card border-0 shadow-sm mb-3" style="background:linear-gradient(90deg,#eef2ff,#f5f3ff)">
+    <div class="card-body py-2 px-3 d-flex align-items-center gap-3 flex-wrap">
+      <span class="fw-semibold" style="color:#4338ca">
+        <i class="fas fa-exchange-alt me-1"></i> Contexto Ativo:
+      </span>
+      {% set ctx = session.get('context_empresa', '') %}
+      {% for nome in empresas_detalhes.keys() %}
+        <a href="{{ url_for('admin_global.switch_empresa', empresa=nome) }}"
+           class="btn btn-sm {% if ctx == nome %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          <i class="fas fa-building me-1"></i>{{ nome }}
+        </a>
+      {% endfor %}
+      {% if ctx %}
+      <span class="ms-auto text-muted small">
+        <i class="fas fa-info-circle me-1"></i>
+        Navegando como admin de <strong>{{ ctx }}</strong>.
+        <a href="{{ url_for('admin_global.switch_empresa', empresa='_reset') }}" class="text-danger ms-1">Limpar</a>
+      </span>
+      <a href="{{ url_for('admin_global.global_niveis', empresa=ctx) }}"
+         class="btn btn-sm btn-outline-success" id="btnPermissoes">
+        <i class="fas fa-shield-alt me-1"></i> Permissões de {{ ctx }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Cards de Stats ───────────────────────────────────────────────────── #}
+  <div class="row g-3 mb-3">
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3 px-2">
+        <div class="fs-1 fw-bold text-primary">{{ stats.total_users }}</div>
+        <div class="text-muted small">Usuários Gerenciáveis</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div class="fs-1 fw-bold text-success">{{ stats.ativos }}</div>
+        <div class="text-muted small">Ativos</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div class="fs-1 fw-bold text-danger">{{ stats.inativos }}</div>
+        <div class="text-muted small">Inativos</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div class="fs-1 fw-bold text-info">{{ stats.total_empresas }}</div>
+        <div class="text-muted small">Empresas</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Tabela de Empresas ──────────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0 pt-3">
+      <h6 class="mb-0 fw-semibold"><i class="fas fa-building text-primary me-2"></i>Empresas Cadastradas</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Empresa</th>
+              <th>Módulos Ativos</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for nome, modulos in empresas_detalhes.items() %}
+            <tr>
+              <td class="fw-semibold">
+                <i class="fas fa-building text-primary me-2"></i>{{ nome }}
+              </td>
+              <td>
+                {% for m in modulos %}
+                  <span class="badge bg-primary-subtle text-primary me-1">{{ m | upper }}</span>
+                {% else %}
+                  <span class="text-muted small">Nenhum módulo</span>
+                {% endfor %}
+              </td>
+              <td>
+                <a href="{{ url_for('admin_global.global_departamentos', empresa=nome) }}"
+                   class="btn btn-sm btn-outline-info me-1">
+                  <i class="fas fa-sitemap"></i> Departamentos
+                </a>
+                <button class="btn btn-sm btn-outline-warning"
+                        onclick="abrirEditarEmpresa('{{ nome }}', {{ modulos | tojson }})">
+                  <i class="fas fa-edit"></i> Módulos
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">
+                <i class="fas fa-building fa-2x mb-2 d-block opacity-25"></i>
+                Nenhuma empresa cadastrada
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ── Distribuição por Nível ──────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 pt-3">
+      <h6 class="mb-0 fw-semibold"><i class="fas fa-layer-group text-primary me-2"></i>Distribuição por Nível</h6>
+    </div>
+    <div class="card-body">
+      <div class="row g-2">
+        {% for nivel, total in stats.by_nivel.items() %}
+        <div class="col-6 col-md-2">
+          <div class="p-3 rounded-3 text-center border">
+            <div class="fw-bold fs-5">{{ total }}</div>
+            <div class="text-muted small">{{ nivel | replace('_',' ') | title }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Criar Empresa                                                        #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalCriarEmpresa" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-building me-2"></i>Nova Empresa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nome da Empresa *</label>
+          <input type="text" class="form-control" id="inputNomeEmpresa" placeholder="Ex: Matriz, Filial SP...">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Módulos Habilitados *</label>
+          <div id="checkboxModulosCriar">
+            {% for m in ['helpdesk','wms','portal'] %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="{{ m }}" id="modCriar_{{ m }}">
+              <label class="form-check-label" for="modCriar_{{ m }}">{{ m | upper }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitCriarEmpresa()">
+          <i class="fas fa-save me-1"></i> Criar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Editar Empresa                                                       #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalEditarEmpresa" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Módulos da Empresa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editEmpresaNome">
+        <p class="fw-semibold mb-3">
+          <i class="fas fa-building me-2 text-primary"></i>
+          <span id="editEmpresaLabel"></span>
+        </p>
+        <label class="form-label">Módulos Habilitados</label>
+        <div id="checkboxModulosEditar">
+          {% for m in ['helpdesk','wms','portal'] %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="{{ m }}" id="modEdit_{{ m }}">
+            <label class="form-check-label" for="modEdit_{{ m }}">{{ m | upper }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitEditarEmpresa()">
+          <i class="fas fa-save me-1"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const URL_CRIAR_EMPRESA  = "{{ url_for('admin_global.api_criar_empresa') }}";
+const URL_EDITAR_EMPRESA = "{{ url_for('admin_global.api_editar_empresa') }}";
+
+// ── Criar empresa ──────────────────────────────────────────────────────────
+function submitCriarEmpresa() {
+  const nome = document.getElementById('inputNomeEmpresa').value.trim();
+  const checkboxes = document.querySelectorAll('#checkboxModulosCriar input:checked');
+  const modulos = Array.from(checkboxes).map(c => c.value);
+  
+  if (!nome || modulos.length === 0) {
+    showToastPanel('Preencha o nome e selecione ao menos um módulo.', 'warning');
+    return;
+  }
+  
+  apiPostPanel(URL_CRIAR_EMPRESA, { nome_empresa: nome, modulos: modulos })
+    .then(res => {
+      if (res.success) {
+        showToastPanel('Empresa criada com sucesso!', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCriarEmpresa'));
+        if (modal) modal.hide();
+        setTimeout(() => location.reload(), 800);
+      } else {
+        showToastPanel(res.error || 'Erro ao criar empresa', 'danger');
+      }
+    });
+}
+
+// ── Editar empresa ────────────────────────────────────────────────────────
+function abrirEditarEmpresa(nome, modulosAtivos) {
+  document.getElementById('editEmpresaNome').value = nome;
+  document.getElementById('editEmpresaLabel').textContent = nome;
+  const cbs = document.querySelectorAll('#checkboxModulosEditar input');
+  Array.from(cbs).forEach(cb => {
+    cb.checked = modulosAtivos.indexOf(cb.value) !== -1;
+  });
+  new bootstrap.Modal(document.getElementById('modalEditarEmpresa')).show();
+}
+
+function submitEditarEmpresa() {
+  const nome = document.getElementById('editEmpresaNome').value;
+  const checkboxes = document.querySelectorAll('#checkboxModulosEditar input:checked');
+  const modulos = Array.from(checkboxes).map(c => c.value);
+  
+  if (modulos.length === 0) {
+    showToastPanel('Selecione ao menos um módulo.', 'warning');
+    return;
+  }
+  
+  apiPostPanel(URL_EDITAR_EMPRESA, { nome_empresa: nome, modulos: modulos })
+    .then(res => {
+      if (res.success) {
+        showToastPanel('Empresa atualizada!', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEmpresa'));
+        if (modal) modal.hide();
+        setTimeout(() => location.reload(), 800);
+      } else {
+        showToastPanel(res.error || 'Erro ao atualizar', 'danger');
+      }
+    });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function apiPostPanel(url, data) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .catch(e => ({ success: false, error: 'Erro de conexão: ' + e.message }));
+}
+
+function recarregarCache() {
+  if (!confirm('Limpar todo o cache do servidor?\n\nUse esta opção quando alterar dados diretamente no Google Sheets (nível, permissões, etc).\n\nUsuários precisarão fazer novo login para ver as mudanças.')) return;
+  const btn = document.querySelector('[onclick="recarregarCache()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Recarregando...'; }
+  fetch('{{ url_for("admin_global.api_recarregar_cache") }}', { method: 'POST', headers: {'Content-Type': 'application/json'} })
+    .then(r => r.json())
+    .then(data => {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Recarregar Cache'; }
+      showToastPanel(data.message || data.error, data.success ? 'success' : 'danger');
+    })
+    .catch(() => {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Recarregar Cache'; }
+      showToastPanel('Erro ao recarregar cache', 'danger');
+    });
+}
+
+function showToastPanel(msg, type) {
+  if (!type) type = 'success';
+  const el = document.createElement('div');
+  el.className = 'toast align-items-center text-white bg-' + type + ' border-0 position-fixed bottom-0 end-0 m-3';
+  el.style.zIndex = '9999';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = '<div class="d-flex"><div class="toast-body">' + msg + '</div>' +
+    '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  document.body.appendChild(el);
+  new bootstrap.Toast(el, { delay: 3000 }).show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+</script>
+{% endblock %}

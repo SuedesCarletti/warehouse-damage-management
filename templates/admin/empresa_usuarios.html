@@ -1,0 +1,14 @@
+{% extends "admin/_usuarios_base.html" %}
+
+{# Admin Empresa: vê apenas usuários da própria empresa #}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  window.API_CRIAR    = "{{ url_for('admin_empresa.api_empresa_criar_usuario') }}";
+  window.API_EDITAR   = "{{ url_for('admin_empresa.api_empresa_editar_usuario') }}";
+  window.API_DESATIVAR= "{{ url_for('admin_empresa.api_empresa_desativar_usuario') }}";
+  window.API_REATIVAR = "{{ url_for('admin_empresa.api_empresa_reativar_usuario') }}";
+  window.API_RESET    = "{{ url_for('admin_empresa.api_empresa_reset_senha') }}";
+</script>
+{% endblock %}

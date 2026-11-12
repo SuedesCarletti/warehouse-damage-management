@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% block title %}Departamentos — {{ empresa }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  {# ── Cabeçalho ─────────────────────────────────────────────────────── #}
+  <div class="ms-auto d-flex flex-wrap gap-2">
+    {% if back_url is defined and back_url %}
+      <a href="{{ back_url }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Painel
+      </a>
+    {% else %}
+      <a href="{{ url_for('admin_empresa.empresa_panel') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Painel
+      </a>
+    {% endif %}
+  
+    {# Link para tela de Cargos (tela irmã) #}
+    {% if back_url is defined and back_url %}
+      <a href="{{ url_for('admin_global.global_cargos', empresa=empresa) }}"
+         class="btn btn-outline-secondary">
+        <i class="fas fa-briefcase me-1"></i> Cargos
+      </a>
+    {% else %}
+      <a href="{{ url_for('admin_empresa.empresa_cargos') }}"
+         class="btn btn-outline-secondary">
+        <i class="fas fa-briefcase me-1"></i> Cargos
+      </a>
+    {% endif %}
+  
+    {# Permissões #}
+    {% if back_url is defined and back_url %}
+      <a href="{{ url_for('admin_global.global_niveis', empresa=empresa) }}"
+         class="btn btn-outline-primary">
+        <i class="fas fa-shield-alt me-1"></i> Permissões
+      </a>
+    {% else %}
+      <a href="{{ url_for('admin_empresa.empresa_niveis') }}"
+         class="btn btn-outline-primary">
+        <i class="fas fa-shield-alt me-1"></i> Permissões
+      </a>
+    {% endif %}
+  
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalCriarDepto">
+      <i class="fas fa-plus me-1"></i> Novo Departamento
+    </button>
+  </div>
+
+  {# ── Cards de departamentos ──────────────────────────────────────────── #}
+  <div class="row g-3 mb-4">
+    {% for depto in departamentos %}
+    {% set depto_nome = depto.nome if depto is mapping else depto %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white d-flex align-items-center">
+          <i class="fas fa-users text-warning me-2"></i>
+          <h6 class="mb-0 fw-semibold flex-grow-1">{{ depto_nome }}</h6>
+          <span class="badge bg-secondary ms-2">
+            {{ users_by_depto.get(depto_nome, []) | length }} membros
+          </span>
+          <div class="ms-2 d-flex gap-1">
+            {# Vincular usuário ao departamento #}
+            <button class="btn btn-sm btn-outline-success"
+              onclick="abrirVincularUser('{{ depto_nome }}')"
+              title="Vincular usuário a este departamento">
+              <i class="fas fa-user-plus"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-primary"
+              onclick="abrirEditarDepto('{{ depto_nome }}')" title="Renomear">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger"
+              onclick="excluirDepto('{{ depto_nome }}')" title="Excluir">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Nome</th><th>Cargo</th><th>Nível</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users_by_depto.get(depto_nome, []) %}
+                <tr>
+                  <td class="small fw-semibold">{{ u.nome }}</td>
+                  <td class="text-muted small">{{ u.cargo or '—' }}</td>
+                  <td>
+                    {% set cores = {
+                      'admin_global':'danger','admin_empresa':'warning',
+                      'admin_depto':'info','gestor':'secondary','usuario':'secondary'
+                    } %}
+                    <span class="badge bg-{{ cores.get(u.nivel,'secondary') }} small">
+                      {{ u.nivel_display }}
+                    </span>
+                  </td>
+                  <td class="text-end pe-2">
+                    {# Mover para outro departamento #}
+                    <button class="btn btn-sm btn-link text-muted p-0"
+                      onclick="abrirMoverUser('{{ u.email }}', '{{ u.nome }}', '{{ depto_nome }}')"
+                      title="Mover para outro departamento">
+                      <i class="fas fa-arrows-alt-h"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4" class="text-muted text-center small py-3">
+                    <i class="fas fa-user-slash opacity-25 me-1"></i>Sem usuários
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+      <div class="text-center py-5 text-muted">
+        <i class="fas fa-sitemap fa-3x mb-3 d-block opacity-25"></i>
+        <p class="mb-1">Nenhum departamento cadastrado</p>
+        <small>Clique em <strong>Novo Departamento</strong> para começar</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Usuários sem departamento ─────────────────────────────────────────── #}
+  {% set sem_depto = users_by_depto.get('', []) + users_by_depto.get(none, []) %}
+  {% if sem_depto %}
+  <div class="card border-0 shadow-sm border-warning mb-4">
+    <div class="card-header bg-warning-subtle d-flex align-items-center">
+      <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+      <h6 class="mb-0 fw-semibold">Usuários sem departamento</h6>
+      <span class="badge bg-warning text-dark ms-2">{{ sem_depto | length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Nome</th><th>Email</th><th>Cargo</th><th>Ação</th></tr>
+          </thead>
+          <tbody>
+            {% for u in sem_depto %}
+            <tr>
+              <td class="small fw-semibold">{{ u.nome }}</td>
+              <td class="text-muted small">{{ u.email }}</td>
+              <td class="small">{{ u.cargo or '—' }}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-warning"
+                  onclick="abrirVincularUserEspecifico('{{ u.email }}', '{{ u.nome }}')">
+                  <i class="fas fa-sitemap me-1"></i>Vincular
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Criar Departamento                                                    #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalCriarDepto" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-sitemap me-2"></i>Novo Departamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nome do Departamento *</label>
+          <input type="text" class="form-control" id="deptoNome" placeholder="Ex: TI, Financeiro, RH...">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Descrição</label>
+          <input type="text" class="form-control" id="deptoDescricao" placeholder="Opcional">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" onclick="submitCriarDepto()">
+          <i class="fas fa-save me-1"></i> Criar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Editar Departamento                                                   #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalEditarDepto" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Renomear Departamento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="deptoNomeOriginal">
+        <div class="mb-3">
+          <label class="form-label">Novo Nome *</label>
+          <input type="text" class="form-control" id="deptoNovoNome">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitEditarDepto()">
+          <i class="fas fa-save me-1"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Vincular Usuário ao Departamento                                      #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalVincularUser" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success-subtle">
+        <h5 class="modal-title">
+          <i class="fas fa-user-plus text-success me-2"></i>
+          Vincular ao Departamento: <strong id="vDeptoNome"></strong>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="vDeptoDestino">
+        <div class="mb-3">
+          <label class="form-label">Selecione o Usuário</label>
+          <select class="form-select" id="vUserEmail">
+            <option value="">Selecione...</option>
+            {% if todos_users is defined %}
+              {% for u in todos_users %}
+              <option value="{{ u.email }}" data-depto="{{ u.departamento or '' }}">
+                {{ u.nome }} ({{ u.departamento or 'sem departamento' }})
+              </option>
+              {% endfor %}
+            {% endif %}
+          </select>
+        </div>
+        <div id="vUserInfo" class="alert alert-info d-none small"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="submitVincularUser()">
+          <i class="fas fa-check me-1"></i> Vincular
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Mover Usuário para outro Departamento                                 #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalMoverUser" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-arrows-alt-h me-2"></i>Mover Usuário
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="mUserEmail">
+        <p class="mb-3">
+          Mover <strong id="mUserNome"></strong> para o departamento:
+          <span class="text-muted small" id="mUserDeptoAtual"></span>
+        </p>
+        <div class="mb-3">
+          <label class="form-label">Departamento de Destino</label>
+          <select class="form-select" id="mDeptoDestino">
+            <option value="">Selecione...</option>
+            {% for depto in departamentos %}
+            {% set dn = depto.nome if depto is mapping else depto %}
+            <option value="{{ dn }}">{{ dn }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitMoverUser()">
+          <i class="fas fa-check me-1"></i> Mover
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# MODAL: Gerenciar Cargos                                                      #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalCargos" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-briefcase me-2"></i>Gerenciar Cargos</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-3">
+          <input type="text" class="form-control" id="novoCargo" placeholder="Nome do cargo...">
+          <button class="btn btn-primary" type="button" onclick="adicionarCargo()">
+            <i class="fas fa-plus"></i> Adicionar
+          </button>
+        </div>
+        <div id="listaCargosModal" class="d-flex flex-wrap gap-2">
+          {% for cargo in cargos %}
+          <span class="badge bg-light text-dark border px-3 py-2" id="cargo_badge_{{ loop.index }}">
+            <i class="fas fa-tag me-1 text-primary"></i>{{ cargo }}
+            <button class="btn btn-sm p-0 ms-2 text-danger" style="font-size:0.75rem"
+              onclick="excluirCargo('{{ cargo }}')">×</button>
+          </span>
+          {% endfor %}
+          {% if not cargos %}
+          <p class="text-muted small">Nenhum cargo cadastrado ainda.</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var EMPRESA = "{{ empresa }}";
+var URL_CRIAR_DEPTO    = "{{ url_for('admin_empresa.api_criar_departamento') }}";
+var URL_EDITAR_DEPTO   = "{{ url_for('admin_empresa.api_editar_departamento') }}";
+var URL_EXCLUIR_DEPTO  = "{{ url_for('admin_empresa.api_excluir_departamento') }}";
+var URL_CRIAR_CARGO    = "{{ url_for('admin_empresa.api_criar_cargo') }}";
+var URL_EXCLUIR_CARGO  = "{{ url_for('admin_empresa.api_excluir_cargo') }}";
+var URL_MOVER_DEPTO    = "{{ url_for('admin_empresa.api_mover_usuario_departamento') }}";
+
+// ── Departamentos ─────────────────────────────────────────────────────────
+
+async function submitCriarDepto() {
+  const nome = document.getElementById('deptoNome').value.trim();
+  const desc = document.getElementById('deptoDescricao').value.trim();
+  if (!nome) return showToast('Informe o nome do departamento.', 'warning');
+  const res = await apiPost(URL_CRIAR_DEPTO, { empresa: EMPRESA, nome, descricao: desc });
+  if (res.success) {
+    showToast('Departamento criado!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalCriarDepto')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao criar departamento', 'danger');
+  }
+}
+
+function abrirEditarDepto(nome) {
+  document.getElementById('deptoNomeOriginal').value = nome;
+  document.getElementById('deptoNovoNome').value = nome;
+  new bootstrap.Modal(document.getElementById('modalEditarDepto')).show();
+}
+
+async function submitEditarDepto() {
+  const original = document.getElementById('deptoNomeOriginal').value;
+  const novoNome = document.getElementById('deptoNovoNome').value.trim();
+  if (!novoNome) return showToast('Informe o novo nome.', 'warning');
+  const res = await apiPost(URL_EDITAR_DEPTO, { empresa: EMPRESA, nome_original: original, novo_nome: novoNome });
+  if (res.success) {
+    showToast('Departamento atualizado!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalEditarDepto')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao editar', 'danger');
+  }
+}
+
+async function excluirDepto(nome) {
+  if (!confirm(`Excluir o departamento "${nome}"?\nUsuários não serão removidos.`)) return;
+  const res = await apiPost(URL_EXCLUIR_DEPTO, { empresa: EMPRESA, nome });
+  if (res.success) {
+    showToast('Departamento removido!', 'success');
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao excluir', 'danger');
+  }
+}
+
+// ── Vincular / Mover usuário ──────────────────────────────────────────────
+
+function abrirVincularUser(deptoNome) {
+  document.getElementById('vDeptoNome').textContent = deptoNome;
+  document.getElementById('vDeptoDestino').value = deptoNome;
+  document.getElementById('vUserEmail').value = '';
+  document.getElementById('vUserInfo').classList.add('d-none');
+  new bootstrap.Modal(document.getElementById('modalVincularUser')).show();
+}
+
+function abrirVincularUserEspecifico(email, nome) {
+  // Abre modal de mover sem departamento de origem definido
+  abrirMoverUser(email, nome, '');
+}
+
+function abrirMoverUser(email, nome, deptoAtual) {
+  document.getElementById('mUserEmail').value = email;
+  document.getElementById('mUserNome').textContent = nome;
+  document.getElementById('mUserDeptoAtual').textContent =
+    deptoAtual ? `(atual: ${deptoAtual})` : '(sem departamento atual)';
+  // Pre-select departamento atual se existir
+  const sel = document.getElementById('mDeptoDestino');
+  Array.from(sel.options).forEach(o => { o.selected = false; });
+  new bootstrap.Modal(document.getElementById('modalMoverUser')).show();
+}
+
+async function submitVincularUser() {
+  const email = document.getElementById('vUserEmail').value;
+  const depto = document.getElementById('vDeptoDestino').value;
+  if (!email) return showToast('Selecione um usuário.', 'warning');
+  const res = await apiPost(URL_MOVER_DEPTO, { email, departamento: depto });
+  if (res.success) {
+    showToast('Usuário vinculado ao departamento!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalVincularUser')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao vincular', 'danger');
+  }
+}
+
+async function submitMoverUser() {
+  const email = document.getElementById('mUserEmail').value;
+  const depto = document.getElementById('mDeptoDestino').value;
+  if (!depto) return showToast('Selecione o departamento de destino.', 'warning');
+  const res = await apiPost(URL_MOVER_DEPTO, { email, departamento: depto });
+  if (res.success) {
+    showToast('Usuário movido com sucesso!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalMoverUser')).hide();
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao mover', 'danger');
+  }
+}
+
+// ── Cargos ────────────────────────────────────────────────────────────────
+
+async function adicionarCargo() {
+  const nome = document.getElementById('novoCargo').value.trim();
+  if (!nome) return showToast('Informe o nome do cargo.', 'warning');
+  const res = await apiPost(URL_CRIAR_CARGO, { empresa: EMPRESA, cargo: nome });
+  if (res.success) {
+    showToast('Cargo adicionado!', 'success');
+    document.getElementById('novoCargo').value = '';
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao adicionar cargo', 'danger');
+  }
+}
+
+async function excluirCargo(nome) {
+  if (!confirm(`Remover o cargo "${nome}"?`)) return;
+  const res = await apiPost(URL_EXCLUIR_CARGO, { empresa: EMPRESA, cargo: nome });
+  if (res.success) {
+    showToast('Cargo removido!', 'success');
+    setTimeout(() => location.reload(), 700);
+  } else {
+    showToast(res.error || 'Erro ao remover cargo', 'danger');
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+async function apiPost(url, data) {
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return r.json();
+  } catch (e) {
+    return { success: false, error: 'Erro de conexão: ' + e.message };
+  }
+}
+
+function showToast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast align-items-center text-white bg-${type} border-0 position-fixed bottom-0 end-0 m-3`;
+  el.style.zIndex = '9999';
+  el.setAttribute('role', 'alert');
+  el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+  document.body.appendChild(el);
+  new bootstrap.Toast(el, { delay: 3500 }).show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+</script>
+{% endblock %}

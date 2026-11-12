@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}WMS - Normalização de Transportadoras{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-truck-moving me-2 text-primary"></i>Normalização de Transportadoras
+            </h2>
+            <div>
+                <a href="{{ url_for('wms.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar
+                </a>
+                <button class="btn btn-info text-white" onclick="syncSankhya()" id="btnSync">
+                    <i class="fas fa-sync-alt me-2"></i>Sincronizar com Sankhya
+                </button>
+                <button class="btn btn-success" onclick="applyNormalizations()" id="btnApply">
+                    <i class="fas fa-check-double me-2"></i>Aplicar em Massa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Instruções:</strong> Esta tela lista todos os nomes de transportadoras encontrados nos ASNs. 
+            Você pode definir um <strong>Nome Normalizado</strong> para agrupar nomes diferentes que se referem à mesma transportadora.
+            O botão <strong>Sincronizar com Sankhya</strong> busca o nome oficial na nota fiscal (NFD priorizada), ignorando nomes genéricos.
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Transportadoras Encontradas
+                </h5>
+                <div class="col-md-4">
+                    <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Buscar transportadora...">
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="transpTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nome Original (Planilha)</th>
+                                <th>Nome Normalizado (Padrão)</th>
+                                <th style="width: 150px;" class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in transportadoras %}
+                            <tr data-original="{{ item.nome_original }}">
+                                <td>
+                                    <strong>{{ item.nome_original }}</strong>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm normalizado-input" 
+                                           value="{{ item.nome_normalizado }}" 
+                                           placeholder="Ex: {{ item.nome_original }}">
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-primary btn-save" 
+                                            onclick="saveRow(this)">
+                                        <i class="fas fa-save me-1"></i>Salvar
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">Nenhuma transportadora encontrada nos ASNs.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Loading -->
+<div class="modal fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-4">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                <h5 id="loadingTitle">Processando...</h5>
+                <p class="text-muted mb-0" id="loadingText">Aguarde, esta operação pode levar alguns minutos dependendo da quantidade de dados.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    const term = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#transpTable tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(term) ? '' : 'none';
+    });
+});
+
+function saveRow(btn) {
+    const row = btn.closest('tr');
+    const original = row.dataset.original;
+    const normalizado = row.querySelector('.normalizado-input').value;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    fetch('{{ url_for("wms_transportadoras.save_normalizacao") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nome_original: original,
+            nome_normalizado: normalizado
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('Sucesso', data.message, 'success');
+        } else {
+            Swal.fire('Erro', data.message, 'error');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        Swal.fire('Erro', 'Erro ao processar requisição', 'error');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar';
+    });
+}
+
+const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+
+function syncSankhya() {
+    Swal.fire({
+        title: 'Sincronizar com Sankhya?',
+        text: "Isso irá consultar todas as notas dos ASNs no Sankhya para atualizar os nomes das transportadoras. Deseja continuar?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, sincronizar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('loadingTitle').innerText = 'Sincronizando com Sankhya';
+            document.getElementById('loadingText').innerText = 'Consultando notas e NFDs...';
+            loadingModal.show();
+            
+            fetch('{{ url_for("wms_transportadoras.sync_sankhya") }}', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                loadingModal.hide();
+                if (data.status === 'success') {
+                    Swal.fire({
+                        title: 'Sincronização Concluída',
+                        html: `Processados: ${data.processados}<br>Atualizados: ${data.atualizados}<br>Mantidos: ${data.mantidos}<br>Erros: ${data.erros}`,
+                        icon: 'success'
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire('Erro', data.message || 'Erro desconhecido', 'error');
+                }
+            })
+            .catch(err => {
+                loadingModal.hide();
+                console.error(err);
+                Swal.fire('Erro', 'Falha na comunicação com o servidor', 'error');
+            });
+        }
+    });
+}
+
+function applyNormalizations() {
+    Swal.fire({
+        title: 'Aplicar Normalizações?',
+        text: "Isso irá percorrer todos os ASNs e substituir os nomes originais pelos normalizados que você definiu acima. Deseja continuar?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, aplicar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('loadingTitle').innerText = 'Aplicando Normalizações';
+            document.getElementById('loadingText').innerText = 'Atualizando planilha WMS_ASN...';
+            loadingModal.show();
+            
+            fetch('{{ url_for("wms_transportadoras.apply_normalizacoes") }}', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                loadingModal.hide();
+                if (data.success) {
+                    Swal.fire('Sucesso', data.message, 'success').then(() => location.reload());
+                } else {
+                    Swal.fire('Erro', data.message, 'error');
+                }
+            })
+            .catch(err => {
+                loadingModal.hide();
+                console.error(err);
+                Swal.fire('Erro', 'Falha na comunicação com o servidor', 'error');
+            });
+        }
+    });
+}
+</script>
+{% endblock %}

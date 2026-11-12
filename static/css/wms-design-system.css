@@ -1,0 +1,65 @@
+/**
+ * ============================================================================
+ * WMS DESIGN SYSTEM — ponto único para tokens e componentes visuais
+ * compartilhados entre telas do WMS (avarias, validação de estoque, ASN).
+ *
+ * Escopo desta primeira versão: consolidar o que estava duplicado/hardcoded
+ * em cada tela (cores de badge de etiqueta, chrome dos modais de confirmação/
+ * alerta gerados por static/js/ui-helpers.js). As cores de status_estoque e
+ * status_indenizacao NÃO estão aqui de propósito — elas vêm do backend
+ * (estoque_color/indenizacao_color, configuráveis na aba "Status" do Sheets),
+ * então mudar esse mapeamento é uma decisão de dado, não de CSS.
+ * ============================================================================
+ */
+
+:root {
+    --wms-etiqueta-ativa: #198754;      /* bg-success */
+    --wms-etiqueta-baixada: #dc3545;    /* bg-danger */
+    --wms-etiqueta-recusada: #212529;   /* bg-dark */
+    --wms-etiqueta-pendente: #ffc107;   /* bg-warning */
+    --wms-etiqueta-pendente-text: #212529;
+}
+
+/* Badges de status de etiqueta — mesmas 4 variações repetidas em várias telas
+   (registrar_avarias.html, consultar_avarias.html) com classes bg-* diretas.
+   Estas classes semânticas dão um nome único ao significado, sem remover o
+   uso de bg-success/bg-danger/etc. já existente (não é obrigatório migrar
+   tudo de uma vez). */
+.badge-etiqueta-ativa {
+    background-color: var(--wms-etiqueta-ativa) !important;
+    color: #fff;
+}
+.badge-etiqueta-baixada {
+    background-color: var(--wms-etiqueta-baixada) !important;
+    color: #fff;
+}
+.badge-etiqueta-recusada {
+    background-color: var(--wms-etiqueta-recusada) !important;
+    color: #fff;
+}
+.badge-etiqueta-pendente {
+    background-color: var(--wms-etiqueta-pendente) !important;
+    color: var(--wms-etiqueta-pendente-text);
+}
+
+/* Chrome dos modais de confirmação/alerta (static/js/ui-helpers.js).
+   Mantido aqui em vez de inline no JS para poder ser ajustado num só lugar. */
+#_modalConfirmCritico .modal-content,
+#_modalAlertaCritico .modal-content {
+    border-radius: 0.5rem;
+}
+#_modalConfirmCritico .modal-header,
+#_modalAlertaCritico .modal-header {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+#_modalConfirmCritico .modal-body,
+#_modalAlertaCritico .modal-body {
+    line-height: 1.5;
+}
+
+/* Toasts de showNotification() (registrar-avarias.js / print_direct.js) —
+   garante legibilidade do texto sobre as cores de fundo do Bootstrap Toast. */
+.toast-container .toast .toast-body {
+    font-size: 0.9rem;
+}

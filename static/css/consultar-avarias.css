@@ -1,0 +1,308 @@
+/**
+ * ============================================================================
+ * CONSULTAR AVARIAS - CSS
+ * ============================================================================
+ * Extraído de: templates/wms/consultar_avarias.html (Fase 2)
+ * Contém todos os estilos da página de consulta de avarias.
+ * ============================================================================
+ */
+
+    /* ========================================*/
+    /* ESTILOS DA TABELA DE AVARIAS             */
+    /* ========================================*/
+    
+    /* Container da tabela com scroll */
+    .table-container {
+        max-height: 600px;
+        overflow: auto;
+        position: relative;
+    }
+    
+    /* Tabela principal */
+    #tabelaAvarias {
+        margin-bottom: 0;
+        font-size: 0.9rem;
+        table-layout: fixed;
+        width: 100%;
+    }
+    
+    /* Cabeçalho fixo */
+    #tabelaAvarias thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: var(--bs-success);
+    }
+    
+    #tabelaAvarias thead th {
+        background-color: var(--bs-success) !important;
+        color: white !important;
+        font-weight: 600;
+        border-bottom: 2px solid var(--bs-success-dark);
+        padding: 12px 8px;
+        vertical-align: middle;
+        white-space: nowrap;
+        user-select: none;
+        position: relative;
+    }
+    
+    /* Colunas ordenáveis */
+    #tabelaAvarias thead th.sortable {
+        cursor: pointer;
+        padding-right: 30px;
+    }
+    
+    #tabelaAvarias thead th.sortable:hover {
+        background-color: rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    /* Ícone de ordenação */
+    #tabelaAvarias thead th.sortable .sort-icon {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        opacity: 0.5;
+        transition: opacity 0.2s;
+        pointer-events: none;
+    }
+    
+    #tabelaAvarias thead th.sortable:hover .sort-icon {
+        opacity: 1;
+    }
+    
+    #tabelaAvarias thead th.sortable.sorted .sort-icon {
+        opacity: 1;
+        color: #ffc107;
+    }
+    
+    /* Resizer de colunas */
+    .column-resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 5px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+        background-color: transparent;
+        z-index: 5;
+    }
+    
+    .column-resizer:hover,
+    .column-resizer.resizing {
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    /* Larguras mínimas das colunas */
+    /* Definir larguras iniciais aqui pode ajudar, mas o JS/user as controla */
+    
+    /* Células do corpo */
+    #tabelaAvarias tbody td {
+        padding: 10px 8px;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    #tabelaAvarias tbody tr:hover {
+        background-color: var(--bs-light) !important;
+    }
+
+    /* ====================================================================== */
+    /* CORREÇÃO 1: Card deve permitir dropdown sair (overflow: visible)     */
+    /* ====================================================================== */
+    
+    .card-body {
+        overflow: visible !important; /* CRÍTICO: Permitir dropdown sair do card */
+    }
+
+    /* ====================================================================== */
+    /* CORREÇÃO 2: Dropdown com position fixed para não ser cortado         */
+    /* ====================================================================== */
+    
+    .columns-dropdown {
+        position: relative;
+    }
+    
+    .columns-dropdown-toggle {
+        cursor: pointer;
+        user-select: none;
+        transition: border-color 0.15s ease;
+    }
+    
+    .columns-dropdown-toggle:hover {
+        border-color: var(--bs-primary, #0d6efd);
+    }
+    
+    .columns-dropdown-toggle i.fa-chevron-down {
+        transition: transform 0.2s ease;
+    }
+    
+    .columns-dropdown-toggle[aria-expanded="true"] i.fa-chevron-down {
+        transform: rotate(180deg);
+    }
+    
+    .columns-dropdown-menu {
+        display: none;
+        position: fixed !important; /* CRÍTICO: fixed para não ser afetado por overflow */
+        z-index: 10000 !important; /* Z-index muito alto para sobreposição */
+        max-height: 400px;
+        min-width: 300px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 10px;
+        border: 1px solid rgba(0,0,0,.15);
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
+        background-color: #ffffff;
+        
+        /* Animação suave */
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        
+        /* Prevenir "pulo" */
+        will-change: auto !important;
+        isolation: isolate;
+    }
+    
+    .columns-dropdown-menu.show {
+        display: flex !important;
+        flex-direction: column;
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    /* ====================================================================== */
+    /* CORREÇÃO 3: Suporte a Dark Mode                                        */
+    /* ====================================================================== */
+    
+    /* TEMA CLARO (padrão) */
+    body:not(.dark-mode) .columns-dropdown-menu {
+        background-color: #ffffff;
+        border-color: rgba(0, 0, 0, 0.15);
+        color: #212529;
+    }
+    
+    body:not(.dark-mode) .column-checkbox:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* TEMA ESCURO */
+    body.dark-mode .columns-dropdown-menu,
+    [data-bs-theme="dark"] .columns-dropdown-menu {
+        background-color: #2c2c2c;
+        border-color: #444;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .column-checkbox:hover,
+    [data-bs-theme="dark"] .column-checkbox:hover {
+        background-color: #3a3a3a;
+    }
+    
+    body.dark-mode .columns-dropdown-menu .btn-outline-success,
+    [data-bs-theme="dark"] .columns-dropdown-menu .btn-outline-success {
+        color: #28a745;
+        border-color: #28a745;
+    }
+    
+    body.dark-mode .columns-dropdown-menu .btn-outline-success:hover,
+    [data-bs-theme="dark"] .columns-dropdown-menu .btn-outline-success:hover {
+        background-color: #28a745;
+        color: #fff;
+    }
+    
+    /* ====================================================================== */
+    /* ESTILOS DO CONTEÚDO DO DROPDOWN                                       */
+    /* ====================================================================== */
+    
+    .column-checkbox {
+        display: flex;
+        align-items: center;
+        padding: 6px 10px;
+        cursor: pointer;
+        border-radius: 0.25rem;
+        transition: background-color 0.15s ease;
+    }
+    
+    .column-checkbox input[type="checkbox"] {
+        margin-right: 10px;
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+    
+    .column-checkbox label {
+        cursor: pointer;
+        margin-bottom: 0;
+        font-size: 0.9rem;
+        flex: 1;
+        user-select: none;
+    }
+    
+    /* Scrollbar personalizada */
+    .columns-dropdown-menu::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .columns-dropdown-menu::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+    }
+    
+    .columns-dropdown-menu::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+    }
+    
+    body.dark-mode .columns-dropdown-menu::-webkit-scrollbar-track,
+    [data-bs-theme="dark"] .columns-dropdown-menu::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    body.dark-mode .columns-dropdown-menu::-webkit-scrollbar-thumb,
+    [data-bs-theme="dark"] .columns-dropdown-menu::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .totalizadores-container {
+        padding-left: 15px; /* Ajuste conforme a necessidade do seu layout */
+    }
+
+    /* ========================================================================
+     * RESPONSIVIDADE — tablet/celular (operação de CD)
+     * Esta tela já tem um dropdown de colunas (columns-dropdown-menu) para
+     * esconder colunas manualmente — no mobile isso é ainda mais necessário,
+     * então só ajustamos tamanho de fonte/toque e indicamos o scroll horizontal.
+     * ======================================================================== */
+    @media (max-width: 992px) {
+        #tabelaAvarias {
+            font-size: 0.8rem;
+        }
+
+        .table-container {
+            -webkit-overflow-scrolling: touch;
+            background:
+                linear-gradient(to right, white 30%, rgba(255,255,255,0)),
+                linear-gradient(to right, rgba(255,255,255,0), white 70%) 100% 0,
+                radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.15), rgba(0,0,0,0)),
+                radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.15), rgba(0,0,0,0)) 100% 0;
+            background-repeat: no-repeat;
+            background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+            background-attachment: local, local, scroll, scroll;
+        }
+
+        #tabelaAvarias .btn,
+        #tabelaAvarias .btn-group .btn {
+            min-height: 40px;
+            min-width: 40px;
+        }
+
+        .columns-dropdown-menu {
+            max-width: 90vw;
+        }
+    }

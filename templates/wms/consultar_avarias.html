@@ -1,0 +1,1038 @@
+{% extends "base.html" %}
+
+{% block title %}WMS - Consultar Avarias{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/consultar-avarias.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wms/avarias-common.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wms-design-system.css') }}">
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- CSS DO BOTÃO DE EXPORTAÇÃO - INÍCIO -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<style>
+    /* Botão de exportação com animação */
+    #btnExportarConsultar {
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #btnExportarConsultar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    #btnExportarConsultar:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    #btnExportarConsultar i {
+        transition: transform 0.3s ease;
+    }
+    
+    #btnExportarConsultar:hover i {
+        transform: scale(1.1);
+    }
+    
+    .totalizadores-container {
+        display: flex !important;
+        justify-content: flex-start !important;
+        width: 100%;
+        padding-left: 0.5rem;
+        margin-left: 0 !important;
+    }
+
+    .totalizador-item {
+        margin-right: 15px;
+    }
+
+    /* ✅ Container com scroll para sticky tfoot funcionar */
+    .table-container {
+        max-height: 70vh;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    /* ✅ Tfoot sticky - gruda no fundo da área visível */
+    #tabelaAvarias tfoot {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+    }
+
+    #tabelaAvarias tfoot tr {
+        background-color: #d1ecf1 !important;
+        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    #tabelaAvarias tfoot td {
+        background-color: #d1ecf1 !important;
+        border-top: 2px solid #0dcaf0;
+    }
+
+    /* ✅ Thead sticky também - gruda no topo ao rolar */
+    #tabelaAvarias thead {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+    }
+
+    #tabelaAvarias thead th {
+        background-color: #f8f9fa !important;
+    }
+</style>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/consultar-avarias.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Modificar a seção do cabeçalho -->
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-search me-2 text-success"></i>Consultar Avarias
+            </h2>
+            <div class="d-flex gap-2">
+                <!-- Botão para Registrar Nova Avaria (abre modal - Fase 3) -->
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalRegistrarAvaria">
+                    <i class="fas fa-plus me-2"></i>Registrar Avaria
+                </button>
+                
+                <!-- Botão para ir à página completa de registro -->
+                <a href="{{ url_for('wms.registrar_avarias') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar ao Registro
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- BARRA DE BUSCA E FILTROS - CONSULTAR AVARIAS -->
+<!-- VERSÃO CORRIGIDA: Botão de Exportar ao lado de Limpar Busca -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-filter me-2"></i>Busca e Filtros
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <!-- Campo de Busca Global -->
+            <div class="col-md-6">
+                <label for="globalSearch" class="form-label">
+                    <i class="fas fa-search me-1"></i>Busca Rápida
+                </label>
+                <input 
+                    type="text" 
+                    class="form-control" 
+                    id="globalSearch" 
+                    placeholder="Digite para buscar em tempo real (ID, Nota, Status, Transportadora, etc)..."
+                    autocomplete="off"
+                >
+                <small class="form-text text-muted">
+                    A busca é realizada nas colunas selecionadas abaixo
+                </small>
+            </div>
+
+            <!-- Seletor de Colunas para Busca -->
+            <div class="col-md-6">
+                <label class="form-label">
+                    <i class="fas fa-columns me-1"></i>Filtrar em Colunas
+                </label>
+                <div class="columns-dropdown">
+                    <div 
+                        class="form-control columns-dropdown-toggle d-flex justify-content-between align-items-center"
+                        id="columnsDropdownToggle"
+                        aria-expanded="false"
+                    >
+                        <span id="columnsSelectedText">Todas as colunas</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="columns-dropdown-menu" id="columnsDropdownMenu">
+                        <!-- Header com seleção rápida -->
+                        <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                            <button 
+                                type="button"
+                                class="btn btn-sm btn-outline-success" 
+                                onclick="selectAllColumns()"
+                            >
+                                <i class="fas fa-check-square me-1"></i>Todas
+                            </button>
+                            <button 
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary" 
+                                onclick="deselectAllColumns()"
+                            >
+                                <i class="fas fa-square me-1"></i>Nenhuma
+                            </button>
+                        </div>
+                        
+                        <!-- Lista gerada automaticamente pelo JavaScript -->
+                        <div id="columnsCheckboxList"></div>
+                    </div>
+                </div>
+                <small class="form-text text-muted">
+                    Clique para selecionar colunas
+                </small>
+            </div>
+            
+            <!-- ════════════════════════════════════════════════════════ -->
+            <!-- NOVA LINHA: Botões de Ação -->
+            <!-- ════════════════════════════════════════════════════════ -->
+            <div class="col-12">
+                <div class="d-flex gap-2 align-items-center">
+                    <!-- Botão Limpar Busca -->
+                    <button 
+                        type="button" 
+                        class="btn btn-outline-secondary" 
+                        onclick="clearSearch()"
+                    >
+                        <i class="fas fa-times me-2"></i>Limpar Busca e Filtros
+                    </button>
+                    
+                    <!-- Botão Exportar Excel -->
+                    <button 
+                        id="btnExportarConsultar" 
+                        class="btn btn-success"
+                        onclick="exportarParaExcel()"
+                        title="Exportar dados filtrados para Excel (.xlsx)">
+                        <i class="fas fa-file-excel me-2"></i>
+                        Exportar Excel
+                    </button>
+                    
+                    <!-- Contador de Filtros -->
+                    <span id="filterInfo" class="text-muted small"></span>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- FILTRO ENTRE DATAS                                         -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <div class="col-12"><hr class="my-1"></div>
+
+            <div class="col-md-3">
+                <label for="filtroDataInicio" class="form-label">
+                    <i class="fas fa-calendar-alt me-1 text-success"></i>Data Início
+                </label>
+                <input type="date" class="form-control" id="filtroDataInicio"
+                       value="{{ active_filters.get('data_inicio', '') }}">
+            </div>
+
+            <div class="col-md-3">
+                <label for="filtroDataFim" class="form-label">
+                    <i class="fas fa-calendar-alt me-1 text-success"></i>Data Fim
+                </label>
+                <input type="date" class="form-control" id="filtroDataFim"
+                       value="{{ active_filters.get('data_fim', '') }}">
+            </div>
+
+            <div class="col-md-3">
+                <label for="filtroCampoData" class="form-label">
+                    <i class="fas fa-columns me-1 text-muted"></i>Campo de Data
+                </label>
+                <select class="form-select" id="filtroCampoData">
+                    <option value="data_registro"
+                        {% if active_filters.get('campo_data_filtro', 'data_registro') == 'data_registro' %}selected{% endif %}>
+                        Data de Registro
+                    </option>
+                    <option value="prazo_pagamento"
+                        {% if active_filters.get('campo_data_filtro') == 'prazo_pagamento' %}selected{% endif %}>
+                        Prazo Pagamento
+                    </option>
+                    <option value="data_pagamento"
+                        {% if active_filters.get('campo_data_filtro') == 'data_pagamento' %}selected{% endif %}>
+                        Data Baixa / Pgto
+                    </option>
+                    <option value="data_entrega"
+                        {% if active_filters.get('campo_data_filtro') == 'data_entrega' %}selected{% endif %}>
+                        Data Entrega
+                    </option>
+                    <option value="data_protocolo_mkt"
+                        {% if active_filters.get('campo_data_filtro') == 'data_protocolo_mkt' %}selected{% endif %}>
+                        Data Protocolo MKT
+                    </option>
+                    <option value="data_coleta"
+                        {% if active_filters.get('campo_data_filtro') == 'data_coleta' %}selected{% endif %}>
+                        Data Coleta
+                    </option>
+                    <option value="data_finalizacao"
+                        {% if active_filters.get('campo_data_filtro') == 'data_finalizacao' %}selected{% endif %}>
+                        Data Finalização
+                    </option>
+                    <option value="data_triagem"        {% if active_filters.get('campo_data_filtro') == 'data_triagem'        %}selected{% endif %}>Data Triagem (Item)</option>
+                    <option value="data_identificacao"  {% if active_filters.get('campo_data_filtro') == 'data_identificacao'  %}selected{% endif %}>Data Identificação (Item)</option>
+                    <option value="data_alteracao"      {% if active_filters.get('campo_data_filtro') == 'data_alteracao'      %}selected{% endif %}>Data Alteração</option>                    
+                </select>
+            </div>
+
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="button" class="btn btn-success"
+                        onclick="aplicarFiltroData()"
+                        title="Filtrar por intervalo de datas">
+                    <i class="fas fa-filter me-1"></i>Filtrar por Data
+                </button>
+                {% if active_filters.get('data_inicio') or active_filters.get('data_fim') %}
+                <a href="{{ url_for('wms.consultar_avarias') }}"
+                   class="btn btn-outline-secondary"
+                   title="Limpar filtros de data">
+                    <i class="fas fa-times me-1"></i>Limpar Data
+                </a>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- TABELA DE RESULTADOS -->
+<div class="card">
+    <div class="card-header bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>Tabela de Avarias
+                <span class="badge bg-success" id="resultsCount">
+                    {{ avarias|length }} registro(s)
+                </span>
+            </h5>
+            
+            <!-- NOVO: Botão de Baixas Múltiplas -->
+            <button type="button" 
+                    class="btn btn-primary" 
+                    id="btnBaixasMultiplas"
+                    onclick="abrirModalBaixasMultiplas()"
+                    style="display: none;">
+                <i class="fas fa-check-double me-2"></i>
+                Baixar Selecionados (<span id="countSelecionados">0</span>)
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-container">
+            <table class="table table-hover table-striped mb-0" id="tabelaAvarias">
+                <thead>
+                    <tr>
+                        <!-- NOVO: Coluna de Checkbox -->
+                        <th style="width: 50px; min-width: 50px;">
+                            <input type="checkbox" 
+                                   id="checkboxSelectAll" 
+                                   class="form-check-input"
+                                   onchange="selecionarTodos(this.checked)">
+                        </th>
+                        
+                        <!-- 0. Ações (Physical 0) -->
+                        <th data-column-name="Ações" style="width: 180px; min-width: 180px;">
+                            Ações
+                        </th>
+                        
+                        <!-- 1. Cód. Empresa -->
+                        <th class="sortable" data-column="1" data-column-name="Cód. Empresa" style="width: 120px; min-width: 120px;">
+                            Cód. Empresa
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 2. Local — oculto -->
+                        <th class="sortable" data-column="2" data-column-name="Local" style="display: none; width: 100px; min-width: 100px;">
+                            Local
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 3. Status Indenização -->
+                        <th class="sortable" data-column="3" data-column-name="Status Indenização" style="width: 160px; min-width: 160px;">
+                            Status Indenização
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 4. Nota -->
+                        <th class="sortable" data-column="4" data-column-name="Nota" style="width: 120px; min-width: 120px;">
+                            Nota
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 5. NFD -->
+                        <th class="sortable" data-column="5" data-column-name="NFD" style="width: 120px; min-width: 120px;">
+                            NFD
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 6. Quantidade -->
+                        <th class="sortable" data-column="6" data-column-name="Quantidade" style="width: 110px; min-width: 110px;">
+                            Quantidade
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 7. Valor NFD -->
+                        <th class="sortable" data-column="7" data-column-name="Valor NFD" style="width: 130px; min-width: 130px;">
+                            Valor NFD
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 8. Data Protocolo MKT -->
+                        <th class="sortable" data-column="8" data-column-name="Data Protocolo MKT" style="width: 150px; min-width: 150px;">
+                            Data Protocolo MKT
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 9. Data Coleta -->
+                        <th class="sortable" data-column="9" data-column-name="Data Coleta" style="width: 130px; min-width: 130px;">
+                            Data Coleta
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 10. Data Entrega -->
+                        <th class="sortable" data-column="10" data-column-name="Data Entrega" style="width: 150px; min-width: 150px;">
+                            Previsão de Entrega
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                                        
+                        <!-- 15. Transportadora (Índice atualizado de 16 para 15) -->
+                        <th class="sortable" data-column="11" data-column-name="Transportadora" style="width: 180px; min-width: 180px;">
+                            Transportadora
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 11. Reembolso % -->
+                        <th class="sortable" data-column="12" data-column-name="Reembolso %" style="width: 130px; min-width: 130px;">
+                            % Indenização
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                    
+                        <!-- 12. Valor Indenização -->
+                        <th class="sortable" data-column="13" data-column-name="Valor Indenização" style="width: 150px; min-width: 150px;">
+                            Valor Indenização
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>                        
+                        
+                        <!-- 13. Prazo Pgto -->
+                        <th class="sortable" data-column="14" data-column-name="Prazo Pgto" style="width: 130px; min-width: 130px;">
+                            Prazo Pgto
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 16. Data Baixa / Pgto (Physical 15) -->
+                        <th class="sortable" data-column="15" data-column-name="Data Baixa / Pgto" style="width: 140px; min-width: 140px;">
+                            Data Baixa / Pgto
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                
+                        <!-- A COLUNA 15 (VOLUME) FOI REMOVIDA DAQUI -->
+
+                        <!-- 16. Data Registro (Índice atualizado de 17 para 16) -->
+                        <th class="sortable" data-column="16" data-column-name="Data Registro" style="width: 140px; min-width: 140px;">
+                            Data Registro
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 17. Data Triagem -->
+                        <th class="sortable" data-column="17" data-column-name="Data Triagem" style="width: 140px; min-width: 140px;">
+                            Data Triagem
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                        
+                        <!-- 18. Data Finalização -->
+                        <th class="sortable" data-column="18" data-column-name="Data Finalização" style="width: 140px; min-width: 140px;">
+                            Data Finalização
+                            <i class="fas fa-sort sort-icon"></i>
+                            <div class="column-resizer"></div>
+                        </th>
+                    </tr>
+                    <!-- Linha de filtros gerada automaticamente -->
+                    <tr class="filter-row" id="filterRow"></tr>
+                </thead>
+                <tbody>
+                    {% if avarias %}
+                        {% for avaria in avarias %}
+                        <tr data-avaria-id="{{ avaria.id }}"
+                            data-data-pagamento="{{ avaria.data_pagamento or '' }}"
+                            data-data-registro="{{ avaria.data_registro or '' }}"
+                            data-prazo-pagamento="{{ avaria.prazo_pagamento or '' }}"
+                            data-data-entrega="{{ avaria.data_entrega or '' }}"
+                            data-data-protocolo-mkt="{{ avaria.data_protocolo_mkt or '' }}"
+                            data-data-coleta="{{ avaria.data_coleta or '' }}"
+                            data-data-finalizacao="{{ avaria.data_finalizacao or '' }}"
+                            data-data-triagem=""
+                            data-data-identificacao=""
+                            data-searchable-content="{{ [
+                                avaria.id or '',
+                                avaria.cod_empresa or '',
+                                avaria.nota or '',
+                                avaria.nfd or '',
+                                avaria.volume or '',
+                                avaria.transportadora or '',
+                                avaria.cte or '',
+                                avaria.valor_nf or '',
+                                avaria.valor_nfd or '',
+                                avaria.nfp or '',
+                                avaria.valor_nfp or '',
+                                avaria.motivo_devolucao or '',
+                                avaria.cod_motivo_devolucao or '',
+                                avaria.motivo_inicial or '',
+                                avaria.data_protocolo_mkt or '',
+                                avaria.cod_motivo_inicial or '',
+                                avaria.indenizacao or '',
+                                avaria.valor_indenizacao or '',
+                                avaria.prazo_pagamento or '',
+                                avaria.data_pagamento or '',
+                                avaria.data_entrega or '',
+                                avaria.data_coleta or '',
+                                avaria.cod_rastreio_correios or '',
+                                avaria.observacao or '',
+                                avaria.data_registro or '',
+                                avaria.status_estoque or '',
+                                avaria.status_indenizacao or '',
+                                avaria.quantidade or '',
+                                avaria.registrado_por or '',
+                                avaria.empresa or '',
+                                avaria.etiqueta_inicial_impressa or '',
+                                avaria.cod_triagem or '',
+                                avaria.reembolso_pct or '',
+                                avaria.observacao_final or '',
+                                avaria.protocolo_insucesso or '',
+                                avaria.data_finalizacao or '',
+                                avaria.data_triagem or '',
+                                avaria.finalizado_por or ''
+                            ] | join(' | ') | lower }}">
+                            <!-- células da tabela continuam iguais -->
+                            <td>
+                                <input type="checkbox" 
+                                       class="form-check-input checkbox-avaria" 
+                                       data-avaria-id="{{ avaria.id }}"
+                                       onchange="atualizarContagemSelecionados()">
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn btn-outline-info" onclick="verDetalhes('{{ avaria.id }}')" title="Ver Detalhes">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="abrirModalEditarAvaria('{{ avaria.id }}')" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="abrirFotosAvaria('{{ avaria.id }}')" title="Ver/Adicionar Fotos">
+                                        <i class="fas fa-camera"></i>
+                                    </button>
+                                    {% if avaria.etiqueta_inicial_impressa != 'sim' %}
+                                    <button class="btn btn-outline-success" onclick="imprimirEtiquetaInicial('{{ avaria.id }}')" title="Imprimir Etiqueta">
+                                        <i class="fas fa-print"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <!-- 2. Cód. Empresa (Physical 2) -->
+                            <td>{{ avaria.cod_empresa }}</td>
+                            <!-- 3. Local (Physical 3) — oculto -->
+                            <td style="display: none;">{{ avaria.local or '-' }}</td>
+                            <!-- 4. Status Indenização (Physical 4) -->
+                            <td>
+                                {% set indenizacao_status = avaria.status_indenizacao %}
+                                {% set indenizacao_color = status_color_map.get(indenizacao_status, '#ffc107') %}
+                                <span class="badge text-dark" style="background-color: {{ indenizacao_color }} !important;">
+                                    {{ indenizacao_status }}
+                                </span>
+                            </td>
+                            <!-- 5. Nota (Physical 5) -->
+                            <td>{{ avaria.nota }}</td>
+                            <!-- 6. NFD (Physical 6) -->
+                            <td>{{ avaria.nfd or '-' }}</td>
+                            <!-- 7. Quantidade (Physical 6) -->
+                            <td>{{ avaria.quantidade_formatada }}</td>
+                            <!-- 8. Valor NFD (Physical 8) -->
+                            <td class="text-info fw-bold">
+                                {{ avaria.valor_nfd_formatado }}
+                            </td>
+                            <!-- 9. Data Coleta (Physical 9) -->
+                            <td class="text-center">{{ format_date_br(avaria.data_protocolo_mkt, include_time=False) }}</td>
+                            <!-- 9. Data Coleta (Physical 9) -->
+                            <td>{{ format_date_br(avaria.data_coleta, include_time=False) or '-' }}</td>
+                            <!-- 10. Data Entrega (Physical 10) -->
+                            <td>{{ format_date_br(avaria.data_entrega, include_time=False) or '-' }}</td>
+                            <!-- 11. Reembolso % (Physical 11) -->                            
+                            <!-- 15. Transportadora -->
+                            <td>{{ avaria.transportadora or '-' }}</td>
+                            
+                            <td class="text-success fw-bold">
+                                {{ avaria.reembolso_pct_str or '0' }}%
+                            </td>
+                            <!-- ✅ NOVA CÉLULA: Valor Indenização -->
+                            <td class="text-primary fw-bold">
+                                {{ avaria.valor_indenizacao_formatado }}
+                            </td>
+                            <!-- 12. Prazo Pgto (Physical 12) -->
+                            <td>{{ format_date_br(avaria.prazo_pagamento, include_time=False) or '-' }}</td>
+                            <!-- 13. Data Pgto (Physical 13) -->
+                            <!-- 13. Data Pgto -->
+                            <td>{{ format_date_br(avaria.data_pagamento, include_time=False) or '-' }}</td>
+                            
+                            <!-- ✅ 14. Volume - ADICIONAR -->
+                            <!--<td>{{ avaria.volume or '-' }}</td>-->
+
+                            <!-- 16. Data Registro -->
+                            <td>{{ format_date_br(avaria.data_registro, include_time=False) or '-' }}</td>
+                            
+                            <!-- 17. Data Triagem -->
+                            <td>{{ format_date_br(avaria.data_triagem, include_time=False) or '-' }}</td>
+                            
+                            <!-- 18. Data Finalização -->
+                            <td>{{ format_date_br(avaria.data_finalizacao, include_time=False) or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="18" class="text-center text-muted py-5">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p class="h5">Nenhuma avaria encontrada</p>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+                <!-- ✅ TFOOT CORRIGIDO - ALINHADO COM 18 COLUNAS -->
+                <tfoot>
+                    <tr class="table-info fw-bold">
+                        <!-- 1. Checkbox -->
+                        <td style="width: 50px; min-width: 50px;"></td>
+                        
+                        <!-- 2. Ações + Label "TOTAIS" -->
+                        <td style="width: 180px; min-width: 180px;">
+                            <i class="fas fa-calculator me-2"></i>TOTAIS
+                        </td>
+                        
+                        <!-- 3. Cód. Empresa -->
+                        <td style="width: 120px; min-width: 120px;"></td>
+                        
+                        <!-- 4. Local — oculto -->
+                        <td style="display: none; width: 100px; min-width: 100px;"></td>
+                        
+                        <!-- 5. Status Indenização -->
+                        <td style="width: 160px; min-width: 160px;"></td>
+                        
+                        <!-- 6. Nota -->
+                        <td style="width: 120px; min-width: 120px;"></td>
+                        
+                        <!-- 7. NFD -->
+                        <td style="width: 120px; min-width: 120px;"></td>
+                        
+                        <!-- TOTALIZADOR: Quantidade (cell 7) -->
+                        <td id="totalQuantidade" style="text-align: left;">0</td>
+                        
+                        <!-- TOTALIZADOR: Valor NFD (cell 8) -->
+                        <td id="totalValorNFD" style="text-align: left;">R$ 0,00</td>
+                        
+                        <!-- 10. Data Protocolo MKT -->
+                        <td style="width: 150px; min-width: 150px;"></td>
+                        
+                        <!-- 11. Data Coleta -->
+                        <td style="width: 130px; min-width: 130px;"></td>
+                        
+                        <!-- 12. Data Entrega -->
+                        <td style="width: 150px; min-width: 150px;"></td>
+                        
+                        <!-- 13. Transportadora -->
+                        <td style="width: 180px; min-width: 180px;"></td>
+                        
+                        <!-- 14. Reembolso % -->
+                        <td style="width: 130px; min-width: 130px;"></td>
+                        
+                        <!-- TOTALIZADOR: Valor Indenização (cell 14) -->
+                        <td id="totalValorIndenizacao" style="text-align: left;">R$ 0,00</td>
+                        
+                        <!-- 16. Prazo Pgto -->
+                        <td style="width: 130px; min-width: 130px;"></td>
+                        
+                        <!-- 17. Data Baixa / Pgto -->
+                        <td style="width: 140px; min-width: 140px;"></td>
+                        
+                        <!-- 18. Data Registro -->
+                        <td style="width: 140px; min-width: 140px;"></td>
+                        
+                        <!-- 19. Data Triagem -->
+                        <td style="width: 140px; min-width: 140px;"></td>
+                        
+                        <!-- 20. Data Finalização -->
+                        <td style="width: 140px; min-width: 140px;"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer text-muted">
+        <small>
+            <i class="fas fa-info-circle me-1"></i>
+            Use a busca rápida para filtrar os dados. Clique nos cabeçalhos para ordenar.
+        </small>
+    </div>
+</div>
+
+<!-- MODAL DE DETALHES -->
+<div class="modal fade" id="modalDetalhes" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Detalhes da Avaria
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detalhesConteudo">
+                <!-- Conteúdo carregado via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Baixas Múltiplas -->
+<div class="modal fade" id="modalBaixasMultiplas" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-double me-2"></i>
+                    Baixar Múltiplas Avarias
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Container dinâmico: aviso de avarias já baixadas (populado por JS) -->
+                <div id="alertaJaBaixadas" style="display:none;"></div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Você está prestes a aplicar a mesma data de pagamento para 
+                    <strong><span id="totalSelecionadasModal">0</span> avaria(s)</strong>.
+                </div>
+                
+                <form id="formBaixasMultiplas">
+                    <div class="mb-3">
+                        <label for="dataPagamentoMultipla" class="form-label">
+                            <i class="fas fa-calendar me-1"></i>
+                            Data de Pagamento <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" 
+                               class="form-control" 
+                               id="dataPagamentoMultipla" 
+                               required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="observacaoMultipla" class="form-label">
+                            <i class="fas fa-comment me-1"></i>
+                            Observação (opcional)
+                        </label>
+                        <textarea class="form-control" 
+                                  id="observacaoMultipla" 
+                                  rows="3"
+                                  placeholder="Adicione uma observação para todas as baixas..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tipo de Pagamento</label>
+                        <select id="inputTipoBaixa" class="form-select">
+                            <option value="total">💰 Pagamento Total</option>
+                            <option value="parcial">💸 Pagamento Parcial</option>
+                        </select>
+                        <small class="text-muted">
+                            Controla automação de status: Total → "Pagto Ok - Total" /
+                            Parcial → "Pagto Ok - Parcial" (se configurado nas parametrizações)
+                        </small>
+                    </div>                    
+                    <!-- Lista de IDs selecionados (oculto) -->
+                    <div id="listaIdsSelecionados" class="mb-3">
+                        <small class="text-muted">IDs selecionados: <span id="idsDisplay"></span></small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="executarBaixasMultiplas()">
+                    <i class="fas fa-check me-2"></i>Confirmar Baixas
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE SELEÇÃO DE QUANTIDADE -->
+<div class="modal fade" id="printQuantityModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="printModalTitle">Imprimir Etiqueta</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Volume registrado: <strong id="volumeValue">1</strong></p>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="quantityOption" 
+                           id="autoQuantity" value="auto" checked onchange="toggleManualInput()">
+                    <label class="form-check-label" for="autoQuantity">
+                        Imprimir Quantidade Registrada
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="radio" name="quantityOption" 
+                           id="manualQuantityRadio" value="manual" onchange="toggleManualInput()">
+                    <label class="form-check-label" for="manualQuantityRadio">
+                        Imprimir Manualmente
+                    </label>
+                </div>
+                
+                <input type="number" class="form-control" id="manualQuantity" 
+                       placeholder="Digite a quantidade (1-500)" min="1" max="500" disabled>
+                
+                <small class="text-muted mt-2 d-block">A impressão será enviada ao servidor local.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmPrint()">
+                    <i class="fas fa-print me-2"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Fotos da Avaria (Consultar Avarias) -->
+<div class="modal fade" id="modalFotosConsultar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-camera me-2"></i>Fotos da Avaria
+                    <small class="text-muted ms-2 fs-6" id="fotosConsultarAvariaId"></small>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="fotosConsultarBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-secondary" role="status"></div>
+                    <p class="mt-2 text-muted">Carregando fotos...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE EDIÇÃO -->
+{% include 'components/modal_editar_avaria.html' %}
+
+<!-- MODAL DE REGISTRO (Fase 3 - Componente compartilhado) -->
+{% include 'components/modal_registrar_avaria.html' %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Scripts de dependência -->
+<script src="{{ url_for('static', filename='js/ui-helpers.js') }}"></script>
+<script src="{{ url_for('static', filename='js/print_direct.js') }}"></script>
+<script src="{{ url_for('static', filename='js/edit-avaria.js') }}"></script>
+<script src="{{ url_for('static', filename='js/split-item-edicao.js') }}"></script>
+<script src="{{ url_for('static', filename='js/split-item-registro.js') }}"></script>
+
+<!-- Configuração de URLs (bridge Jinja2 → JS) -->
+<script>
+    const WMS_CONFIG = {
+        urls: {
+            consultarAvarias: "{{ url_for('wms.consultar_avarias') }}",
+            baixasMultiplas: "{{ url_for('wms.baixas_multiplas') }}"
+        }
+    };
+</script>
+
+<!-- Script do modal de registro (dividido em partes — ordem de carregamento importa) -->
+<script src="{{ url_for('static', filename='js/registrar-avarias.js') }}"></script>
+<script src="{{ url_for('static', filename='js/registrar-avarias-init.js') }}"></script>
+<script src="{{ url_for('static', filename='js/registrar-avarias-etiquetas.js') }}"></script>
+<script src="{{ url_for('static', filename='js/registrar-avarias-triagem.js') }}"></script>
+<script src="{{ url_for('static', filename='js/registrar-avarias-quebra.js') }}"></script>
+<script src="{{ url_for('static', filename='js/registrar-avarias-fotos.js') }}"></script>
+
+<!-- Script principal da página (dividido em partes — ordem de carregamento importa) -->
+<script src="{{ url_for('static', filename='js/consultar-avarias.js') }}"></script>
+<script src="{{ url_for('static', filename='js/consultar-avarias-baixas.js') }}"></script>
+<script src="{{ url_for('static', filename='js/consultar-avarias-dropdown.js') }}"></script>
+<script src="{{ url_for('static', filename='js/consultar-avarias-modais.js') }}"></script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SISTEMA DE EXPORTAÇÃO EXCEL - INÍCIO -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- Script de exportação -->
+<script src="{{ url_for('static', filename='js/wms/export-excel.js') }}"></script>
+
+<!-- Configuração e integração da exportação -->
+<script>
+    // Aguardar carregamento completo da página
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // ─────────────────────────────────────────────────────────────────
+        // CONFIGURAR MÓDULO DE EXPORTAÇÃO
+        // ─────────────────────────────────────────────────────────────────
+        ExportExcel.configurar({
+            tela: 'consultar',
+            urlExport: '{{ url_for("wms.exportar_consultar_avarias") }}',
+            tabelaId: 'tabelaAvarias',
+            columnDefs: COLUMN_DEFS,  // Já definido em consultar-avarias.js
+            totalizadoresCallback: calcularTotalizadoresConsultar  // ✅ NOVO
+        });
+        
+        console.log('✅ Sistema de exportação configurado para Consultar Avarias');
+    });
+    
+    /**
+     * Função chamada pelo botão de exportação
+     * Esta função é global e pode ser chamada de qualquer lugar
+     */
+    function exportarParaExcel() {
+        console.log('📊 Iniciando exportação de dados filtrados...');
+        
+        ExportExcel.exportar(
+            // Callback de sucesso
+            function(filename) {
+                console.log(`✅ Arquivo exportado com sucesso: ${filename}`);
+                
+                // Opcional: Mostrar notificação adicional
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Exportado!',
+                        text: `Arquivo ${filename} foi baixado com sucesso.`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            // Callback de erro
+            function(error) {
+                console.error('❌ Erro na exportação:', error);
+                
+                // Opcional: Log adicional para debug
+                if (typeof WMSLog !== 'undefined') {
+                    WMSLog.error(`Falha na exportação: ${error.message}`);
+                }
+            }
+        );
+    }
+</script>
+
+<!-- SISTEMA DE EXPORTAÇÃO EXCEL - FIM -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- FILTRO DE DATA + AUTO-OPEN MODAL (v4)                                 -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Redireciona com filtros de data na URL ────────────────────────────────
+function aplicarFiltroData() {
+    const inicio = document.getElementById('filtroDataInicio')?.value || '';
+    const fim    = document.getElementById('filtroDataFim')?.value    || '';
+    const campo  = document.getElementById('filtroCampoData')?.value  || 'data_registro';
+
+    if (!inicio && !fim) {
+        alert('Informe ao menos uma data para filtrar.');
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (inicio) params.set('data_inicio', inicio); else params.delete('data_inicio');
+    if (fim)    params.set('data_fim', fim);        else params.delete('data_fim');
+    params.set('campo_data_filtro', campo);
+
+    window.location.href = `${window.location.pathname}?${params.toString()}`;
+}
+
+// ── Banner informativo quando filtro de data está ativo ──────────────────
+(function mostrarBannerFiltroData() {
+    const params = new URLSearchParams(window.location.search);
+    const inicio = params.get('data_inicio') || '';
+    const fim    = params.get('data_fim')    || '';
+    const campo  = params.get('campo_data_filtro') || '';
+    if (!inicio && !fim) return;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const cardBody = document.querySelector('.card.mb-4 .card-body');
+        if (!cardBody) return;
+        const labelCampo = {
+            data_registro: 'Data de Registro', prazo_pagamento: 'Prazo Pagamento',
+            data_pagamento: 'Data Baixa / Pgto',  data_entrega: 'Data Entrega',
+            data_protocolo_mkt: 'Data Protocolo MKT', data_coleta: 'Data Coleta',
+            data_finalizacao: 'Data Finalização', data_triagem:        'Data Triagem (Item)',
+            data_identificacao:  'Data Identificação (Item)',
+            data_alteracao:      'Data Alteração'
+        }[campo] || campo;
+
+        const banner = document.createElement('div');
+        banner.className = 'alert alert-success alert-dismissible d-flex align-items-center gap-2 py-2 mb-0 mt-2';
+        banner.innerHTML = `
+            <i class="fas fa-filter text-success"></i>
+            <div class="flex-grow-1">
+                <strong>Filtro de data ativo:</strong>
+                <span class="badge bg-success ms-1">${labelCampo}</span>
+                ${inicio ? `de <strong>${inicio}</strong>` : ''}
+                ${fim    ? ` até <strong>${fim}</strong>`  : ''}
+                &nbsp;—&nbsp;
+                <a href="{{ url_for('wms.consultar_avarias') }}" class="alert-link">Limpar</a>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        cardBody.appendChild(banner);
+    });
+})();
+
+// ── Auto-open modal de edição se URL tiver ?avaria_id= ───────────────────
+(function autoOpenModalAvaria() {
+    const params   = new URLSearchParams(window.location.search);
+    const avariaId = params.get('avaria_id');
+    if (!avariaId) return;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Limpa param da URL sem recarregar
+        params.delete('avaria_id');
+        const novaUrl = params.toString()
+            ? `${window.location.pathname}?${params.toString()}`
+            : window.location.pathname;
+        history.replaceState(null, '', novaUrl);
+
+        // Aguarda tabela renderizar e abre modal de edição
+        setTimeout(function() {
+            if (typeof abrirModalEditarAvaria === 'function') {
+                abrirModalEditarAvaria(avariaId);
+            } else {
+                // Fallback: destaca linha na tabela
+                const row = document.querySelector(`tr[data-avaria-id="${CSS.escape(avariaId)}"]`);
+                if (row) {
+                    row.style.outline = '3px solid #ffc107';
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }, 500);
+    });
+})();
+</script>
+
+{% endblock %}

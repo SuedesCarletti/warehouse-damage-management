@@ -1,0 +1,366 @@
+<!-- templates/admin/manage_categories.html -->
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Categorias - Sistema de Chamados TI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-tags me-2"></i>Gerenciar Categorias
+            </h2>
+            <div>
+                <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar ao Admin
+                </a>
+                <!-- CORRIGIDO: Adicionado data-bs-toggle e target para abrir o modal -->
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <i class="fas fa-plus me-2"></i>Adicionar Categoria
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Categorias -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="categoriesTable">
+                        <thead>
+                            <tr>
+                                <th>Categoria</th>
+                                <th>Descrição</th>
+                                <th>Email Terceiro</th>
+                                <th>Requer Gestor</th>
+                                <th>SLA (h)</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in categories %}
+                            <tr>
+                                <td>
+                                    <span class="badge p-2" style="background-color: {{ category.cor }}; color: white; min-width: 100px;">{{ category.categoria }}</span>
+                                </td>
+                                <td>{{ category.descricao }}</td>
+                                <td>{{ category.email_terceiro or '-' }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'warning' if category.requer_gestor == 'sim' else 'secondary' }}">
+                                        {{ 'Sim' if category.requer_gestor == 'sim' else 'Não' }}
+                                    </span>
+                                </td>
+                                <td>{{ category.sla_horas }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if category.ativo == 'sim' else 'secondary' }}">
+                                        {{ 'Ativo' if category.ativo == 'sim' else 'Inativo' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" title="Editar"
+                                                onclick="editCategory({{ category.to_dict() | tojson | safe }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-warning"
+                                                title="{{ 'Desativar' if category.ativo == 'sim' else 'Ativar' }}"
+                                                onclick="toggleCategoryStatus('{{ category.categoria }}', '{{ 'nao' if category.ativo == 'sim' else 'sim' }}')">
+                                            <i class="fas fa-{{ 'ban' if category.ativo == 'sim' else 'check' }}"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">Nenhuma categoria encontrada.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Adicionar Categoria -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Adicionar Nova Categoria
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCategoryForm">
+                    <div class="mb-3">
+                        <label for="addCategoria" class="form-label">Nome da Categoria *</label>
+                        <input type="text" class="form-control" id="addCategoria" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addDescricao" class="form-label">Descrição *</label>
+                        <textarea class="form-control" id="addDescricao" rows="2" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addCor" class="form-label">Cor de Identificação (#RRGGBB) *</label>
+                        <input type="color" class="form-control form-control-color" id="addCor" value="#3498db" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="addSlaHoras" class="form-label">SLA (Horas) *</label>
+                            <input type="number" class="form-control" id="addSlaHoras" value="24" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="addRequerGestor" class="form-label">Requer Gestor?</label>
+                            <select class="form-select" id="addRequerGestor" required>
+                                <option value="nao">Não</option>
+                                <option value="sim">Sim</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addEmailTerceiro" class="form-label">Email Terceiro (Opcional)</label>
+                        <input type="email" class="form-control" id="addEmailTerceiro" placeholder="fornecedor@email.com">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="addAtivo" checked>
+                        <label class="form-check-label" for="addAtivo">
+                            Categoria Ativa
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddCategory()">
+                    <i class="fas fa-save me-2"></i>Salvar Categoria
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Categoria -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Editar Categoria
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editCategoryForm">
+                    <input type="hidden" id="originalCategoria">
+                    
+                    <div class="mb-3">
+                        <label for="editCategoria" class="form-label">Nome da Categoria</label>
+                        <input type="text" class="form-control" id="editCategoria" disabled>
+                        <small class="text-muted">Nome da categoria não pode ser alterado</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDescricao" class="form-label">Descrição *</label>
+                        <textarea class="form-control" id="editDescricao" rows="2" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editCor" class="form-label">Cor de Identificação (#RRGGBB) *</label>
+                        <input type="color" class="form-control form-control-color" id="editCor" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editSlaHoras" class="form-label">SLA (Horas) *</label>
+                            <input type="number" class="form-control" id="editSlaHoras" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editRequerGestor" class="form-label">Requer Gestor?</label>
+                            <select class="form-select" id="editRequerGestor" required>
+                                <option value="nao">Não</option>
+                                <option value="sim">Sim</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmailTerceiro" class="form-label">Email Terceiro (Opcional)</label>
+                        <input type="email" class="form-control" id="editEmailTerceiro">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editAtivo">
+                        <label class="form-check-label" for="editAtivo">
+                            Categoria Ativa
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditCategory()">
+                    <i class="fas fa-save me-2"></i>Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/helpdesk-common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ui-helpers.js') }}"></script>
+<script>
+// FUNÇÕES DE ADIÇÃO
+async function submitAddCategory() {
+    const categoria = document.getElementById('addCategoria').value.trim();
+    const descricao = document.getElementById('addDescricao').value.trim();
+    const cor = document.getElementById('addCor').value;
+    const sla_horas = document.getElementById('addSlaHoras').value;
+    const requer_gestor = document.getElementById('addRequerGestor').value;
+    const email_terceiro = document.getElementById('addEmailTerceiro').value.trim();
+    const ativo = document.getElementById('addAtivo').checked ? 'sim' : 'nao';
+
+    if (!categoria || !descricao || !sla_horas) {
+        await _alertaCritico('Campos obrigatórios', 'Por favor, preencha todos os campos obrigatórios.');
+        return;
+    }
+
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    showLoading(btn);
+
+    try {
+        const response = await fetch('/helpdesk/api/categories/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                categoria: categoria,
+                descricao: descricao,
+                cor: cor,
+                sla_horas: sla_horas,
+                requer_gestor: requer_gestor,
+                email_terceiro: email_terceiro,
+                ativo: ativo
+            })
+        });
+        const data = await response.json();
+        hideLoading(btn, originalText);
+        if (data.success) {
+            await _alertaCritico('Sucesso', 'Categoria adicionada com sucesso!');
+            location.reload();
+        } else {
+            await _alertaCritico('Erro', traduzirErroTecnico(data.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        hideLoading(btn, originalText);
+        await _alertaCritico('Erro', traduzirErroTecnico(error.message));
+    }
+}
+
+// FUNÇÕES DE EDIÇÃO
+function editCategory(categoryData) {
+    // Preencher modal
+    document.getElementById('originalCategoria').value = categoryData.categoria;
+    document.getElementById('editCategoria').value = categoryData.categoria;
+    document.getElementById('editDescricao').value = categoryData.descricao;
+    document.getElementById('editCor').value = categoryData.cor;
+    document.getElementById('editSlaHoras').value = categoryData.sla_horas;
+    document.getElementById('editRequerGestor').value = categoryData.requer_gestor;
+    document.getElementById('editEmailTerceiro').value = categoryData.email_terceiro;
+    document.getElementById('editAtivo').checked = categoryData.ativo === 'sim';
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+    modal.show();
+}
+
+async function submitEditCategory() {
+    const categoria = document.getElementById('originalCategoria').value;
+    const descricao = document.getElementById('editDescricao').value.trim();
+    const cor = document.getElementById('editCor').value;
+    const sla_horas = document.getElementById('editSlaHoras').value;
+    const requer_gestor = document.getElementById('editRequerGestor').value;
+    const email_terceiro = document.getElementById('editEmailTerceiro').value.trim();
+    const ativo = document.getElementById('editAtivo').checked ? 'sim' : 'nao';
+
+    if (!descricao || !sla_horas) {
+        await _alertaCritico('Campos obrigatórios', 'Descrição e SLA são obrigatórios.');
+        return;
+    }
+
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    showLoading(btn);
+
+    try {
+        const response = await fetch('/helpdesk/api/categories/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                categoria: categoria, // Chave de identificação
+                descricao: descricao,
+                cor: cor,
+                sla_horas: sla_horas,
+                requer_gestor: requer_gestor,
+                email_terceiro: email_terceiro,
+                ativo: ativo
+            })
+        });
+        const data = await response.json();
+        hideLoading(btn, originalText);
+        if (data.success) {
+            await _alertaCritico('Sucesso', 'Categoria atualizada com sucesso!');
+            location.reload();
+        } else {
+            await _alertaCritico('Erro', traduzirErroTecnico(data.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        hideLoading(btn, originalText);
+        await _alertaCritico('Erro', traduzirErroTecnico(error.message));
+    }
+}
+
+// FUNÇÕES DE STATUS (Ativar/Desativar)
+async function toggleCategoryStatus(categoria, newStatus) {
+    const action = newStatus === 'sim' ? 'ativar' : 'desativar';
+
+    const confirmou = await _confirmarAcaoCritica(
+        'Confirmar alteração',
+        `Tem certeza que deseja ${action} a categoria "${categoria}"?`,
+        'Confirmar', 'Cancelar'
+    );
+    if (!confirmou) return;
+
+    try {
+        const response = await fetch('/api/categories/update', { // Usa update para mudar status
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                categoria: categoria,
+                ativo: newStatus
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            await _alertaCritico('Sucesso', 'Categoria ' + (newStatus === 'sim' ? 'ativada' : 'desativada') + ' com sucesso!');
+            location.reload();
+        } else {
+            await _alertaCritico('Erro', traduzirErroTecnico(data.error));
+        }
+    } catch (error) {
+        await _alertaCritico('Erro', traduzirErroTecnico(error.message));
+    }
+}
+
+</script>
+{% endblock %}

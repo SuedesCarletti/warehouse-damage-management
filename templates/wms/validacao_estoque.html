@@ -1,0 +1,1340 @@
+{% extends "base.html" %}
+{% block title %}Validação de Estoque — WMS{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wms-design-system.css') }}">
+<style>
+  /* ── Cards de lote ─────────────────────────────────────────────────────── */
+  .lote-card {
+    border-left: 4px solid #dee2e6;
+    transition: box-shadow .15s ease, transform .1s ease;
+  }
+  .lote-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); transform: translateY(-1px); }
+  .lote-card.pendente      { border-left-color: #ffc107; }
+  .lote-card.aprovado      { border-left-color: #198754; }
+  .lote-card.inconsistente { border-left-color: #dc3545; }
+  .lote-card.ignorado      { border-left-color: #6c757d; }
+  .lote-card.fechado       { border-left-color: #0dcaf0; }
+
+  .badge-status-pendente      { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+  .badge-status-aprovado      { background: #d1e7dd; color: #0a3622; border: 1px solid #198754; }
+  .badge-status-inconsistente { background: #f8d7da; color: #58151c; border: 1px solid #dc3545; }
+  .badge-status-ignorado      { background: #e2e3e5; color: #41464b; border: 1px solid #6c757d; }
+  .badge-status-fechado       { background: #cff4fc; color: #055160; border: 1px solid #0dcaf0; }
+
+  /* ── Stats bar ──────────────────────────────────────────────────────────── */
+  .stat-pill {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .35rem .85rem; border-radius: 2rem; font-size: .82rem; font-weight: 600;
+    border: 1px solid transparent; cursor: pointer; transition: filter .15s;
+  }
+  .stat-pill:hover  { filter: brightness(.92); }
+  .stat-pill.active { box-shadow: 0 0 0 2px #0d6efd; }
+  .pill-pendente      { background: #fff3cd; color: #856404; border-color: #ffc107; }
+  .pill-aprovado      { background: #d1e7dd; color: #0a3622; border-color: #198754; }
+  .pill-inconsistente { background: #f8d7da; color: #58151c; border-color: #dc3545; }
+  .pill-ignorado      { background: #e2e3e5; color: #41464b; border-color: #6c757d; }
+  .pill-fechado       { background: #cff4fc; color: #055160; border-color: #0dcaf0; }
+  .pill-aguardando    { background: #fff8e1; color: #6d4c00; border-color: #ffc107; }
+
+  /* ── Empty state ────────────────────────────────────────────────────────── */
+  .empty-state { padding: 3rem 1.5rem; text-align: center; color: #6c757d; }
+  .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: .4; }
+
+  /* ── Skeleton ───────────────────────────────────────────────────────────── */
+  .skeleton-card { background: #f8f9fa; border-radius: .5rem; height: 120px;
+                   animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  /* ── Modal — usa variáveis do tema do projeto (dark-mode-fix.css) ──────── */
+  .modal-cabecalho-nf {
+    background-color: var(--bg-light, var(--bs-tertiary-bg));
+    border-bottom: 1px solid var(--border-color, var(--bs-border-color));
+    color: var(--text-color, var(--bs-body-color));
+  }
+  .modal-cabecalho-nf .form-label,
+  .modal-cabecalho-nf .form-label small {
+    color: var(--text-color, var(--bs-body-color)) !important;
+  }
+  .snapshot-saldo-zero { opacity: .55; }
+
+  /* ── Produto tag na card ─────────────────────────────────────────────────── */
+  .prod-pill {
+    display: inline-block; padding: .15rem .55rem; border-radius: .4rem;
+    font-size: .72rem; background: #e9ecef; color: #495057; margin: .1rem;
+    white-space: nowrap;
+  }
+  .dark-mode .prod-pill {
+    background: var(--bg-light, #3a3a3a);
+    color: var(--text-color, #e0e0e0);
+  }
+
+  /* ── Card — texto principal adapta ao tema do projeto ────────────────────── */
+  .lote-card .card-title-text {
+    color: var(--text-color, var(--bs-body-color));
+  }
+  .lote-card .card-info-row {
+    font-size: .74rem;
+    color: var(--text-muted-color, var(--bs-secondary-color, #6c757d));
+  }
+  /* Dark mode: fundo do card e borda */
+  .dark-mode .lote-card {
+    background-color: var(--bg-content-color, #2b2b2b);
+    border-color: var(--border-color, #444);
+  }
+  .dark-mode .modal-cabecalho-nf {
+    background-color: var(--bg-light, #2b2b2b);
+    border-color: var(--border-color, #444);
+  }
+
+  /* ── Dark mode: sugestões de NF (list-group) ────────────────────────────── */
+  .dark-mode .list-group-item {
+    background-color: var(--bg-content-color, #2b2b2b);
+    border-color: var(--border-color, #444);
+    color: var(--text-color, #e0e0e0);
+  }
+  .dark-mode .list-group-item-action:hover,
+  .dark-mode .list-group-item-action:focus {
+    background-color: var(--bg-hover, #3a3a3a);
+    color: var(--text-color, #e0e0e0);
+  }
+  .dark-mode #listaSugestoesLote .list-group-item strong {
+    color: var(--theme-primary-light, #6ea8fe);
+  }
+  .dark-mode #listaSugestoesLote .list-group-item .text-muted {
+    color: var(--text-muted-color, #aaa) !important;
+  }
+  /* Container da lista de sugestões no dark */
+  .dark-mode #listaSugestoesLote {
+    background-color: var(--bg-content-color, #2b2b2b) !important;
+    border-color: var(--border-color, #444) !important;
+  }
+  /* Badges de NF selecionadas */
+  .dark-mode #listaNFsSelecionadas .badge { opacity: .92; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3">
+
+  {# ── Cabeçalho ─────────────────────────────────────────────────────────── #}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-0"><i class="fas fa-clipboard-check text-primary me-2"></i>Validação de Estoque</h4>
+      <small class="text-muted">Lotes organizados por local de armazenagem</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ safe_url_for('wms.registrar_avarias') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Registrar Avarias
+      </a>
+    </div>
+  </div>
+
+  {# ── Stats pills — ordem: Pendente, Ag.Fechamento, Fechados, Inconsistentes, Aprovados, Ignorados, Todos #}
+  <div class="d-flex flex-wrap gap-2 mb-3" id="statsBar">
+    <span class="stat-pill pill-pendente active" onclick="filtrarStatus('Pendente')" id="pill-Pendente"
+          title="Auto-lotes prontos para validação direta">
+      <i class="fas fa-clock"></i> <span id="cnt-Pendente">…</span> Pendentes
+    </span>
+    <span class="stat-pill pill-aguardando" onclick="filtrarStatus('Aguardando')" id="pill-Aguardando"
+          title="Lotes manuais que precisam ser fechados antes de validar">
+      <i class="fas fa-hourglass-half"></i> <span id="cnt-Aguardando">…</span> Ag. Fechamento
+    </span>
+    <span class="stat-pill pill-fechado" onclick="filtrarStatus('Fechado')" id="pill-Fechado"
+          title="Lotes fechados, prontos para validar">
+      <i class="fas fa-lock"></i> <span id="cnt-Fechado">…</span> Fechados
+    </span>
+    <span class="stat-pill pill-inconsistente" onclick="filtrarStatus('Inconsistente')" id="pill-Inconsistente">
+      <i class="fas fa-exclamation-triangle"></i> <span id="cnt-Inconsistente">…</span> Inconsistentes
+    </span>
+    <span class="stat-pill pill-aprovado" onclick="filtrarStatus('Aprovado')" id="pill-Aprovado">
+      <i class="fas fa-check-circle"></i> <span id="cnt-Aprovado">…</span> Aprovados
+    </span>
+    <span class="stat-pill pill-ignorado" onclick="filtrarStatus('Ignorado')" id="pill-Ignorado">
+      <i class="fas fa-ban"></i> <span id="cnt-Ignorado">…</span> Ignorados
+    </span>
+    <span class="stat-pill" style="background:#e7f3ff;color:#084298;border-color:#b6d4fe"
+          onclick="filtrarStatus('')" id="pill-">
+      <i class="fas fa-layer-group"></i> Todos
+    </span>
+  </div>
+
+  {# ── Filtros ───────────────────────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filtroDias" onchange="recarregar()">
+            <option value="30">Últimos 30 dias</option>
+            <option value="60">Últimos 60 dias</option>
+            <option value="90" selected>Últimos 90 dias</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <input type="text" class="form-control form-control-sm" id="filtroBusca"
+                 placeholder="🔍 Buscar por local, lote, nota, NFD, operador, produto..." oninput="filtrarCards()">
+        </div>
+        <div class="col-auto ms-auto">
+          <span class="text-muted small" id="labelContagem"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Grid de lotes ─────────────────────────────────────────────────────── #}
+  <div id="gridLotes" class="row g-3">
+    <div class="col-12">
+      <div class="row g-3" id="skeletons">
+        {% for _ in range(3) %}<div class="col-md-6 col-lg-4"><div class="skeleton-card"></div></div>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>{# /container-fluid #}
+
+{# ══════════════════════════════════════════════════════════════════════════
+   MODAL — Validação de Lote
+══════════════════════════════════════════════════════════════════════════ #}
+<div class="modal fade" id="modalValidarLote" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      {# ── Header do modal ─────────────────────────────────────────────────── #}
+      <div class="modal-header bg-primary text-white py-2">
+        <h5 class="modal-title mb-0">
+          <i class="fas fa-clipboard-check me-2"></i>
+          <span id="modalLoteTitulo">Validar Lote</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      {# ── Cabeçalho com Informações Gerais e Tabela Unificada ─────────────────────── #}
+      <div class="modal-body pb-0">
+        <div id="avisoNfBloqueada" class="alert alert-warning py-2 mb-2 d-none">
+          <i class="fas fa-info-circle me-1"></i>
+          <strong>Lote ainda pendente</strong> — você já pode vincular e salvar a NF abaixo para
+          referência futura. A <strong>validação técnica</strong> só poderá ser executada depois
+          que o lote for fechado e a entrada física no local de destino for confirmada.
+        </div>
+
+        <div class="card mb-3 shadow-sm border-0 bg-light">
+          <div class="card-body p-3">
+            <div class="row g-3 align-items-center" id="secaoNF">
+              {# Origem e Destino #}
+              <div class="col-md-4" id="mvLocalInfo">
+                <span class="text-muted small">Carregando locais...</span>
+              </div>
+              
+              {# Empresa e Observação #}
+              <div class="col-md-3">
+                <label class="form-label form-label-sm fw-semibold mb-1">
+                  <i class="fas fa-building me-1 text-muted"></i>Empresa (CODEMP)
+                </label>
+                <input type="number" class="form-control form-control-sm mb-2" id="mvCodEmp" placeholder="Ex.: 6">
+
+                <label class="form-label form-label-sm fw-semibold mb-1">
+                  <i class="fas fa-comment-alt me-1 text-muted"></i>Observação
+                </label>
+                <input type="text" class="form-control form-control-sm" id="mvObservacao" placeholder="Observação opcional…">
+              </div>
+
+              {# Vincular NFs #}
+              <div class="col-md-5 border-start">
+                <label class="form-label form-label-sm fw-semibold mb-1">
+                  <i class="fas fa-file-invoice me-1 text-muted"></i>Vincular NFs de Transferência
+                </label>
+                <div class="d-flex gap-1 mb-2">
+                  <input type="text" class="form-control form-control-sm" id="mvNumnota" placeholder="Nº NF" style="max-width:120px">
+                  <input type="text" class="form-control form-control-sm" id="mvNunota" placeholder="NUNOTA" style="max-width:100px">
+                  <button class="btn btn-primary btn-sm flex-grow-1" onclick="adicionarNFLote()" title="Adicionar NF">
+                    <i class="fas fa-plus me-1"></i>Adicionar
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" onclick="buscarSugestoesLote()" title="Buscar sugestão">
+                    <i class="fas fa-search"></i>
+                  </button>
+                </div>
+                <div id="listaNFsSelecionadas" class="d-flex flex-wrap gap-1 p-2 bg-white rounded border min-height-1">
+                  <span class="text-muted small fst-italic" id="nfsVazio">Nenhuma NF adicionada</span>
+                </div>
+                {# Sugestões de lote #}
+                <div id="painelSugestoesLote" class="d-none mt-2">
+                  <div id="listaSugestoesLote" class="list-group list-group-flush border rounded bg-white" style="max-height:140px;overflow-y:auto"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# Tabela de Itens / Validação #}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="fw-bold text-secondary mb-0">
+            <i class="fas fa-boxes me-1"></i>Itens do Lote / Validação
+            <span class="badge bg-secondary ms-1" id="mvQtdItens">0</span>
+          </h6>
+          <div class="d-flex align-items-center gap-2">
+            <div id="mvSnapLoader" class="spinner-border spinner-border-sm text-secondary d-none"></div>
+            <span class="badge bg-dark fw-normal small d-none" id="mvSnapCapturaEm"></span>
+            <button class="btn btn-outline-success btn-sm" onclick="exportarTabelaItensParaExcel()">
+              <i class="fas fa-file-excel me-1"></i>Exportar Excel
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive border rounded bg-white" style="max-height: 400px; overflow-y: auto;">
+          <table class="table table-sm table-hover align-middle mb-0" id="tabelaItensLote">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+              <tr>
+                <th>NF Venda</th>
+                <th>NF Devol.</th>
+                <th>Parceiro</th>
+                <th>Cód. Prod.</th>
+                <th style="min-width: 250px;">Descrição</th>
+                <th class="text-center">Quantidade</th>
+                <th class="text-center">Local Destino</th>
+                <th class="text-center" title="Saldo no momento da triagem">Saldo Triagem</th>
+                <th class="text-center" title="Saldo pós-validação (atual)">Saldo Validação</th>
+                <th class="text-center">NF Vinculada</th>
+              </tr>
+            </thead>
+            <tbody id="mvListaProdutos">
+              <tr><td colspan="10" class="text-center text-muted small fst-italic py-3">Carregando itens...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        
+        {# Resultado da Validação #}
+        <div id="painelResultadoLote" class="d-none mt-3">
+          <h6 class="fw-bold"><i class="fas fa-chart-bar me-1"></i>Resultado da Validação</h6>
+          <div id="resumoResultadoLote" class="alert mb-2"></div>
+          <div class="table-responsive d-none" id="containerTabelaResultado">
+            <table class="table table-sm align-middle">
+              <thead class="table-dark">
+                <tr>
+                  <th>Produto</th>
+                  <th>Local</th>
+                  <th class="text-center">Antes</th>
+                  <th class="text-center">Depois</th>
+                  <th class="text-center">Δ</th>
+                  <th>Resultado</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaResultadoLote"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div> {# /modal-body #}
+
+      <div class="modal-footer py-3 bg-light border-top mt-3">
+        <button class="btn btn-danger btn-sm" onclick="confirmarIgnorarLote()" title="Marcar este lote como ignorado sem validar tecnicamente">
+          <i class="fas fa-ban me-1"></i>Ignorar Lote
+        </button>
+        <button class="btn btn-info btn-sm" id="btnFecharLoteAcao" onclick="confirmarFecharLote()" title="Fechar lote fisicamente sem validação técnica no ERP">
+          <i class="fas fa-lock me-1"></i>Fechar Lote
+        </button>
+        <button class="btn btn-outline-primary btn-sm d-none" id="btnSalvarNfLote" onclick="salvarNfLote()" title="Salva a NF vinculada ao lote sem executar a validação técnica no ERP">
+          <i class="fas fa-save me-1"></i>Salvar NF (sem validar)
+        </button>
+        <button class="btn btn-success px-4" id="btnExecutarLote" onclick="executarValidacaoLote()">
+          <i class="fas fa-check-circle me-1"></i>Executar Validação
+        </button>
+        <button class="btn btn-outline-secondary d-none" id="btnSyncLocalizacao" onclick="syncLocalizacaoLote()">
+          <i class="fas fa-map-marker-alt me-1"></i>Sincronizar Localização
+        </button>
+        <button class="btn btn-primary d-none" id="btnFecharLote" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>Fechar
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/ui-helpers.js') }}"></script>
+<script>
+// ============================================================================
+// Estado global
+// ============================================================================
+let statusAtivo = 'Pendente';
+let lotesCache  = [];
+let loteAtual   = null;
+let modalInst   = null;
+
+// ============================================================================
+// Inicialização
+// ============================================================================
+document.addEventListener('DOMContentLoaded', function () {
+  modalInst = new bootstrap.Modal(document.getElementById('modalValidarLote'));
+  carregarEstatisticas();
+  recarregar();
+
+  // Resetar estado dos botões a cada abertura do modal.
+  // Ambos os botões de ação ficam ocultos até os dados carregarem —
+  // abrirModalLote() os exibe corretamente conforme tipo e status do lote.
+  document.getElementById('modalValidarLote').addEventListener('show.bs.modal', function () {
+    const btn = document.getElementById('btnExecutarLote');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Executar Validação';
+      btn.classList.add('d-none');
+    }
+    const btnFecharAcao = document.getElementById('btnFecharLoteAcao');
+    if (btnFecharAcao) btnFecharAcao.classList.add('d-none');
+    const btnF = document.getElementById('btnFecharLote');
+    if (btnF) btnF.classList.add('d-none');
+    const painel = document.getElementById('painelResultadoLote');
+    if (painel) painel.classList.add('d-none');
+    const painelPos = document.getElementById('painelSnapshotPos');
+    if (painelPos) painelPos.classList.add('d-none');
+  });
+});
+
+// ============================================================================
+// Stats e filtro de status
+// ============================================================================
+async function carregarEstatisticas() {
+  try {
+    const r = await fetch('/wms/validacao-estoque/api/estatisticas-lotes');
+    const d = await r.json();
+    if (d.success) {
+      const map = {
+        'Pendente':      d.pendente,
+        'Aguardando':    d.aguardando,
+        'Fechado':       d.fechado,
+        'Inconsistente': d.inconsistente,
+        'Aprovado':      d.aprovado,
+        'Ignorado':      d.ignorado,
+      };
+      Object.entries(map).forEach(([key, val]) => {
+        const el = document.getElementById('cnt-' + key);
+        if (el) el.textContent = val ?? '0';
+      });
+    }
+  } catch(e) { console.warn('Erro stats:', e); }
+}
+
+function filtrarStatus(status) {
+  statusAtivo = status;
+  document.querySelectorAll('.stat-pill').forEach(p => p.classList.remove('active'));
+  const pill = document.getElementById('pill-' + status);
+  if (pill) pill.classList.add('active');
+  recarregar();
+}
+
+// ============================================================================
+// Carregar lista de lotes
+// ============================================================================
+async function recarregar() {
+  const dias = document.getElementById('filtroDias').value;
+  document.getElementById('gridLotes').innerHTML =
+    '<div class="col-12"><div class="row g-3 justify-content-center">' +
+    [1,2,3].map(() => '<div class="col-md-6 col-lg-4"><div class="skeleton-card"></div></div>').join('') +
+    '</div></div>';
+
+  try {
+    // "Pendente" e "Aguardando" ambos buscam status=Pendente no backend;
+    // a distinção (auto vs manual) é feita client-side.
+    const apiStatus = (statusAtivo === 'Aguardando') ? 'Pendente' : statusAtivo;
+    const url = `/wms/validacao-estoque/api/lotes?status=${encodeURIComponent(apiStatus)}&dias=${dias}`;
+    const r   = await fetch(url);
+    const d   = await r.json();
+    lotesCache = d.lotes || [];
+
+    // Apenas atualizar o cache; a filtragem será feita por filtrarCards()
+    filtrarCards();
+  } catch(e) {
+    document.getElementById('gridLotes').innerHTML =
+      '<div class="col-12"><div class="alert alert-danger">' + traduzirErroTecnico(e.message) + '</div></div>';
+  }
+}
+
+function filtrarCards() {
+  const termo = document.getElementById('filtroBusca').value.toLowerCase().trim();
+  
+  const filtrados = lotesCache.filter(l => {
+    // 1. Filtro por status (Pendente vs Aguardando - client-side)
+    if (statusAtivo === 'Pendente') {
+      let p = {}; try { p = JSON.parse(l.preview_json || '{}'); } catch(_) {}
+      if (p.is_auto !== true) return false;
+    } else if (statusAtivo === 'Aguardando') {
+      let p = {}; try { p = JSON.parse(l.preview_json || '{}'); } catch(_) {}
+      if (p.is_auto === true) return false;
+    }
+
+    // 2. Filtro de busca textual
+    if (!termo) return true;
+
+    // Preview do 1º item (nota venda, nota devolução, produto)
+    let preview = {};
+    try { preview = JSON.parse(l.preview_json || '{}'); } catch (_) {}
+
+    // Notas adicionais (numnotas_json = [{numnota, nunota}, ...])
+    let notasExtra = '';
+    try {
+      const arr = JSON.parse(l.numnotas_json || '[]');
+      notasExtra = arr.map(n => n.numnota || '').join(' ');
+    } catch (_) {}
+
+    return (
+      (l.codlocal              || '').toLowerCase().includes(termo) ||
+      (l.descrlocal            || '').toLowerCase().includes(termo) ||
+      (l.id_lote               || '').toLowerCase().includes(termo) ||
+      (l.criado_por            || '').toLowerCase().includes(termo) ||
+      (l.titulo                || '').toLowerCase().includes(termo) ||
+      (l.numnota_erp           || '').toLowerCase().includes(termo) ||
+      (l.codemp                || '').toLowerCase().includes(termo) ||
+      (preview.numnota_venda   || '').toLowerCase().includes(termo) ||
+      (preview.numnota_devolucao || '').toLowerCase().includes(termo) ||
+      (preview.descrprod       || '').toLowerCase().includes(termo) ||
+      (preview.avaria_id       || '').toLowerCase().includes(termo) ||
+      notasExtra.toLowerCase().includes(termo)
+    );
+  });
+  
+  renderizarCards(filtrados);
+}
+
+// ============================================================================
+// Renderizar cards
+// ============================================================================
+function renderizarCards(lotes) {
+  const grid = document.getElementById('gridLotes');
+  document.getElementById('labelContagem').textContent =
+    lotes.length + ' lote' + (lotes.length !== 1 ? 's' : '');
+
+  if (!lotes.length) {
+    grid.innerHTML = `
+      <div class="col-12">
+        <div class="empty-state">
+          <i class="fas fa-layer-group d-block"></i>
+          <h5 class="fw-bold text-muted">Nenhum lote encontrado</h5>
+          ${statusAtivo === 'Pendente' ?
+            '<p class="small">Para gerar lotes, acesse <strong>Registrar Avarias</strong> e clique em <strong>📦 Gerar Lote de Validação</strong>.</p>' :
+            '<p class="small">Tente outro filtro de status ou período.</p>'
+          }
+          ${statusAtivo === 'Pendente' ?
+            '<a href="{{ safe_url_for("wms.registrar_avarias") }}" class="btn btn-primary btn-sm mt-2"><i class="fas fa-arrow-left me-1"></i>Ir para Registrar Avarias</a>' :
+            ''
+          }
+        </div>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = '<div class="row g-3">' + lotes.map(lote => cardHtml(lote)).join('') + '</div>';
+}
+
+function cardHtml(lote) {
+  const status   = (lote.status || 'Pendente').toLowerCase();
+  const qtd      = parseInt(lote.qtd_itens || 0);
+  const validado = lote.data_validacao ? lote.data_validacao.substring(0, 10) : null;
+
+  // Preview do 1º item (auto-lote etiqueta inicial ou lote manual)
+  let preview = {};
+  try { preview = JSON.parse(lote.preview_json || '{}'); } catch (_) {}
+
+  // Fallback: se preview_json vier vazio (lote antigo), exibe traço — tudo normal
+  // Os dados reais estarão disponíveis ao abrir o modal via regs[0]
+
+  const titulo     = (lote.titulo || '').trim();
+  const descrlocal = lote.descrlocal || '—';
+
+  // Cabeçalho: título manual (lote etiqueta final) OU local (auto-lote etiqueta inicial)
+  const cabecalhoHtml = titulo
+    ? `<div class="fw-bold card-title-text" style="font-size:.9rem">
+         <i class="fas fa-tag me-1 text-warning"></i>${titulo}
+       </div>
+       <div class="card-info-row">
+         <i class="fas fa-warehouse me-1"></i>${lote.codlocal} — ${descrlocal}
+       </div>`
+    : `<div class="fw-bold card-title-text" style="font-size:.9rem">
+         <i class="fas fa-warehouse me-1 text-primary"></i>${lote.codlocal}
+       </div>
+       <div class="card-info-row">${descrlocal}</div>`;
+
+  // Produto — 1ª linha + "…" se houver mais
+  const descrprod = preview.descrprod || '—';
+  const descrprodCurta = descrprod.length > 40 ? descrprod.substring(0, 37) + '…' : descrprod;
+  const maisItens = qtd > 1 ? ` <span class="text-muted" style="font-size:.68rem">+${qtd - 1} ${qtd - 1 === 1 ? 'item' : 'itens'}</span>` : '';
+
+  // Locais (apenas código em destaque)
+  const locOrig = preview.codlocal_origem || '—';
+  const locDest = lote.codlocal || '—';
+
+  // Notas de venda e devolução
+  const nfVenda = preview.numnota_venda     || '—';
+  const nfDevol = preview.numnota_devolucao || '—';
+
+  const qtdPill = qtd > 0
+    ? `<span class="prod-pill"><i class="fas fa-box me-1"></i>${qtd} movimentaç${qtd === 1 ? 'ão' : 'ões'}</span>`
+    : '';
+
+  const badgeHtml  = `<span class="badge rounded-pill badge-status-${status} fw-normal">${statusLabel(status)}</span>`;
+  const isAutoLote = preview.is_auto === true;
+
+  // NF já vinculada (salva) mas validação técnica ainda não executada —
+  // acontece quando o operador usa "Salvar NF (sem validar)" antes da entrada física.
+  const nfJaVinculada = !!(lote.numnota_erp || '').trim() && ['pendente', 'fechado'].includes(status);
+
+  // Regras de negócio:
+  // • Auto-lote  (triagem): valida de Pendente diretamente
+  // • Lote final (manual) : precisa ser Fechado antes de validar
+  // • Inconsistente        : pode ser revalidado (ex.: saldo do ERP se regularizou,
+  //   ou a lógica de validação foi corrigida) — ambos os tipos de lote
+  const podeValidar   = isAutoLote ? status === 'pendente' : status === 'fechado';
+  const podeFechaR    = !isAutoLote && status === 'pendente';
+  const podeIgnorar   = status === 'pendente' || status === 'fechado';
+  const podeRevalidar = status === 'inconsistente';
+
+  let botoesHtml;
+  if (podeValidar) {
+    botoesHtml =
+      `<button class="btn btn-success btn-sm flex-grow-1" onclick="abrirModalLote('${lote.id_lote}')">
+         <i class="fas fa-check-circle me-1"></i>Validar
+       </button>
+       ${podeIgnorar ? `<button class="btn btn-outline-danger btn-sm" onclick="ignorarLoteRapido('${lote.id_lote}')" title="Ignorar"><i class="fas fa-ban"></i></button>` : ''}`;
+  } else if (podeFechaR) {
+    botoesHtml =
+      `<button class="btn btn-info btn-sm flex-grow-1" onclick="abrirModalLote('${lote.id_lote}')"
+               title="Ver itens e fechar o lote para liberar a validação">
+         <i class="fas fa-lock me-1"></i>Fechar Lote
+       </button>
+       <button class="btn btn-outline-danger btn-sm" onclick="ignorarLoteRapido('${lote.id_lote}')" title="Ignorar"><i class="fas fa-ban"></i></button>`;
+  } else if (podeRevalidar) {
+    botoesHtml =
+      `<button class="btn btn-warning btn-sm flex-grow-1" onclick="abrirModalLote('${lote.id_lote}')"
+               title="Rodar a validação técnica de novo (ex.: saldo do ERP se regularizou)">
+         <i class="fas fa-redo me-1"></i>Revalidar
+       </button>`;
+  } else {
+    botoesHtml =
+      `<button class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="abrirModalLote('${lote.id_lote}')">
+         <i class="fas fa-eye me-1"></i>Ver Detalhes
+       </button>`;
+  }
+
+  return `
+    <div class="col-md-6 col-lg-4" id="card-${lote.id_lote}">
+      <div class="card lote-card ${status} h-100">
+        <div class="card-body pb-2">
+
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div style="min-width:0;flex:1">${cabecalhoHtml}</div>
+            <div class="ms-2 flex-shrink-0">${badgeHtml}</div>
+          </div>
+
+          <div class="mb-2">${qtdPill}</div>
+
+          <!-- Produto (1ª linha + reticências) -->
+          <div class="d-flex align-items-start gap-1 mb-1 card-info-row">
+            <i class="fas fa-cube text-muted mt-1" style="font-size:.68rem;flex-shrink:0"></i>
+            <span title="${descrprod}">${descrprodCurta}${maisItens}</span>
+          </div>
+
+          <!-- Locais origem → destino -->
+          <div class="d-flex align-items-center gap-1 mb-1 card-info-row">
+            <span class="badge bg-secondary" style="font-size:.7rem">${locOrig}</span>
+            <i class="fas fa-arrow-right text-muted" style="font-size:.6rem"></i>
+            <span class="badge bg-primary" style="font-size:.7rem">${locDest}</span>
+          </div>
+
+          <!-- Notas de venda e devolução -->
+          <div class="d-flex gap-3 mt-1 card-info-row">
+            <span><i class="fas fa-file-invoice me-1 text-muted"></i>Venda: <strong>${nfVenda}</strong></span>
+            <span><i class="fas fa-undo me-1 text-muted"></i>Devol: <strong>${nfDevol}</strong></span>
+          </div>
+
+          ${nfJaVinculada
+            ? `<div class="mt-1" style="font-size:.7rem">
+                 <span class="badge bg-info text-dark">
+                   <i class="fas fa-paperclip me-1"></i>NF ${lote.numnota_erp} vinculada — aguardando validação
+                 </span>
+               </div>`
+            : ''}
+
+          ${validado
+            ? `<div class="text-success mt-1" style="font-size:.7rem">
+                 <i class="fas fa-check-circle me-1"></i>Validado em ${validado}
+               </div>`
+            : ''}
+        </div>
+        <div class="card-footer bg-transparent border-top-0 pt-0 pb-2 px-3">
+          <div class="d-flex gap-2">${botoesHtml}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function statusLabel(s) {
+  return {pendente:'⏳ Pendente', aprovado:'✅ Aprovado', inconsistente:'⚠️ Inconsistente', ignorado:'— Ignorado', fechado:'🔒 Fechado'}[s] || s;
+}
+
+// ============================================================================
+// Modal: Abrir e carregar detalhes
+// ============================================================================
+async function abrirModalLote(idLote) {
+  loteAtual = null;
+
+  // Reset
+  document.getElementById('modalLoteTitulo').textContent = 'Carregando…';
+  document.getElementById('mvLocalInfo').innerHTML       = '<span class="spinner-border spinner-border-sm"></span>';
+  document.getElementById('mvListaProdutos').innerHTML   = '<tr><td colspan="10" class="text-center text-muted small fst-italic py-3">Carregando itens...</td></tr>';
+  document.getElementById('mvQtdItens').textContent      = '…';
+  document.getElementById('mvCodEmp').value              = '';
+  document.getElementById('mvNumnota').value             = '';
+  document.getElementById('mvNunota').value              = '';
+  document.getElementById('mvObservacao').value          = '';
+  document.getElementById('mvSnapCapturaEm').textContent = '';
+  document.getElementById('mvSnapCapturaEm').classList.add('d-none');
+  document.getElementById('painelSugestoesLote').classList.add('d-none');
+  document.getElementById('painelResultadoLote').classList.add('d-none');
+  document.getElementById('btnExecutarLote').classList.remove('d-none');
+  document.getElementById('btnFecharLote').classList.add('d-none');
+  document.getElementById('btnSalvarNfLote').classList.add('d-none');
+  document.getElementById('btnSalvarNfLote').disabled = false;
+  document.getElementById('btnSalvarNfLote').innerHTML = '<i class="fas fa-save me-1"></i>Salvar NF (sem validar)';
+  const btnSync = document.getElementById('btnSyncLocalizacao');
+  btnSync.classList.add('d-none');
+  btnSync.disabled = false;
+  btnSync.className = 'btn btn-outline-secondary d-none';
+  btnSync.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>Sincronizar Localização';
+  document.getElementById('mvSnapLoader').classList.remove('d-none');
+  // Reset aviso e seção NF (serão reconfigurados após carregar o lote)
+  document.getElementById('avisoNfBloqueada').classList.add('d-none');
+  document.getElementById('secaoNF').classList.remove('d-none');
+  // Reset lista de NFs múltiplas
+  _nfsSelecionadas.length = 0;
+  _renderNFsSelecionadas();
+
+  modalInst.show();
+
+  try {
+    const r = await fetch('/wms/validacao-estoque/api/lote/' + idLote);
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Erro ao carregar lote');
+
+    loteAtual = d;
+    const lote = d.lote;
+    const regs = d.registros || [];
+
+    // Título do modal
+    const tituloModal = lote.titulo
+      ? lote.titulo + ' — ' + lote.codlocal
+      : 'Lote ' + lote.id_lote + ' — Local ' + lote.codlocal;
+    document.getElementById('modalLoteTitulo').textContent = tituloModal;
+
+    // Preview do lote para preencher locais e notas
+    let lotePreview = {};
+    try { lotePreview = JSON.parse(lote.preview_json || '{}'); } catch (_) {}
+
+    // Fallback: se preview_json não tiver os locais (lote criado antes da versão atual),
+    // usa os dados do primeiro registro de validação
+    const reg0 = regs[0] || {};
+    const locOrigCod  = lotePreview.codlocal_origem    || reg0.codlocal_origem    || '—';
+    const locOrigDescr= lotePreview.descr_local_origem || reg0.descr_local_origem || '';
+    const locDestCod  = lote.codlocal                  || '—';
+    const locDestDescr= lote.descrlocal                || '';
+    const nfVenda     = lotePreview.numnota_venda      || reg0.numnota_venda      || '—';
+    const nfDevol     = lotePreview.numnota_devolucao  || reg0.numnota_devolucao  || '—';
+
+    document.getElementById('mvLocalInfo').innerHTML = `
+      <div class="row g-2 align-items-start mb-2">
+        <div class="col">
+          <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted-color,var(--bs-secondary-color,#6c757d))">Local Origem</div>
+          <div class="fw-bold" style="font-size:1.15rem;letter-spacing:.02em;color:var(--text-color,inherit)">${locOrigCod}</div>
+          ${locOrigDescr ? `<div class="text-muted small">${locOrigDescr}</div>` : ''}
+        </div>
+        <div class="col-auto d-flex align-items-center" style="padding-top:1.1rem">
+          <i class="fas fa-arrow-right text-muted fs-5"></i>
+        </div>
+        <div class="col">
+          <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted-color,var(--bs-secondary-color,#6c757d))">Local Destino</div>
+          <div class="fw-bold" style="font-size:1.15rem;letter-spacing:.02em;color:var(--text-color,inherit)">${locDestCod}</div>
+          ${locDestDescr ? `<div class="text-muted small">${locDestDescr}</div>` : ''}
+        </div>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col">
+          <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted-color,var(--bs-secondary-color,#6c757d))">ID do Lote</div>
+          <div class="fw-semibold" style="font-size:1rem;color:var(--text-color,inherit)">${lote.id_lote || '—'}</div>
+        </div>
+      </div>`;
+
+    // Botões de ação: mesmas regras do card
+    // • Auto-lote  → valida de Pendente; nunca exibe Fechar
+    // • Lote final → exibe Fechar quando Pendente; valida só quando Fechado
+    // • Inconsistente → pode ser revalidado (ambos os tipos), reaproveitando o
+    //   mesmo botão "Executar Validação"
+    const loteStatus      = (lote.status || '').toLowerCase();
+    const isAutoModal     = lotePreview.is_auto === true;
+    const podeValidarMod  = isAutoModal
+      ? ['pendente', 'inconsistente'].includes(loteStatus)
+      : ['fechado', 'inconsistente'].includes(loteStatus);
+    const podeFecharMod   = !isAutoModal && loteStatus === 'pendente';
+    // NF pode ser vinculada/salva em Pendente, Fechado ou Inconsistente (pra
+    // corrigir antes de revalidar) — só não faz mais sentido depois que o lote
+    // já foi aprovado ou ignorado.
+    const podeSalvarNfMod = ['pendente', 'fechado', 'inconsistente'].includes(loteStatus);
+    document.getElementById('btnExecutarLote').classList.toggle('d-none', !podeValidarMod);
+    document.getElementById('btnFecharLoteAcao').classList.toggle('d-none', !podeFecharMod);
+    document.getElementById('btnSalvarNfLote').classList.toggle('d-none', !podeSalvarNfMod);
+    // Mostrar botão de sync localização apenas para lotes já aprovados
+    document.getElementById('btnSyncLocalizacao').classList.toggle('d-none', loteStatus !== 'aprovado');
+
+    // A seção de NF fica sempre visível: o vínculo da NF (Salvar NF) pode ser
+    // feito com o lote ainda Pendente, antes da entrada física. Só a execução
+    // da validação técnica (Executar Validação) exige o lote Fechado.
+    document.getElementById('avisoNfBloqueada').classList.toggle('d-none', !podeFecharMod);
+    document.getElementById('secaoNF').classList.remove('d-none');
+
+    // Pré-preencher CODEMP e NFs já validadas se existirem no lote
+    if (lote.codemp) document.getElementById('mvCodEmp').value = lote.codemp;
+    if (lote.numnota_erp) {
+      // Restaurar NFs múltiplas salvas se houver, senão usar a única
+      let numnotasSalvas = [];
+      try { numnotasSalvas = JSON.parse(lote.numnotas_json || '[]'); } catch (_) {}
+      if (numnotasSalvas.length) {
+        numnotasSalvas.forEach(n => _nfsSelecionadas.push(n));
+      } else {
+        _nfsSelecionadas.push({ numnota: lote.numnota_erp, nunota: lote.nunota_erp || '' });
+      }
+      _renderNFsSelecionadas();
+    }
+
+    // Lista de itens — todos os registros do lote com scroll
+    document.getElementById('mvQtdItens').textContent = regs.length;
+    if (regs.length === 0) {
+      document.getElementById('mvListaProdutos').innerHTML =
+        '<tr><td colspan="10" class="text-center text-muted small fst-italic py-3">Nenhum item encontrado.</td></tr>';
+    } else {
+      let nfsExibir = _nfsSelecionadas.map(n => n.numnota).join(', ') || lote.numnota_erp || '—';
+
+      const itensHtml = regs.map((reg, idx) => {
+        const descrFull  = reg.descrprod || '';
+        const descrCurta = descrFull.length > 45 ? descrFull.substring(0, 42) + '\u2026' : descrFull || '\u2014';
+        
+        let snapAntes = {};
+        try { snapAntes = JSON.parse(reg.snapshot_antes_json || '{}'); } catch(e) {}
+        const saldos  = snapAntes.saldos || {};
+        const locDest = String(reg.codlocal_destino || '').trim();
+        const qtdTriagem = saldos[locDest] !== undefined ? Number(saldos[locDest]) : 0;
+        const semSaldo = qtdTriagem === 0;
+        const qtdTriagemLabel = semSaldo
+          ? `<span class="badge bg-danger">0 <small>(sem saldo)</small></span>`
+          : `<span class="badge bg-success">${qtdTriagem.toFixed(2)}</span>`;
+
+        return `
+          <tr id="row-prod-${reg.codprod}">
+            <td>${reg.numnota_venda || '—'}</td>
+            <td>${reg.numnota_devolucao || '—'}</td>
+            <td>${reg.codparc || '—'}</td>
+            <td><code>${reg.codprod || '\u2014'}</code></td>
+            <td title="${descrFull}">
+              <span class="d-inline-block text-truncate" style="max-width: 250px; font-size:.82rem;">${descrCurta}</span>
+              ${reg.avaria_id ? `<br><small class="text-muted"><i class="fas fa-tag me-1"></i>${reg.avaria_id}</small>` : ''}
+            </td>
+            <td class="text-center">${parseFloat(reg.quantidade || 0).toFixed(0)} un</td>
+            <td class="text-center"><span class="badge bg-primary px-2 py-1">${reg.codlocal_destino || '\u2014'}</span></td>
+            <td class="text-center">${qtdTriagemLabel}</td>
+            <td class="text-center td-saldo-validacao"><span class="text-muted fst-italic small">Aguardando...</span></td>
+            <td class="text-center td-nf-vinculada"><span class="badge bg-secondary">${nfsExibir}</span></td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('mvListaProdutos').innerHTML = itensHtml;
+
+      let captEm = '';
+      for (const reg of regs) {
+         let snapAntes = {};
+         try { snapAntes = JSON.parse(reg.snapshot_antes_json || '{}'); } catch(e) {}
+         if (snapAntes.meta && snapAntes.meta.capturado_em) {
+             captEm = snapAntes.meta.capturado_em;
+             break;
+         }
+      }
+      if (captEm) {
+         const elCaptura = document.getElementById('mvSnapCapturaEm');
+         elCaptura.textContent = 'Snapshot: ' + captEm;
+         elCaptura.classList.remove('d-none');
+      }
+    }
+
+  } catch(e) {
+    document.getElementById('mvLocalInfo').innerHTML =
+      '<div class="text-danger small"><i class="fas fa-exclamation-circle me-1"></i>' + traduzirErroTecnico(e.message) + '</div>';
+  } finally {
+    document.getElementById('mvSnapLoader').classList.add('d-none');
+  }
+}
+
+function exportarTabelaItensParaExcel() {
+    let table = document.getElementById("tabelaItensLote");
+    let rows = table.querySelectorAll("tr");
+    let csv = [];
+    for (let i = 0; i < rows.length; i++) {
+        let row = [], cols = rows[i].querySelectorAll("td, th");
+        for (let j = 0; j < cols.length; j++) {
+            let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").trim();
+            data = data.replace(/"/g, '""');
+            row.push('"' + data + '"');
+        }
+        csv.push(row.join(";"));
+    }
+    let csvString = csv.join("\n");
+    let blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+    let link = document.createElement("a");
+    let url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Itens_Lote.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// ============================================================================
+// Sugestões de NF
+// ============================================================================
+async function buscarSugestoesLote() {
+  if (!loteAtual) return;
+
+  const painel = document.getElementById('painelSugestoesLote');
+  const lista  = document.getElementById('listaSugestoesLote');
+  const regs   = loteAtual.registros || [];
+
+  if (!regs.length) {
+    alert('Nenhum registro no lote para buscar sugestão.');
+    return;
+  }
+
+  lista.innerHTML = '<div class="list-group-item"><span class="spinner-border spinner-border-sm me-2"></span>Buscando…</div>';
+  painel.classList.remove('d-none');
+
+  try {
+    const primReg = regs[0];
+    const codemp = document.getElementById('mvCodEmp').value.trim() || loteAtual.lote.codemp || '';
+    const codlocalDestino = primReg.codlocal_destino || loteAtual.lote.codlocal_destino || loteAtual.lote.codlocal || '';
+    // Inclui codlocal_destino do lote para filtrar apenas NFs que movimentam
+    // o produto para o local correto (CODVOL = codlocal_destino em TGFITE).
+    const params = new URLSearchParams({
+      codprod:          primReg.codprod        || '',
+      data_movimento:   primReg.data_movimento || '',
+      codlocal_destino: codlocalDestino,
+      codemp:           codemp
+    });
+
+    const r = await fetch('/wms/validacao-estoque/api/sugestoes-nf?' + params);
+    const d = await r.json();
+
+    if (!d.success || !d.sugestoes || !d.sugestoes.length) {
+      lista.innerHTML =
+        '<div class="list-group-item text-muted small fst-italic">Nenhuma NF de transferência encontrada no período.</div>';
+      return;
+    }
+
+    lista.innerHTML = d.sugestoes.slice(0, 5).map(s => `
+      <button class="list-group-item list-group-item-action py-1 small"
+              onclick="selecionarNFLote('${s.numnota}','${s.nunota}')">
+        <strong>NF ${s.numnota}</strong>
+        ${s.nunota   ? '<span class="text-muted ms-1">(NUNOTA: ' + s.nunota + ')</span>'   : ''}
+        ${s.dtneg    ? '<span class="text-muted ms-1 float-end">'  + s.dtneg  + '</span>'  : ''}
+      </button>`).join('');
+
+  } catch(e) {
+    lista.innerHTML =
+      '<div class="list-group-item text-danger small">' + traduzirErroTecnico(e.message) + '</div>';
+  }
+}
+
+// ============================================================================
+// NFs múltiplas
+// ============================================================================
+const _nfsSelecionadas = [];   // [{numnota, nunota}, ...]
+
+function adicionarNFLote() {
+  const numnota = document.getElementById('mvNumnota').value.trim();
+  const nunota  = document.getElementById('mvNunota').value.trim();
+  if (!numnota) { alert('Informe o número da NF.'); return; }
+  if (_nfsSelecionadas.some(n => n.numnota === numnota)) {
+    alert('Essa NF já foi adicionada.'); return;
+  }
+  _nfsSelecionadas.push({ numnota, nunota });
+  document.getElementById('mvNumnota').value = '';
+  document.getElementById('mvNunota').value  = '';
+  _renderNFsSelecionadas();
+}
+
+function removerNFLote(numnota) {
+  const idx = _nfsSelecionadas.findIndex(n => n.numnota === numnota);
+  if (idx >= 0) _nfsSelecionadas.splice(idx, 1);
+  _renderNFsSelecionadas();
+}
+
+function _renderNFsSelecionadas() {
+  const el    = document.getElementById('listaNFsSelecionadas');
+  const vazio = document.getElementById('nfsVazio');
+  if (!_nfsSelecionadas.length) {
+    el.innerHTML = '';
+    if (vazio) { vazio.style.display = ''; el.appendChild(vazio); }
+    return;
+  }
+  if (vazio) vazio.style.display = 'none';
+  el.innerHTML = _nfsSelecionadas.map(n => `
+    <span class="badge bg-primary d-inline-flex align-items-center gap-1" style="font-size:.78rem">
+      NF ${n.numnota}${n.nunota ? ' ('+n.nunota+')' : ''}
+      <button type="button" class="btn-close btn-close-white ms-1"
+              style="font-size:.5rem;padding:0" onclick="removerNFLote('${n.numnota}')"></button>
+    </span>`).join('');
+}
+
+function selecionarNFLote(numnota, nunota) {
+  document.getElementById('mvNumnota').value = numnota;
+  document.getElementById('mvNunota').value  = nunota || '';
+  document.getElementById('painelSugestoesLote').classList.add('d-none');
+  adicionarNFLote();
+}
+
+// ============================================================================
+// Executar validação do lote
+// ============================================================================
+async function executarValidacaoLote() {
+  if (!loteAtual) return;
+
+  const idLote  = loteAtual.lote.id_lote;
+  const codemp  = document.getElementById('mvCodEmp').value.trim();
+  const obs     = document.getElementById('mvObservacao').value.trim();
+
+  // Usar lista de NFs múltiplas; fallback para campos diretos se lista vazia
+  let numnotas = [..._nfsSelecionadas];
+  let nfAvulsa = document.getElementById('mvNumnota').value.trim();
+  let nunotaAvulsa = document.getElementById('mvNunota').value.trim();
+  
+  if (!numnotas.length && nfAvulsa) {
+    numnotas = [{ numnota: nfAvulsa, nunota: nunotaAvulsa }];
+  }
+
+  // Tentar buscar sugestão automaticamente se não houver NF informada
+  if (numnotas.length === 0 && loteAtual && loteAtual.registros && loteAtual.registros.length > 0) {
+    const primReg = loteAtual.registros[0];
+    const codempBusca = codemp || loteAtual.lote.codemp || '';
+    const codlocalDestino = primReg.codlocal_destino || loteAtual.lote.codlocal_destino || loteAtual.lote.codlocal || '';
+    const params = new URLSearchParams({
+      codprod:          primReg.codprod        || '',
+      data_movimento:   primReg.data_movimento || '',
+      codlocal_destino: codlocalDestino,
+      codemp:           codempBusca
+    });
+    try {
+      const rBusca = await fetch('/wms/validacao-estoque/api/sugestoes-nf?' + params);
+      const dBusca = await rBusca.json();
+      if (dBusca.success && dBusca.sugestoes && dBusca.sugestoes.length > 0) {
+        numnotas = [{ numnota: dBusca.sugestoes[0].numnota, nunota: dBusca.sugestoes[0].nunota || '' }];
+      }
+    } catch(e) {
+      console.warn('Falha na busca automática de NF', e);
+    }
+  }
+  
+  if (numnotas.length === 0) {
+    alert("É obrigatório inserir pelo menos uma nota de transferência válida para executar a validação (e nenhuma foi encontrada automaticamente).");
+    return;
+  }
+
+  const numnota = numnotas[0]?.numnota || '';
+  const nunota  = numnotas[0]?.nunota  || '';
+
+  const btn = document.getElementById('btnExecutarLote');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Validando…';
+
+  const painel     = document.getElementById('painelResultadoLote');
+  const resumo     = document.getElementById('resumoResultadoLote');
+  const tabelaBody = document.getElementById('tabelaResultadoLote');
+
+  try {
+    const r = await fetch('/wms/validacao-estoque/api/validar-lote', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({
+        id_lote:     idLote,
+        codemp:      codemp,
+        numnota_erp: numnota,
+        nunota_erp:  nunota,
+        observacao:  obs,
+        numnotas:    numnotas,
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Erro na validação');
+
+    const aprovado = d.status_lote === 'Aprovado';
+
+    resumo.className = 'alert mb-2 ' + (aprovado ? 'alert-success' : 'alert-danger');
+    resumo.innerHTML = (aprovado
+      ? '<i class="fas fa-check-circle me-2"></i><strong>Aprovado!</strong>'
+      : '<i class="fas fa-exclamation-triangle me-2"></i><strong>Inconsistente</strong>') +
+      ` — ${d.processados}/${d.total} ${d.total === 1 ? 'item processado' : 'itens processados'}.` +
+      (d.erros && d.erros.length ? ` <span class="text-danger">${d.erros.length} erro(s).</span>` : '');
+
+    tabelaBody.innerHTML = (d.erros || []).map(e =>
+      `<tr class="table-danger"><td colspan="6" class="small">⚠️ ${e.id}: ${e.erro}</td></tr>`
+    ).join('');
+
+    painel.classList.remove('d-none');
+    btn.classList.add('d-none');
+    document.getElementById('btnFecharLote').classList.remove('d-none');
+    if (aprovado) document.getElementById('btnSyncLocalizacao').classList.remove('d-none');
+
+    // Atualizar snapshot pós-validação na tabela
+    try {
+      const rSnap = await fetch(`/wms/validacao-estoque/api/lote/${encodeURIComponent(idLote)}`);
+      const dSnap = await rSnap.json();
+      
+      let nfsExibir = numnotas.map(n => n.numnota).join(', ') || nfAvulsa || '—';
+      
+      if (dSnap.success && dSnap.snapshot_atual) {
+        const prods = dSnap.snapshot_atual.produtos || [];
+        prods.forEach(p => {
+          const tr = document.getElementById('row-prod-' + p.codprod);
+          if (tr) {
+            const tdSaldo = tr.querySelector('.td-saldo-validacao');
+            const tdNf = tr.querySelector('.td-nf-vinculada');
+            if (tdSaldo) tdSaldo.innerHTML = `<span class="badge bg-success">${parseFloat(p.qtd || 0).toFixed(2)}</span>`;
+            if (tdNf) tdNf.innerHTML = `<span class="badge bg-secondary">${nfsExibir}</span>`;
+          }
+        });
+      }
+    } catch(eSnap) {
+      console.error('Erro ao capturar snapshot pós-validação', eSnap);
+    }
+
+    recarregar();
+    carregarEstatisticas();
+
+  } catch(e) {
+    // Ponto 10: erros claros para o usuário (sem alert nativo)
+    let msgErro = e.message || 'Erro desconhecido';
+    if (/ERP|Sankhya|timeout|connect/i.test(msgErro)) {
+      msgErro = 'Não foi possível conectar ao ERP (Sankhya). Verifique a integração e tente novamente.';
+    } else if (/codemp|empresa/i.test(msgErro)) {
+      msgErro = 'Código de empresa inválido. Verifique o CODEMP informado.';
+    } else if (/lote/i.test(msgErro)) {
+      msgErro = 'Lote não encontrado ou já validado. Recarregue a página e tente novamente.';
+    }
+    resumo.className = 'alert mb-2 alert-danger';
+    resumo.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i><strong>Erro ao executar validação:</strong> ${msgErro}`;
+    painel.classList.remove('d-none');
+    // Ponto 10: restaurar botão para permitir nova tentativa sem recarregar
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Executar Validação';
+  }
+}
+
+// ============================================================================
+// Salvar NF vinculada ao lote — sem executar a validação técnica.
+// Permite registrar a NF assim que ela é emitida; a validação em si só é
+// executada depois, quando a entrada física no local de destino é confirmada.
+// ============================================================================
+async function salvarNfLote() {
+  if (!loteAtual) return;
+
+  const idLote = loteAtual.lote.id_lote;
+  const codemp = document.getElementById('mvCodEmp').value.trim();
+  const obs    = document.getElementById('mvObservacao').value.trim();
+
+  // Usar lista de NFs múltiplas; incluir NF avulsa ainda não adicionada, se houver
+  let numnotas = [..._nfsSelecionadas];
+  const nfAvulsa    = document.getElementById('mvNumnota').value.trim();
+  const nunotaAvulsa = document.getElementById('mvNunota').value.trim();
+  if (nfAvulsa && !numnotas.some(n => n.numnota === nfAvulsa)) {
+    numnotas.push({ numnota: nfAvulsa, nunota: nunotaAvulsa });
+  }
+
+  if (!numnotas.length) {
+    alert('Informe ao menos uma NF para salvar.');
+    return;
+  }
+
+  const btn = document.getElementById('btnSalvarNfLote');
+  const htmlOriginal = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando…';
+
+  try {
+    const r = await fetch('/wms/validacao-estoque/api/vincular-nf-lote', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({
+        id_lote:     idLote,
+        numnota_erp: numnotas[0]?.numnota || '',
+        nunota_erp:  numnotas[0]?.nunota  || '',
+        codemp:      codemp,
+        observacao:  obs,
+        numnotas:    numnotas,
+      }),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Erro ao salvar NF');
+
+    // Refletir localmente: NF fica vinculada ao lote sem que a validação seja executada
+    _nfsSelecionadas.length = 0;
+    numnotas.forEach(n => _nfsSelecionadas.push(n));
+    _renderNFsSelecionadas();
+    document.getElementById('mvNumnota').value = '';
+    document.getElementById('mvNunota').value  = '';
+    if (loteAtual.lote) {
+      loteAtual.lote.numnota_erp   = numnotas[0]?.numnota || '';
+      loteAtual.lote.nunota_erp    = numnotas[0]?.nunota  || '';
+      loteAtual.lote.numnotas_json = JSON.stringify(numnotas);
+    }
+    const nfsExibir = numnotas.map(n => n.numnota).join(', ');
+    document.querySelectorAll('#mvListaProdutos .td-nf-vinculada').forEach(td => {
+      td.innerHTML = `<span class="badge bg-secondary">${nfsExibir}</span>`;
+    });
+
+    await _alertaCritico(
+      'NF vinculada',
+      `NF ${nfsExibir} vinculada ao lote <code>${idLote}</code>.<br>
+       <span class="text-muted small">A validação técnica ainda não foi executada — ela poderá
+       ser feita depois, quando a entrada física no local de destino for confirmada.</span>`
+    );
+
+    recarregar();
+  } catch(e) {
+    await _alertaCritico('Erro ao salvar NF', traduzirErroTecnico(e.message));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = htmlOriginal;
+  }
+}
+
+// ============================================================================
+// Sincronizar localização — reaplica codlocal em Itens_Avarias para lote aprovado
+// ============================================================================
+async function syncLocalizacaoLote() {
+  if (!loteAtual) return;
+  const idLote = loteAtual.lote.id_lote;
+  const btn = document.getElementById('btnSyncLocalizacao');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sincronizando…';
+  try {
+    const r = await fetch('/wms/validacao-estoque/api/sync-localizacao-lote', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id_lote: idLote}),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Erro ao sincronizar');
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>Localização Sincronizada';
+    btn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>Sincronizar Localização';
+    await _alertaCritico('Erro', traduzirErroTecnico(e.message));
+  }
+}
+
+// ============================================================================
+// Ignorar lote — Ponto 11: confirmação customizada (não usa confirm() nativo)
+// ============================================================================
+
+// Entrada pelo botão do modal de validação
+async function confirmarIgnorarLote() {
+  if (!loteAtual) return;
+  const id    = loteAtual.lote.id_lote;
+  const local = loteAtual.lote.descrlocal || loteAtual.lote.codlocal || id;
+  const ok = await _confirmarAcaoCritica(
+    'Ignorar Lote',
+    `Tem certeza que deseja <strong>ignorar</strong> o lote <code>${id}</code>?<br>
+     <span class="text-muted small">Local: ${local}</span><br><br>
+     O lote será marcado como <strong class="text-danger">Ignorado</strong> sem validação técnica.`,
+    'Sim, Ignorar',
+    'Cancelar'
+  );
+  if (!ok) return;
+  await _ignorarLote(id);
+  bootstrap.Modal.getInstance(document.getElementById('modalValidarLote')).hide();
+}
+
+// ============================================================================
+// Fechar lote — fecha fisicamente sem validação técnica no ERP
+// ============================================================================
+
+async function confirmarFecharLote() {
+  if (!loteAtual) return;
+  const id    = loteAtual.lote.id_lote;
+  const local = loteAtual.lote.descrlocal || loteAtual.lote.codlocal || id;
+  const ok = await _confirmarAcaoCritica(
+    'Fechar Lote',
+    `Confirma o <strong>fechamento</strong> do lote <code>${id}</code>?<br>
+     <span class="text-muted small">Local: ${local}</span><br><br>
+     Após fechado, o lote ficará <strong class="text-success">disponível para validação</strong>.`,
+    'Sim, Fechar',
+    'Cancelar'
+  );
+  if (!ok) return;
+  await _fecharLote(id);
+  bootstrap.Modal.getInstance(document.getElementById('modalValidarLote')).hide();
+}
+
+async function fecharLoteRapido(idLote) {
+  const ok = await _confirmarAcaoCritica(
+    'Fechar Lote',
+    `Confirma o fechamento físico do lote <code>${idLote}</code> sem validação técnica?`,
+    'Sim, Fechar',
+    'Cancelar'
+  );
+  if (!ok) return;
+  await _fecharLote(idLote);
+}
+
+async function _fecharLote(idLote) {
+  try {
+    const r = await fetch('/wms/validacao-estoque/api/fechar-lote', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ id_lote: idLote }),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error);
+    recarregar();
+    carregarEstatisticas();
+  } catch(e) {
+    await _alertaCritico('Erro ao fechar lote', traduzirErroTecnico(e.message));
+  }
+}
+
+// Entrada pelo botão rápido no card
+async function ignorarLoteRapido(idLote) {
+  const ok = await _confirmarAcaoCritica(
+    'Ignorar Lote',
+    `Tem certeza que deseja ignorar o lote <code>${idLote}</code> sem validação técnica?`,
+    'Sim, Ignorar',
+    'Cancelar'
+  );
+  if (!ok) return;
+  await _ignorarLote(idLote);
+}
+
+async function _ignorarLote(idLote) {
+  try {
+    const r = await fetch('/wms/validacao-estoque/api/ignorar-lote', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({ id_lote: idLote }),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error);
+    recarregar();
+    carregarEstatisticas();
+  } catch(e) {
+    await _alertaCritico('Erro ao ignorar', traduzirErroTecnico(e.message));
+  }
+}
+
+// _confirmarAcaoCritica() agora vem de static/js/ui-helpers.js (compartilhado com outras telas).
+</script>
+{% endblock %}

@@ -1,0 +1,274 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block tab_content %}
+<div class="alert alert-info border-0 py-2 mb-3">
+    <i class="fas fa-info-circle me-2"></i>
+    Configurações salvas para a empresa <strong>{{ empresa }}</strong>.
+    Alterações têm efeito imediato após salvar.
+</div>
+
+<form id="formConfigGeral">
+{% for secao in secoes %}
+<div class="param-card mb-4">
+    <div class="param-card-header">
+        <h5><i class="{{ secao.icone }} me-2 text-success"></i>{{ secao.titulo }}</h5>
+        {# Botão de teste SMTP apenas na seção de email #}
+        {% if secao.id == 'email' %}
+        <button type="button" class="btn btn-outline-info btn-sm" onclick="testarSMTP()">
+            <i class="fas fa-plug me-1"></i>Testar Conexão SMTP
+        </button>
+        {% endif %}
+    </div>
+    <div class="param-card-body">
+
+        {# ── Avisos explicativos por seção ── #}
+        {% if secao.id == 'email' %}
+        <div class="alert alert-secondary border-0 mb-3 py-2" style="font-size:.85rem;">
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Como funciona o envio:</strong>
+            O sistema usa a conta de serviço SMTP abaixo para <em>autenticar</em> no servidor de e-mail.
+            O campo <strong>Remetente padrão WMS</strong> define qual endereço aparece como "De" nas notificações automáticas
+            (cobrança, ASN, alertas). Em ações manuais onde um usuário logado executa uma ação, o remetente
+            pode ser o e-mail do próprio usuário — o servidor Zimbra aceita isso sem precisar da senha de cada usuário
+            (funcionalidade de relay autenticado, porta 587).
+        </div>
+        {% endif %}
+
+        {% if secao.id == 'etiqueta_inicial' %}
+        <div class="alert alert-info border-0 mb-3 py-2" style="font-size:.85rem;">
+            <i class="fas fa-tag me-1"></i>
+            <strong>Como funciona:</strong>
+            Ao receber um ASN, o sistema gera etiquetas iniciais (prefixo <code>00-</code>) para cada item
+            e registra automaticamente uma pendência de validação de estoque no local configurado como
+            <strong>Local padrão de destino</strong> (normalmente <code>696</code>).
+            O campo de exceções permite redirecionar itens com status específicos para locais diferentes.
+        </div>
+        {% endif %}
+
+        {% if secao.id == 'asn_recusado_centena' %}
+        <div class="alert alert-warning border-0 mb-3 py-2" style="font-size:.85rem;">
+            <i class="fas fa-route me-1"></i>
+            <strong>Roteamento por centena:</strong>
+            Quando ativado, itens <strong>recusados no recebimento</strong> do ASN são direcionados para um
+            local calculado automaticamente com base na centena do local de origem.
+            <br>
+            <strong>Exemplos com sufixo 97:</strong>
+            Origem <code>401</code> (centena 4) → destino <code>497</code> &nbsp;|&nbsp;
+            Origem <code>201</code> (centena 2) → destino <code>297</code> &nbsp;|&nbsp;
+            Origem <code>601</code> (centena 6) → destino <code>697</code>.
+            <br>
+            Itens <strong>não recusados</strong> continuam indo para o local padrão (ex: 696).
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+        {% for chave, label, tipo, default in secao.campos %}
+        <div class="{{ 'col-12' if tipo == 'textarea' else 'col-md-6' }}">
+            <label class="form-label fw-semibold">{{ label }}</label>
+            {% set valor_atual = configs.get(chave, default) %}
+
+            {% if tipo == 'textarea' %}
+                <textarea name="{{ chave }}" class="form-control" rows="3">{{ valor_atual }}</textarea>
+
+            {% elif tipo == 'password' %}
+                {# Senha SMTP: nunca exibe o valor real, placeholder indica se está configurada #}
+                <div class="input-group">
+                    <input type="password" name="{{ chave }}" id="inp_{{ chave }}"
+                           class="form-control"
+                           placeholder="{{ '●●●●●● (configurada)' if valor_atual else 'Nova senha SMTP' }}"
+                           autocomplete="new-password">
+                    <button class="btn btn-outline-secondary" type="button"
+                            onclick="toggleSenha('inp_{{ chave }}', this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <small class="text-muted">
+                    {% if valor_atual %}
+                        Senha já configurada. Preencha apenas para alterar.
+                    {% else %}
+                        Senha da conta de serviço SMTP.
+                    {% endif %}
+                </small>
+                {# Campo oculto que guarda o valor atual para não apagar se o usuário deixar em branco #}
+                <input type="hidden" name="{{ chave }}_atual" value="{{ valor_atual }}">
+
+            {% elif tipo.startswith('select:') %}
+                {% set opcoes = tipo[7:].split(',') %}
+                <select name="{{ chave }}" class="form-select">
+                    {% for op in opcoes %}
+                        <option value="{{ op }}" {{ 'selected' if valor_atual == op else '' }}>
+                            {{ op }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+            {% elif tipo == 'number' %}
+                <input type="number" name="{{ chave }}" class="form-control" value="{{ valor_atual }}">
+
+            {% elif tipo == 'email' %}
+                <input type="email" name="{{ chave }}" class="form-control" value="{{ valor_atual }}"
+                       placeholder="email@empresa.com">
+
+            {% else %}
+                <input type="text" name="{{ chave }}" class="form-control" value="{{ valor_atual }}">
+            {% endif %}
+
+            <input type="hidden" data-chave="{{ chave }}" data-default="{{ default }}">
+        </div>
+        {% endfor %}
+        </div>{# /row #}
+    </div>
+</div>
+{% endfor %}
+
+<div class="d-flex justify-content-end gap-2 mt-3 mb-4">
+    <button type="button" class="btn btn-outline-secondary" onclick="restaurarPadroes()">
+        <i class="fas fa-undo me-1"></i>Restaurar Padrões
+    </button>
+    <button type="submit" class="btn btn-success">
+        <i class="fas fa-save me-1"></i>Salvar Todas as Configurações
+    </button>
+</div>
+</form>
+
+{# Modal de resultado do teste SMTP #}
+<div class="modal fade" id="modalTesteSMTP" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plug me-2"></i>Teste de Conexão SMTP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalTesteSMTPBody">
+                <div class="text-center py-3">
+                    <div class="spinner-border text-success" role="status"></div>
+                    <p class="mt-2 mb-0">Testando conexão...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tab_scripts %}
+<script>
+// ── Salvar formulário ────────────────────────────────────────────────────────
+document.getElementById('formConfigGeral').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const payload = {};
+    const inputs  = this.querySelectorAll('input[name], select[name], textarea[name]');
+
+    inputs.forEach(el => {
+        if (!el.name) return;
+
+        // Ignora o campo _atual (auxiliar para senha)
+        if (el.name.endsWith('_atual')) return;
+
+        // Senha: se campo de senha estiver vazio, usa o valor atual salvo
+        if (el.type === 'password' && el.value.trim() === '') {
+            const atualInput = document.querySelector(`input[name="${el.name}_atual"]`);
+            if (atualInput && atualInput.value) {
+                payload[el.name] = atualInput.value;  // preserva senha existente
+                return;
+            }
+            return; // sem senha nova nem anterior → não envia
+        }
+
+        payload[el.name] = el.value;
+    });
+
+    const btn = this.querySelector('[type=submit]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+
+    const res = await paramApi('/wms/parametrizacao/api/config', 'POST', payload);
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Todas as Configurações';
+
+    if (res.success) {
+        showParamToast(`✅ ${res.message || 'Configurações salvas!'}`, 'success');
+    } else {
+        showParamToast(`❌ ${res.error || 'Erro ao salvar'}`, 'danger');
+    }
+});
+
+// ── Mostrar/ocultar senha ────────────────────────────────────────────────────
+function toggleSenha(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        inp.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+// ── Testar SMTP ──────────────────────────────────────────────────────────────
+async function testarSMTP() {
+    // Lê os campos de SMTP do formulário
+    const campos = [
+        'email_smtp_host', 'email_smtp_port', 'email_smtp_usuario',
+        'email_smtp_senha', 'email_smtp_tls', 'email_smtp_ssl'
+    ];
+    const payload = {};
+    campos.forEach(c => {
+        const el = document.querySelector(`[name="${c}"]`);
+        if (!el) return;
+        if (el.type === 'password') {
+            // Se senha digitada, usa ela; senão usa a salva
+            if (el.value.trim()) {
+                payload[c] = el.value;
+            } else {
+                const atual = document.querySelector(`[name="${c}_atual"]`);
+                if (atual) payload[c] = atual.value;
+            }
+        } else {
+            payload[c] = el.value;
+        }
+    });
+
+    // Abre modal de carregamento
+    const modal = new bootstrap.Modal(document.getElementById('modalTesteSMTP'));
+    document.getElementById('modalTesteSMTPBody').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-success" role="status"></div>
+            <p class="mt-2 mb-0">Conectando em <strong>${payload.email_smtp_host || '—'}:${payload.email_smtp_port || '587'}</strong>...</p>
+        </div>`;
+    modal.show();
+
+    try {
+        const res = await paramApi('/wms/parametrizacao/api/email/testar', 'POST', payload);
+        const ok  = res.success;
+        document.getElementById('modalTesteSMTPBody').innerHTML = `
+            <div class="alert ${ok ? 'alert-success' : 'alert-danger'} mb-0">
+                <i class="fas ${ok ? 'fa-check-circle' : 'fa-times-circle'} me-2"></i>
+                ${res.message || res.error || (ok ? 'Conexão bem-sucedida' : 'Falha na conexão')}
+            </div>`;
+    } catch(err) {
+        document.getElementById('modalTesteSMTPBody').innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-times-circle me-2"></i>Erro inesperado: ${err.message}
+            </div>`;
+    }
+}
+
+// ── Restaurar padrões ────────────────────────────────────────────────────────
+function restaurarPadroes() {
+    const hiddens = document.querySelectorAll('input[data-chave]');
+    hiddens.forEach(h => {
+        const chave    = h.dataset.chave;
+        const padrao   = h.dataset.default;
+        const campo    = document.querySelector(`[name="${chave}"]`);
+        if (campo && campo.type !== 'password') campo.value = padrao;
+    });
+    showParamToast('🔄 Padrões restaurados. Clique em Salvar para confirmar.', 'info');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}WMS – Parametrizações{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ═══════════════════════════════════════════════
+   PAINEL DE PARAMETRIZAÇÕES — Design WMS
+   Usa as variáveis de tema já definidas no base.html
+═══════════════════════════════════════════════ */
+
+/* ── Cabeçalho da página ── */
+.param-header {
+    background: linear-gradient(135deg, #0d1f12 0%, #1a2e1e 60%, #0a1a0f 100%);
+    border: 1px solid rgba(40,167,69,.3);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+.param-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+        45deg, transparent, transparent 40px,
+        rgba(40,167,69,.025) 40px, rgba(40,167,69,.025) 41px
+    );
+    pointer-events: none;
+}
+.param-header h2 {
+    color: #28a745;
+    margin: 0;
+    font-size: 1.5rem;
+}
+.param-header p {
+    color: rgba(255,255,255,.6);
+    margin: .4rem 0 0;
+    font-size: .9rem;
+}
+
+/* ── Tabs de navegação ── */
+.param-tabs {
+    border-bottom: 2px solid rgba(40,167,69,.2);
+    margin-bottom: 1.5rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 2px;
+}
+.param-tabs .nav-link {
+    color: rgba(255,255,255,.6);
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    padding: .75rem 1.25rem;
+    white-space: nowrap;
+    font-size: .88rem;
+    transition: all .2s;
+}
+.param-tabs .nav-link:hover {
+    color: #28a745;
+    background: rgba(40,167,69,.05);
+    border-bottom-color: rgba(40,167,69,.3);
+}
+.param-tabs .nav-link.active {
+    color: #28a745;
+    background: rgba(40,167,69,.1);
+    border-bottom: 3px solid #28a745;
+    font-weight: 600;
+}
+.param-tabs .nav-link i {
+    margin-right: .45rem;
+    opacity: .8;
+}
+
+/* ── Cards de seção dentro das tabs ── */
+.param-card {
+    background: var(--bg-content-color, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 10px;
+    margin-bottom: 1.25rem;
+    overflow: hidden;
+}
+.param-card-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.param-card-header h5 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-color, #212529);
+}
+.param-card-body {
+    padding: 1.25rem 1.5rem;
+}
+
+/* ── Tabela de regras ── */
+.param-table {
+    width: 100%;
+    font-size: .875rem;
+}
+.param-table th {
+    font-weight: 600;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted-color, #6c757d);
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+    padding: .6rem .75rem;
+    white-space: nowrap;
+}
+.param-table td {
+    padding: .65rem .75rem;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    vertical-align: middle;
+}
+.param-table tr:last-child td { border-bottom: none; }
+.param-table tr:hover td { background: rgba(40,167,69,.03); }
+
+/* ── Toast de feedback ── */
+.param-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    min-width: 280px;
+}
+
+/* ── Badge de cor customizada ── */
+.badge-danger-custom  { background: #dc3545; color: #fff; }
+.badge-warning-custom { background: #ffc107; color: #000; }
+.badge-info-custom    { background: #17a2b8; color: #fff; }
+.badge-success-custom { background: #28a745; color: #fff; }
+
+/* ── Empty state ── */
+.param-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted-color, #6c757d);
+}
+.param-empty i { font-size: 2.5rem; margin-bottom: 1rem; opacity: .4; }
+
+/* Dark mode compat */
+.dark-mode .param-card {
+    background: #1e1e1e;
+    border-color: #444;
+}
+.dark-mode .param-card-header { border-color: #444; }
+.dark-mode .param-table th { color: #a0a0a0; border-color: #444; }
+.dark-mode .param-table td { border-color: #333; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Cabeçalho ── #}
+<div class="param-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h2><i class="fas fa-sliders-h me-2"></i>Parametrizações WMS</h2>
+            <p>Configure alertas, regras de indenização, funil de cobrança e preferências do sistema.</p>
+        </div>
+        <a href="{{ url_for('wms.registrar_avarias') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Voltar ao WMS
+        </a>
+    </div>
+</div>
+
+{# ── Navegação por Tabs (Opção C: Geral → Dashboard → Indenização → Cobrança → Alertas → Pendentes) ── #}
+<ul class="nav param-tabs mb-0">
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if active_tab == 'geral' else '' }}"
+           href="{{ url_for('wms_param.tab_geral') }}">
+            <i class="fas fa-cog"></i>Geral
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if active_tab == 'dashboard' else '' }}"
+           href="{{ url_for('wms_param.tab_dashboard') }}">
+            <i class="fas fa-tachometer-alt"></i>Dashboard
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if active_tab == 'indenizacao' else '' }}"
+           href="{{ url_for('wms_param.tab_indenizacao') }}">
+            <i class="fas fa-hand-holding-usd"></i>Indenização
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if active_tab == 'cobranca' else '' }}"
+           href="{{ url_for('wms_param.tab_cobranca') }}">
+            <i class="fas fa-funnel-dollar"></i>Cobrança
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if active_tab == 'alertas' else '' }}"
+           href="{{ url_for('wms_param.tab_alertas') }}">
+            <i class="fas fa-bell"></i>Alertas
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if active_tab == 'pendentes' else '' }}"
+           href="{{ url_for('wms_param.tab_pendentes') }}">
+            <i class="fas fa-filter"></i>Pendentes
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'automacoes' %}active{% endif %}"
+           href="{{ url_for('wms_param.tab_automacoes') }}">
+            <i class="fas fa-robot me-1"></i>Automações
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if active_tab == 'templates' else '' }}"
+           href="{{ url_for('wms_param.tab_templates') }}">
+            <i class="fas fa-file-alt me-1"></i>Templates E-mail
+        </a>
+    </li>
+</ul>
+
+{# ── Conteúdo da tab atual ── #}
+<div class="mt-3">
+    {% block tab_content %}{% endblock %}
+</div>
+
+{# ── Toast de feedback (compartilhado) ── #}
+<div class="param-toast" id="paramToastContainer"></div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/**
+ * Helpers compartilhados por todas as tabs de parametrização.
+ */
+
+// ── Toast de feedback ──────────────────────────────────────
+function showParamToast(msg, type = 'success') {
+    const colors = {
+        success: 'bg-success', danger: 'bg-danger',
+        warning: 'bg-warning text-dark', info: 'bg-info',
+    };
+    const el = document.createElement('div');
+    el.className = `toast align-items-center text-white ${colors[type] || 'bg-success'} border-0 mb-2`;
+    el.setAttribute('role', 'alert');
+    el.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${msg}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>`;
+    document.getElementById('paramToastContainer').appendChild(el);
+    new bootstrap.Toast(el, { delay: 3500 }).show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+}
+
+// ── Requisição JSON genérica ───────────────────────────────
+async function paramApi(url, method = 'GET', body = null) {
+    const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    try {
+        const res = await fetch(url, opts);
+        return res.json();
+    } catch (e) {
+        return { success: false, error: 'Erro de conexão: ' + e.message };
+    }
+}
+
+// ── Toggle ativo/inativo ───────────────────────────────────
+async function toggleAtivo(url, id, ativo, onSuccess) {
+    const novo = ativo === 'sim' ? 'nao' : 'sim';
+    const res = await paramApi(url + '/' + id, 'PUT', { ativo: novo });
+    if (res.success) {
+        showParamToast(novo === 'sim' ? 'Ativado' : 'Desativado');
+        if (onSuccess) onSuccess();
+    } else {
+        showParamToast(res.error || 'Erro ao alterar status', 'danger');
+    }
+}
+
+// ── Confirmação de exclusão ────────────────────────────────
+async function confirmarExclusao(url, id, nome, onSuccess) {
+    if (!confirm(`Excluir "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+    const res = await paramApi(url + '/' + id, 'DELETE');
+    if (res.success) {
+        showParamToast('Removido com sucesso');
+        if (onSuccess) onSuccess();
+    } else {
+        showParamToast(res.error || 'Erro ao remover', 'danger');
+    }
+}
+</script>
+{% block tab_scripts %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,636 @@
+{% extends "wms/parametrizacao/_base_param.html" %}
+
+{% block tab_content %}
+<div class="param-card">
+    <div class="param-card-header">
+        <h5><i class="fas fa-bell me-2 text-warning"></i>Alertas do Dashboard</h5>
+        <button class="btn btn-success btn-sm" onclick="abrirModalNovoAlerta()">
+            <i class="fas fa-plus me-1"></i>Novo Alerta
+        </button>
+    </div>
+    <div class="param-card-body p-0">
+        <div class="alert alert-info m-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Como funciona:</strong> Os alertas aparecem como badges coloridos nas linhas da tabela de avarias.
+            Configure o campo de data a monitorar, o prazo em dias e as condições de resolução.
+            O badge para automaticamente quando a condição de parada for atingida.
+        </div>
+
+        {% if alertas %}
+        <table class="param-table table mb-0">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Campo Monitorado</th>
+                    <th>Tipo</th>
+                    <th>Prazo</th>
+                    <th>Badge</th>
+                    <th>Para quando</th>
+                    <th>Status</th>
+                    <th width="110">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tbodyAlertas">
+                {% for a in alertas %}
+                <tr id="row-alerta-{{ a.id }}">
+                    <td><strong>{{ a.nome }}</strong></td>
+                    <td><code class="text-success">{{ a.campo_data }}</code></td>
+                    <td>
+                        {% if a.tipo_alerta == 'vencimento' %}
+                            <span class="badge bg-info text-dark"><i class="fas fa-hourglass-half me-1"></i>Vencimento</span>
+                        {% else %}
+                            <span class="badge bg-secondary"><i class="fas fa-clock me-1"></i>Atraso</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ a.dias_limite }}d</span>
+                        {% if a.dias_maximo and a.dias_maximo != '0' %}
+                        <br><small class="text-muted">máx {{ a.dias_maximo }}d</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-{{ a.cor_badge }}">{{ a.cor_badge }}</span>
+                    </td>
+                    <td class="small">
+                        {% if a.campo_parar %}
+                        <div><i class="fas fa-check-circle text-success me-1"></i><code class="text-success small">{{ a.campo_parar }}</code> preenchido</div>
+                        {% endif %}
+                        {% if a.status_parar %}
+                        <div class="text-muted" title="{{ a.status_parar }}">
+                            <i class="fas fa-tag me-1"></i>
+                            {{ a.status_parar | truncate(30) }}
+                        </div>
+                        {% endif %}
+                        {% if a.campo_parar and a.status_parar %}
+                        <span class="badge bg-light text-dark border">{{ a.logica_parada or 'E' }}</span>
+                        {% endif %}
+                        {% if not a.campo_parar and not a.status_parar %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if a.ativo == 'sim' %}
+                            <span class="badge bg-success">Ativo</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-primary btn-sm me-1 btn-editar-alerta"
+                                data-id="{{ a.id }}"
+                                data-nome="{{ a.nome }}"
+                                data-campo="{{ a.campo_data }}"
+                                data-dias="{{ a.dias_limite }}"
+                                data-cor="{{ a.cor_badge }}"
+                                data-mensagem="{{ a.mensagem or '' }}"
+                                data-tipo="{{ a.tipo_alerta or 'atraso' }}"
+                                data-diasmaximo="{{ a.dias_maximo or 0 }}"
+                                data-campoparar="{{ a.campo_parar or '' }}"
+                                data-statusparar="{{ a.status_parar or '' }}"
+                                data-logicaparada="{{ a.logica_parada or 'E' }}"
+                                data-teladestino="{{ a.tela_destino or 'consultar' }}"
+                                title="Editar alerta">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm"
+                                onclick="confirmarExclusao('/wms/parametrizacao/api/alertas', '{{ a.id }}', '{{ a.nome }}', recarregarAlertas)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="param-empty">
+            <i class="fas fa-bell-slash d-block"></i>
+            <p class="mb-0">Nenhum alerta configurado.</p>
+            <small class="text-muted">Crie alertas para monitorar prazos nas avarias.</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Exemplos de alertas comuns ── #}
+<div class="param-card">
+    <div class="param-card-header">
+        <h5><i class="fas fa-lightbulb me-2 text-info"></i>Exemplos de Alertas Comuns</h5>
+    </div>
+    <div class="param-card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="p-3 rounded border border-danger bg-danger bg-opacity-10 h-100">
+                    <strong class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Avaria Parada</strong>
+                    <p class="small text-muted mb-2 mt-1">Avaria sem movimentação há muitos dias.</p>
+                    <code class="small d-block mb-1">data_registro → 15d → danger</code>
+                    <small class="text-muted d-block mb-2">Para: status Finalizada ou Não Indenizável</small>
+                    <button class="btn btn-danger btn-sm"
+                            onclick="preencherModalAlerta('Avaria Parada','data_registro',15,'danger','Avaria sem movimentação há 15+ dias','atraso',0,'','Finalizada,Não Indenizável','OU')">
+                        <i class="fas fa-plus me-1"></i>Usar este
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border border-warning bg-warning bg-opacity-10 h-100">
+                    <strong class="text-warning"><i class="fas fa-clock me-1"></i>Pagamento Vencendo</strong>
+                    <p class="small text-muted mb-2 mt-1">Prazo de pagamento de indenização próximo.</p>
+                    <code class="small d-block mb-1">prazo_pagamento → 5d → warning</code>
+                    <small class="text-muted d-block mb-2">Para: data_pagamento + Pagto Ok Total/Parcial (E)</small>
+                    <button class="btn btn-warning btn-sm"
+                            onclick="preencherModalAlerta('Pagamento Vencendo','prazo_pagamento',5,'warning','Prazo de pagamento vencendo em breve','vencimento',30,'data_pagamento','Pagto Ok - Total,Pagto Ok - Parcial','E')">
+                        <i class="fas fa-plus me-1"></i>Usar este
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border border-info bg-info bg-opacity-10 h-100">
+                    <strong class="text-info"><i class="fas fa-hourglass me-1"></i>Aguardando Triagem</strong>
+                    <p class="small text-muted mb-2 mt-1">Avaria registrada há dias sem triagem.</p>
+                    <code class="small d-block mb-1">data_registro → 3d → info</code>
+                    <small class="text-muted d-block mb-2">Para: status Em Triagem ou Finalizada</small>
+                    <button class="btn btn-info btn-sm"
+                            onclick="preencherModalAlerta('Aguardando Triagem','data_registro',3,'info','Aguardando triagem há 3+ dias','atraso',0,'','Em Triagem,Finalizada','OU')">
+                        <i class="fas fa-plus me-1"></i>Usar este
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 rounded border border-secondary bg-secondary bg-opacity-10 h-100">
+                    <strong class="text-secondary"><i class="fas fa-gavel me-1"></i>PI sem Retorno</strong>
+                    <p class="small text-muted mb-2 mt-1">PI aberta há mais de 30 dias sem resposta.</p>
+                    <code class="small d-block mb-1">data_registro → 30d → secondary</code>
+                    <small class="text-muted d-block mb-2">Para: status Pagto Ok Total/Parcial ou Não Indenizável</small>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="preencherModalAlerta('PI sem Retorno','data_registro',30,'secondary','PI aberta sem retorno há 30+ dias','atraso',0,'','Pagto Ok - Total,Pagto Ok - Parcial,Não Indenizável','OU')">
+                        <i class="fas fa-plus me-1"></i>Usar este
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Modal Criar / Editar Alerta ── #}
+<div class="modal fade" id="modalAlerta" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-bell me-2"></i>
+                    <span id="modalAlertaTitulo">Novo Alerta</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="alertaId">
+
+                {# ── Nome ── #}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nome do Alerta <span class="text-danger">*</span></label>
+                    <input type="text" id="alertaNome" class="form-control"
+                           placeholder="Ex: Avaria Parada, Pagamento Vencendo...">
+                </div>
+
+                {# ── Tela de Destino ── #}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-arrow-right me-1 text-primary"></i>
+                        Tela de Destino ao Clicar no Alerta
+                    </label>
+                    <select id="alertaTelaDestino" class="form-select">
+                        <option value="consultar">🔍 Consultar Avarias</option>
+                        <option value="registrar">📝 Registrar Avarias</option>
+                    </select>
+                    <small class="text-muted">
+                        Ao clicar no grupo no sininho, o usuário será direcionado para esta tela
+                        com filtro automático pelo campo de data monitorado.
+                    </small>
+                </div>                
+
+                {# ── Campo de data + Tipo ── #}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-7">
+                        <label class="form-label fw-semibold">Campo de Data Monitorado <span class="text-danger">*</span></label>
+                        <select id="alertaCampoDataSelect" class="form-select" onchange="onCampoDataChange()">
+                            <option value="">— Selecione um campo —</option>
+                            {% for valor, label, tipo_sugerido in campos_data %}
+                            <option value="{{ valor }}" data-tipo="{{ tipo_sugerido }}">{{ label }} ({{ valor }})</option>
+                            {% endfor %}
+                            <option value="__outro__">✏️ Outro campo (digitar manualmente)...</option>
+                        </select>
+                        <input type="text" id="alertaCampoDataCustom" class="form-control mt-2 d-none"
+                               placeholder="Digite o nome exato da coluna, ex: data_vistoria">
+                        <input type="hidden" id="alertaCampoData">
+                        <small class="text-muted d-block mt-1">
+                            <i class="fas fa-info-circle me-1"></i>Use "Outro" para campos personalizados.
+                        </small>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Tipo de Alerta</label>
+                        <select id="alertaTipo" class="form-select" onchange="atualizarHelpDias()">
+                            <option value="atraso">⏰ Atraso — dias desde a data</option>
+                            <option value="vencimento">⚠️ Vencimento — dias até a data</option>
+                        </select>
+                        <small class="text-muted d-block mt-1" id="helpTipo">
+                            <strong>Atraso:</strong> conta dias passados desde a data do campo.
+                        </small>
+                    </div>
+                </div>
+
+                {# ── Prazo disparo + Prazo máximo ── #}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Disparar após <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" id="alertaDias" class="form-control" min="1" value="15">
+                            <span class="input-group-text">dias</span>
+                        </div>
+                        <small class="text-muted" id="helpDias">Dias decorridos para o alerta aparecer.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Parar por tempo após</label>
+                        <div class="input-group">
+                            <input type="number" id="alertaDiasMaximo" class="form-control" min="0" value="0">
+                            <span class="input-group-text">dias</span>
+                        </div>
+                        <small class="text-muted">0 = nunca para por tempo.</small>
+                    </div>
+                </div>
+
+                {# ── Condição de resolução ── #}
+                <div class="card border-success mb-3">
+                    <div class="card-header bg-success bg-opacity-10 py-2 d-flex align-items-center justify-content-between">
+                        <div>
+                            <strong class="text-success"><i class="fas fa-check-circle me-1"></i>Condição de Resolução</strong>
+                            <small class="text-muted ms-2">Quando parar de exibir o alerta automaticamente</small>
+                        </div>
+                        <div class="d-flex gap-3">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="logicaParada" id="logicaE" value="E" checked>
+                                <label class="form-check-label small fw-semibold" for="logicaE">
+                                    <span class="badge bg-secondary">E</span> Campo <em>e</em> Status
+                                </label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="logicaParada" id="logicaOU" value="OU">
+                                <label class="form-check-label small fw-semibold" for="logicaOU">
+                                    <span class="badge bg-secondary">OU</span> Qualquer um
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body pt-3 pb-2">
+                        <div class="row g-3">
+                            {# Campo sinalizador de resolução #}
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold small">Campo preenchido = resolvido</label>
+                                <select id="alertaCampoParar" class="form-select form-select-sm">
+                                    <option value="">— Não usar —</option>
+                                    {% for valor, label, _ in campos_data %}
+                                    <option value="{{ valor }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">
+                                    Ex: para alerta de "prazo_pagamento" → usar "data_pagamento".
+                                </small>
+                            </div>
+
+                            {# Checkboxes de status ── scroll compacto #}
+                            <div class="col-md-7">
+                                <label class="form-label fw-semibold small">Status que param o alerta</label>
+                                <div style="max-height:200px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:8px;">
+
+                                    <div class="mb-1">
+                                        <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">
+                                            <i class="fas fa-hand-holding-usd me-1"></i>Indenização
+                                        </small>
+                                    </div>
+                                    {% for s in status_indenizacao %}
+                                    <div class="form-check form-check-sm mb-1">
+                                        <input class="form-check-input status-parar-check" type="checkbox"
+                                               value="{{ s }}" id="spind_{{ loop.index }}">
+                                        <label class="form-check-label small" for="spind_{{ loop.index }}">{{ s }}</label>
+                                    </div>
+                                    {% endfor %}
+
+                                    <div class="mt-2 mb-1">
+                                        <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">
+                                            <i class="fas fa-boxes me-1"></i>Estoque
+                                        </small>
+                                    </div>
+                                    {% for s in status_estoque %}
+                                    <div class="form-check form-check-sm mb-1">
+                                        <input class="form-check-input status-parar-check" type="checkbox"
+                                               value="{{ s }}" id="spest_{{ loop.index }}">
+                                        <label class="form-check-label small" for="spest_{{ loop.index }}">{{ s }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="mt-1 d-flex justify-content-between">
+                                    <small class="text-muted" id="countStatusSelecionados">0 selecionado(s)</small>
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-muted"
+                                            onclick="limparStatusParar()">Limpar seleção</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Cor + Mensagem ── #}
+                <div class="row g-3 mb-0">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Cor do Badge</label>
+                        <select id="alertaCor" class="form-select" onchange="atualizarPreviewCor()">
+                            {% for cor in cores_badge %}
+                            <option value="{{ cor }}">{{ cor }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="mt-2">
+                            <span class="badge bg-secondary" id="previewCorBadge">preview</span>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Mensagem do Badge</label>
+                        <input type="text" id="alertaMensagem" class="form-control"
+                               placeholder="Deixe vazio para gerar automaticamente">
+                        <small class="text-muted">
+                            Auto: "campo: Xd" (atraso) ou "vence em Xd / vencido há Xd" (vencimento).
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarAlerta()">
+                    <i class="fas fa-save me-1"></i>Salvar Alerta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tab_scripts %}
+<script>
+const API_ALERTAS = '/wms/parametrizacao/api/alertas';
+let modalAlerta = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    modalAlerta = new bootstrap.Modal(document.getElementById('modalAlerta'));
+
+    // ── Event delegation: botões editar ─────────────────────────────────
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-editar-alerta');
+        if (!btn) return;
+
+        const d = btn.dataset;
+        document.getElementById('alertaId').value        = d.id        || '';
+        document.getElementById('alertaNome').value      = d.nome      || '';
+        document.getElementById('alertaDias').value      = d.dias      || 15;
+        document.getElementById('alertaCor').value       = d.cor       || 'warning';
+        document.getElementById('alertaMensagem').value  = d.mensagem  || '';
+        document.getElementById('alertaTipo').value      = d.tipo      || 'atraso';
+        document.getElementById('alertaDiasMaximo').value= d.diasmaximo|| 0;
+        document.getElementById('alertaCampoParar').value= d.campoparar|| '';
+        document.getElementById('alertaTelaDestino').value = d.teladestino || 'consultar';
+
+        // Marcar checkboxes de status
+        const selecionados = (d.statusparar || '').split(',').map(s => s.trim()).filter(Boolean);
+        document.querySelectorAll('.status-parar-check').forEach(cb => {
+            cb.checked = selecionados.includes(cb.value);
+        });
+        _atualizarCountStatus();
+
+        // Lógica de parada
+        const logica = d.logicaparada || 'E';
+        const radioLogica = document.querySelector(`input[name="logicaParada"][value="${logica}"]`);
+        if (radioLogica) radioLogica.checked = true;
+
+        _setCampoData(d.campo || '');
+        atualizarPreviewCor();
+        atualizarHelpDias();
+        document.getElementById('modalAlertaTitulo').textContent = 'Editar Alerta';
+        modalAlerta.show();
+    });
+
+    // Contador dinâmico de status selecionados
+    document.querySelectorAll('.status-parar-check').forEach(cb => {
+        cb.addEventListener('change', _atualizarCountStatus);
+    });
+
+    atualizarPreviewCor();
+    atualizarHelpDias();
+});
+
+// ── Helpers internos ─────────────────────────────────────────────────────────
+
+function _atualizarCountStatus() {
+    const total = document.querySelectorAll('.status-parar-check:checked').length;
+    const el = document.getElementById('countStatusSelecionados');
+    if (el) el.textContent = `${total} selecionado(s)`;
+}
+
+function limparStatusParar() {
+    document.querySelectorAll('.status-parar-check').forEach(cb => cb.checked = false);
+    _atualizarCountStatus();
+}
+
+/**
+ * Define o campo de data no select ou no campo livre.
+ */
+function _setCampoData(valor) {
+    const sel    = document.getElementById('alertaCampoDataSelect');
+    const custom = document.getElementById('alertaCampoDataCustom');
+    const hidden = document.getElementById('alertaCampoData');
+
+    const opcaoExiste = Array.from(sel.options).some(opt => opt.value === valor && opt.value !== '__outro__');
+
+    if (opcaoExiste) {
+        sel.value = valor;
+        custom.classList.add('d-none');
+        custom.value = '';
+    } else if (valor) {
+        sel.value = '__outro__';
+        custom.classList.remove('d-none');
+        custom.value = valor;
+    } else {
+        sel.value = '';
+        custom.classList.add('d-none');
+        custom.value = '';
+    }
+    hidden.value = valor;
+}
+
+function _coletarStatusParar() {
+    const marcados = [];
+    document.querySelectorAll('.status-parar-check:checked').forEach(cb => {
+        marcados.push(cb.value);
+    });
+    return marcados.join(',');
+}
+
+// ── Funções públicas ──────────────────────────────────────────────────────────
+
+function abrirModalNovoAlerta() {
+    document.getElementById('alertaId').value        = '';
+    document.getElementById('alertaNome').value      = '';
+    document.getElementById('alertaDias').value      = 15;
+    document.getElementById('alertaDiasMaximo').value= 0;
+    document.getElementById('alertaMensagem').value  = '';
+    document.getElementById('alertaCor').value       = 'warning';
+    document.getElementById('alertaTipo').value      = 'atraso';
+    document.getElementById('alertaCampoParar').value= '';
+    document.getElementById('alertaTelaDestino').value = 'consultar';
+    document.getElementById('alertaCampoDataSelect').value = '';
+    document.getElementById('alertaCampoDataCustom').value = '';
+    document.getElementById('alertaCampoDataCustom').classList.add('d-none');
+    document.getElementById('alertaCampoData').value = '';
+    document.querySelector('input[name="logicaParada"][value="E"]').checked = true;
+    limparStatusParar();
+    atualizarPreviewCor();
+    atualizarHelpDias();
+    document.getElementById('modalAlertaTitulo').textContent = 'Novo Alerta';
+    modalAlerta.show();
+}
+
+/**
+ * Pré-preenche o modal com dados de exemplo (usado pelos cards de exemplo).
+ * @param {string} nome
+ * @param {string} campo        - campo_data
+ * @param {number} dias         - dias_limite
+ * @param {string} cor          - cor_badge
+ * @param {string} mensagem     - mensagem badge
+ * @param {string} tipo         - 'atraso' | 'vencimento'
+ * @param {number} diasMaximo   - dias_maximo (0 = nunca)
+ * @param {string} campoParar   - campo_parar
+ * @param {string} statusParar  - CSV de status que param
+ * @param {string} logica       - 'E' | 'OU'
+ */
+function preencherModalAlerta(nome, campo, dias, cor, mensagem,
+                               tipo = 'atraso', diasMaximo = 0,
+                               campoParar = '', statusParar = '', logica = 'E',
+                               telaDestino = 'consultar') {
+    document.getElementById('alertaId').value         = '';
+    document.getElementById('alertaNome').value       = nome;
+    document.getElementById('alertaDias').value       = dias;
+    document.getElementById('alertaDiasMaximo').value = diasMaximo;
+    document.getElementById('alertaCor').value        = cor;
+    document.getElementById('alertaMensagem').value   = mensagem;
+    document.getElementById('alertaTipo').value       = tipo;
+    document.getElementById('alertaCampoParar').value = campoParar;
+
+    // Checkboxes de status
+    const statusSelecionados = statusParar.split(',').map(s => s.trim()).filter(Boolean);
+    document.querySelectorAll('.status-parar-check').forEach(cb => {
+        cb.checked = statusSelecionados.includes(cb.value);
+    });
+    _atualizarCountStatus();
+
+    // Lógica de parada
+    const radioLogica = document.querySelector(`input[name="logicaParada"][value="${logica}"]`);
+    if (radioLogica) radioLogica.checked = true;
+
+    _setCampoData(campo);
+    atualizarPreviewCor();
+    atualizarHelpDias();
+    document.getElementById('modalAlertaTitulo').textContent = 'Novo Alerta';
+    modalAlerta.show();
+}
+
+/** Chamado quando o select de campo muda — sugere tipo e atualiza hidden */
+function onCampoDataChange() {
+    const sel    = document.getElementById('alertaCampoDataSelect');
+    const custom = document.getElementById('alertaCampoDataCustom');
+    const hidden = document.getElementById('alertaCampoData');
+
+    if (sel.value === '__outro__') {
+        custom.classList.remove('d-none');
+        custom.focus();
+        hidden.value = '';
+        custom.oninput = () => { hidden.value = custom.value.trim(); };
+    } else {
+        custom.classList.add('d-none');
+        custom.value = '';
+        hidden.value = sel.value;
+
+        // Sugere o tipo de alerta com base no data-tipo da opção
+        const opt = sel.options[sel.selectedIndex];
+        const tipoSugerido = opt ? opt.dataset.tipo : '';
+        if (tipoSugerido) {
+            document.getElementById('alertaTipo').value = tipoSugerido;
+            atualizarHelpDias();
+        }
+    }
+}
+
+function atualizarPreviewCor() {
+    const cor = document.getElementById('alertaCor').value;
+    const preview = document.getElementById('previewCorBadge');
+    if (!preview) return;
+    preview.className = `badge bg-${cor}`;
+    preview.textContent = cor;
+}
+
+function atualizarHelpDias() {
+    const tipo  = document.getElementById('alertaTipo').value;
+    const helpD = document.getElementById('helpDias');
+    const helpT = document.getElementById('helpTipo');
+    if (tipo === 'vencimento') {
+        if (helpD) helpD.textContent = 'Dispara quando faltam este número de dias para a data chegar.';
+        if (helpT) helpT.innerHTML   = '<strong>Vencimento:</strong> alerta antecipado — dispara antes da data limite.';
+    } else {
+        if (helpD) helpD.textContent = 'Dispara quando passaram este número de dias desde a data.';
+        if (helpT) helpT.innerHTML   = '<strong>Atraso:</strong> conta dias decorridos desde a data do campo.';
+    }
+}
+
+async function salvarAlerta() {
+    // Garante hidden atualizado
+    const sel    = document.getElementById('alertaCampoDataSelect');
+    const custom = document.getElementById('alertaCampoDataCustom');
+    const hidden = document.getElementById('alertaCampoData');
+    if (sel.value === '__outro__') {
+        hidden.value = custom.value.trim();
+    } else {
+        hidden.value = sel.value;
+    }
+
+    const id = document.getElementById('alertaId').value;
+
+    const payload = {
+        nome:          document.getElementById('alertaNome').value.trim(),
+        campo_data:    hidden.value,
+        dias_limite:   parseInt(document.getElementById('alertaDias').value) || 15,
+        cor_badge:     document.getElementById('alertaCor').value,
+        mensagem:      document.getElementById('alertaMensagem').value.trim(),
+        tipo_alerta:   document.getElementById('alertaTipo').value,
+        dias_maximo:   parseInt(document.getElementById('alertaDiasMaximo').value) || 0,
+        campo_parar:   document.getElementById('alertaCampoParar').value,
+        status_parar:  _coletarStatusParar(),
+        logica_parada: document.querySelector('input[name="logicaParada"]:checked').value,
+        tela_destino:  document.getElementById('alertaTelaDestino').value,
+    };
+
+    if (!payload.nome || !payload.campo_data || !payload.dias_limite) {
+        showParamToast('Preencha os campos obrigatórios (nome, campo de data e prazo)', 'warning');
+        return;
+    }
+
+    const method = id ? 'PUT' : 'POST';
+    const url    = id ? `${API_ALERTAS}/${id}` : API_ALERTAS;
+    const res    = await paramApi(url, method, payload);
+
+    if (res.success) {
+        showParamToast(id ? 'Alerta atualizado!' : 'Alerta criado!');
+        modalAlerta.hide();
+        setTimeout(() => location.reload(), 800);
+    } else {
+        showParamToast(res.error || 'Erro ao salvar', 'danger');
+    }
+}
+
+function recarregarAlertas() {
+    setTimeout(() => location.reload(), 600);
+}
+</script>
+{% endblock %}
