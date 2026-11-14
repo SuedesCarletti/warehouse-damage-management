@@ -169,7 +169,7 @@ class WmsConfigService:
     def _read_all(self, sheet_name: str, force_refresh: bool = False):
         """
         Lê todos os registros de uma aba como lista de dicts.
-        ⚡ CACHE de 10 min com lock anti-stampede.
+        CACHE de 10 min com lock anti-stampede.
         Antes: chamava ws.get_all_values() diretamente a cada request.
         Depois: 0 chamadas à API enquanto cache estiver quente.
 

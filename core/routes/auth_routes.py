@@ -1,6 +1,6 @@
 """ 
 core/routes/auth_routes.py - VERSÃO ATUALIZADA
-NOVO: Suporte a alteração forçada de senha no próximo login
+Suporte a alteração forçada de senha no próximo login
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app
@@ -73,7 +73,7 @@ def login():
     
     # Se já está logado, redirecionar
     if 'user_email' in session:
-        # NOVO: Verificar se precisa alterar senha
+  # Verificar se precisa alterar senha
         if session.get('requires_password_change', False):
             return redirect(url_for('auth.change_password_required'))
         
@@ -181,10 +181,10 @@ def login():
         session['permissions']     = user.permissions
         session['active_theme']    = target_module
         
-        # NOVO: Verificar se precisa alterar senha
+  # Verificar se precisa alterar senha
         session['requires_password_change'] = user.precisa_alterar_senha
         
-        # 7. NOVO: Se precisa alterar senha, redirecionar para página de alteração
+        # 7. Se precisa alterar senha, redirecionar para página de alteração
         if user.precisa_alterar_senha:
             logger.info(f"Usuário {email} precisa alterar senha. Redirecionando...")
             flash('Por segurança, você precisa alterar sua senha antes de continuar.', 'warning')
@@ -216,7 +216,7 @@ def login():
     return render_template('login.html')
 
 
-# NOVO: ALTERAÇÃO FORÇADA DE SENHA
+  # ALTERAÇÃO FORÇADA DE SENHA
 
 @auth_bp.route('/change-password-required', methods=['GET'])
 def change_password_required():

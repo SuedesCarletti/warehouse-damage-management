@@ -166,7 +166,7 @@ document.getElementById('galeria-tab')?.addEventListener('shown.bs.tab', functio
         btnSalvar.style.display = 'none';
     }
     
-    // NOVO: Carregar fotos automaticamente
+  // Carregar fotos automaticamente
     carregarGaleriaFotos();
 });
 
@@ -180,7 +180,7 @@ document.getElementById('upload-tab')?.addEventListener('shown.bs.tab', function
     }
 });
 
-// NOVO: Abrir aba Galeria quando modal for aberto E já existirem fotos
+  // Abrir aba Galeria quando modal for aberto E já existirem fotos
 document.getElementById('modalFotos')?.addEventListener('shown.bs.modal', async function () {
     console.log('Modal de fotos aberto');
     

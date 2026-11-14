@@ -4,11 +4,11 @@
  * ============================================================================
  * 
  * Correções aplicadas:
- * ✅ Removidas regras duplicadas e conflitantes
- * ✅ Simplificada lógica de centralização usando padrão Bootstrap 5
- * ✅ Eliminado conflito entre flexbox, transform e !important
- * ✅ Mantida compatibilidade com sidebar toggle
- * ✅ Responsividade melhorada
+ * Removidas regras duplicadas e conflitantes
+ * Simplificada lógica de centralização usando padrão Bootstrap 5
+ * Eliminado conflito entre flexbox, transform e !important
+ * Mantida compatibilidade com sidebar toggle
+ * Responsividade melhorada
  * 
  * Como usar:
  * <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-fixes.css') }}">
@@ -363,5 +363,5 @@ body:not(.sidebar-hidden) .modal-dialog {
 }
 
 /* ============================================================================
-   FIM DO ARQUIVO - Versão 2.0 ✅
+   FIM DO ARQUIVO - Versão 2.0 
    ============================================================================ */

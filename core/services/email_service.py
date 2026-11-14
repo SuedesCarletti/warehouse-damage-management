@@ -61,7 +61,7 @@ class EmailService:
         """
         self._load_from_dict(config)
         logger.info(
-            f"✅ EmailService inicializado — "
+            f"EmailService inicializado — "
             f"{'habilitado' if self.enabled else 'desabilitado'} "
             f"({'TLS' if self.use_tls else 'SSL' if self.use_ssl else 'plain'})"
         )
@@ -183,7 +183,7 @@ class EmailService:
             server.quit()
 
             logger.info(
-                f"✅ Email enviado | De: {msg['From']} | Para: {len(all_recipients)} dest. | Assunto: {subject[:60]}"
+                f"Email enviado | De: {msg['From']} | Para: {len(all_recipients)} dest. | Assunto: {subject[:60]}"
             )
             return True, "Email enviado com sucesso"
 
@@ -306,7 +306,7 @@ class EmailService:
             server.quit()
 
             logger.info(f"Teste SMTP bem-sucedido: {_host}:{_port} ({_user})")
-            return True, f"✅ Conexão bem-sucedida — {_host}:{_port} | Autenticado como {_user}"
+            return True, f"Conexão bem-sucedida — {_host}:{_port} | Autenticado como {_user}"
 
         except smtplib.SMTPAuthenticationError:
             return False, f"❌ Usuário ou senha inválidos para {_user} em {_host}"
@@ -414,7 +414,7 @@ class EmailService:
             <div style="background: white; padding: 15px; border: 1px solid #dee2e6;">
                 {ticket.description.replace(chr(10), '<br>')}
             </div>
-            <a href="{resolution_link}" class="action-button">✅ Marcar como Resolvido</a>
+            <a href="{resolution_link}" class="action-button">Marcar como Resolvido</a>
         </div>
     </div>
     <img src="{tracking_pixel}" width="1" height="1" style="display:none;">

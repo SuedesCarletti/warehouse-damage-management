@@ -13,7 +13,7 @@ class BrotherPrinterService:
     """
     Serviço de impressão usando FILA no Google Sheets.
     
-    ✅ Funcionamento:
+    Funcionamento:
     1. Servidor (Railway/Linux) adiciona job na fila
     2. Cliente Windows local faz polling e imprime
     3. Cliente atualiza status do job
@@ -193,7 +193,7 @@ class BrotherPrinterService:
         
     def get_queue_status(self) -> dict:
         """
-        Retorna status da fila de impressão — ⚡ cache de 30s.
+        Retorna status da fila de impressão — cache de 30s.
         """
         import time as _time
         if not self.sheets.connected:

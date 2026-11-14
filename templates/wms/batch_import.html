@@ -391,17 +391,17 @@
         function exibirResultados(data) {
             console.log('📊 Exibindo resultados da importação:', data);
             
-            // ✅ Compatibilidade com diferentes nomes de campo
+            // Compatibilidade com diferentes nomes de campo
             const results = data.resultados || data.results || {};
             
-            // ✅ Validar estrutura
+            // Validar estrutura
             if (!results || typeof results !== 'object') {
                 console.error('❌ Resultados inválidos:', data);
                 alert('Erro: Resposta do servidor inválida');
                 return;
             }
             
-            // ✅ Extrair dados com valores padrão
+            // Extrair dados com valores padrão
             const totalLinhas = results.total_linhas || 0;
             const validadas = results.validadas || 0;
             const importadas = results.importadas || 0;
@@ -409,7 +409,7 @@
             const comAviso = results.com_aviso || 0;
             const tempo = results.tempo_processamento || 0;
             
-            // ✅ Arrays de erros e avisos
+            // Arrays de erros e avisos
             const erros = Array.isArray(results.erros) ? results.erros : [];
             const avisos = Array.isArray(results.avisos) ? results.avisos : [];
             
@@ -439,9 +439,9 @@
             // ========================================
             // ATUALIZAR BADGES (NÚMEROS, NÃO OBJETOS!)
             // ========================================
-            // ✅ CORREÇÃO CRÍTICA: Usar .length dos arrays, não os arrays inteiros
+            // CORREÇÃO CRÍTICA: Usar .length dos arrays, não os arrays inteiros
             document.getElementById('badgeImportadas').textContent = importadas;
-            document.getElementById('badgeErros').textContent = erros.length;  // ✅ .length!
+            document.getElementById('badgeErros').textContent = erros.length;  // .length!
             document.getElementById('badgeValidacao').textContent = validadas;
             
             // ========================================
@@ -545,7 +545,7 @@
                 }
             }, 100);
             
-            console.log('✅ Resultados exibidos com sucesso!');
+            console.log('Resultados exibidos com sucesso!');
         }
     
         function preencherTabelaImportadas(dados) {

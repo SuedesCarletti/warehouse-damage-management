@@ -13,7 +13,7 @@ class WmsAvariaService:
     def __init__(self, sheets_service: GoogleSheetsService):
         self.sheets = sheets_service
         self.worksheet_name = "Avarias"
-        self._headers_validated = False  # NOVO - Flag de controle
+        self._headers_validated = False  # Flag de controle
         self._ensure_sheet_exists()
         self._validate_and_fix_headers()
 
@@ -25,7 +25,7 @@ class WmsAvariaService:
             logger.warning("WMS: Sem conexão com Sheets, pulando validação de cabeçalho")
             return
     
-        # NOVO: Verificar se já foi validado nesta sessão
+  # Verificar se já foi validado nesta sessão
         if self._headers_validated:
             logger.debug("⏩ Cabeçalho já validado nesta sessão")
             return
@@ -140,7 +140,7 @@ class WmsAvariaService:
             else:
                 logger.info("Cabeçalho válido, nenhuma correção necessária")
             
-            # NOVO: Marcar como validado
+  # Marcar como validado
             self._headers_validated = True
         
         except Exception as e:
@@ -222,7 +222,7 @@ class WmsAvariaService:
     
     def registrar_avaria(self, data: dict, user_email: str):
         """
-        ⚡: Salva avaria + itens em 2 API calls (ao invés de N+1).
+        : Salva avaria + itens em 2 API calls (ao invés de N+1).
         
         ANTES: 1 append_row (avaria) + N append_rows (itens) = N+1 API calls
         DEPOIS: 1 append_row (avaria) + 1 batch_append_rows (todos itens) = 2 API calls
@@ -353,13 +353,13 @@ class WmsAvariaService:
             'transportadora',
             'cte',
             'valor_nf',
-            'valor_nfd',  # NOVO
-            'nfp',  # NOVO
-            'valor_nfp',  # NOVO
+            'valor_nfd',
+            'nfp',
+            'valor_nfp',
             'motivo_devolucao',
             'indenizacao',
             'prazo_pagamento',
-            'data_pagamento',  # NOVO
+            'data_pagamento',
             'observacao',
             'data_registro',
             'status',
@@ -386,7 +386,7 @@ class WmsAvariaService:
     def get_avaria_by_id(self, avaria_id: str) -> Optional[Avaria]:
         """
         Busca avaria específica por ID.
-        ⚡ USA CACHE: get_wms_avarias_cached() — zero leituras diretas ao Sheets.
+        USA CACHE: get_wms_avarias_cached() — zero leituras diretas ao Sheets.
         """
         if not self.sheets.connected:
             logger.warning("WMS: Sem conexão com Sheets")
@@ -410,12 +410,12 @@ class WmsAvariaService:
     def get_all_avarias(self, filters: dict = None, empresa: str = None):
         """
         Busca avarias com filtro opcional por empresa.
-        ⚡ USA CACHE: get_wms_avarias_cached() em vez de get_all_records() direto.
+        USA CACHE: get_wms_avarias_cached() em vez de get_all_records() direto.
         Lock anti-stampede garante que 2 usuários simultâneos não disparam 2 reads.
     
         Args:
             filters: Dicionário de filtros (ex: {'status': 'Finalizada'})
-            empresa: Filtrar por empresa (Matriz, Empresax, Thomas)
+            empresa: Filtrar por empresa (Matriz, Empresax, EmpresaY)
     
         Returns:
             List[Avaria]: Lista de objetos Avaria
@@ -544,7 +544,7 @@ class WmsAvariaService:
         """
         Atualiza dados de uma avaria existente (VERSÃO FUNCIONAL ORIGINAL)
         
-        ✅ CORREÇÃO: Restaura método simples que funciona corretamente
+        CORREÇÃO: Restaura método simples que funciona corretamente
         
         Args:
             avaria_id: ID da avaria
@@ -631,12 +631,12 @@ class WmsAvariaService:
             logger.error(traceback.format_exc())
             return False, str(e)
 
-    # NOVO MÉTODO: ATUALIZAR ITEM DE AVARIA
+    # ATUALIZAR ITEM DE AVARIA
 
     def update_item_avaria(self, avaria_id: str, sequencia: int, alterado_por: str = '',
                            id_etiqueta: str = '', **updates):
         """
-        ⚡: Atualiza item usando batch_update.
+        : Atualiza item usando batch_update.
 
         Se id_etiqueta for informado, busca pela etiqueta específica (evita ambiguidade
         quando há múltiplas linhas com o mesmo avaria_id+sequencia, ex: após recusa).
@@ -768,12 +768,12 @@ class WmsAvariaService:
             
             print(f"\nCampos novos encontrados:")
             for campo in campos_novos:
-                existe = '✅' if campo in headers else '❌'
+                existe = '' if campo in headers else '❌'
                 print(f"   {existe} {campo}")
             
             print(f"\n↺Campos antigos encontrados:")
             for campo in campos_antigos:
-                existe = '✅' if campo in headers else '❌'
+                existe = '' if campo in headers else '❌'
                 print(f"   {existe} {campo}")
             
             # Testar carregar primeira avaria
@@ -854,7 +854,7 @@ class WmsAvariaService:
 
     def _aplicar_filtros(self, avarias: List[Avaria], filters: dict) -> List[Avaria]:
         """
-        ✅ MODIFICADO: Aplica filtros à lista de avarias, removendo filtro 'status' geral.
+        MODIFICADO: Aplica filtros à lista de avarias, removendo filtro 'status' geral.
         
         Args:
             avarias: Lista de avarias
@@ -868,7 +868,7 @@ class WmsAvariaService:
         
         filtradas = avarias
         
-        # NOVO: Filtro por empresa
+  # Filtro por empresa
         if 'empresa' in filters and filters['empresa']:
             empresa_filtro = filters['empresa']
             filtradas = [av for av in filtradas if av.empresa == empresa_filtro]
@@ -946,7 +946,7 @@ class WmsAvariaService:
     def _get_all_item_avarias(self):
         """
         Busca todos os itens de avaria da aba 'Itens_Avarias'.
-        ⚡ USA CACHE: get_wms_itens_cached() em vez de get_all_records() direto.
+        USA CACHE: get_wms_itens_cached() em vez de get_all_records() direto.
         """
         if not self.sheets.connected:
             return []
@@ -1016,11 +1016,11 @@ class WmsAvariaService:
 
     def get_untriaged_avarias(self, empresa: str = None) -> List[Dict]:
         """
-        ✅ CORRIGIDO: Retorna avarias pendentes com estrutura compatível
-        ✅ NOVO: Filtra etiquetas com status 'baixada'
+        CORRIGIDO: Retorna avarias pendentes com estrutura compatível
+        Filtra etiquetas com status 'baixada'
         
         Args:
-            empresa: ✅ NOVO - Filtrar por empresa (Matriz, Empresax, Thomas)
+            empresa: Filtrar por empresa (Matriz, Empresax, EmpresaY)
             
         Returns:
             Lista de dicionários: {'avaria': obj, 'item': obj, 'rowspan': int, 'first_row': bool}
@@ -1189,7 +1189,7 @@ class WmsAvariaService:
         """
         Atualiza campos específicos de uma avaria existente usando batch_update
         
-        ✅ CORREÇÃO CRÍTICA: Usa batch_update com valueInputOption='USER_ENTERED'
+        CORREÇÃO CRÍTICA: Usa batch_update com valueInputOption='USER_ENTERED'
         para garantir que números sejam salvos como números, não como texto
         
         Args:

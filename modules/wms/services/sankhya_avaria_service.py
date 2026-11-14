@@ -7,7 +7,7 @@ import traceback
 from modules.wms.models.avaria import Avaria        # Importação explícita
 from modules.wms.models.item_avaria import ItemAvaria  # Importação explícita
 
-# ••• NOVO: Imports adicionais para filtragem por regras •••
+# ••• Imports adicionais para filtragem por regras •••
 from .parametrizacao_service import ParametrizacaoService
 from ..models.regra_exclusao import RegraExclusao
 
@@ -30,9 +30,9 @@ class AvariaService:
         """
         self.sankhya = sankhya_service
         self.sheets = sheets_service
-        self.cache_sankhya = cache_sankhya_service  # NOVO
+        self.cache_sankhya = cache_sankhya_service
         
-        # ••• NOVO: Inicializar ParametrizacaoService •••
+        # ••• Inicializar ParametrizacaoService •••
         self.param_service = ParametrizacaoService(sheets_service)
         
         # CFOPs excluídos do cálculo de VLRSUBST
@@ -43,7 +43,7 @@ class AvariaService:
             6123, 5123
         }
 
-    # ── NOVO: valor base por localização dos itens ────────────────────────────
+    # ── valor base por localização dos itens ────────────────────────────
     @staticmethod
     def calcular_valor_base_por_locais(itens: list, locais_indenizaveis: list) -> float:
         """
@@ -548,14 +548,14 @@ class AvariaService:
     def salvar_avaria(self, dados_cabecalho: dict, itens: List[dict], 
                      dados_formulario: dict, user_email: str, user_empresa: str) -> Tuple[bool, str]:
         """
-        ✅ MODIFICADO: Salva avaria incluindo empresa do usuário e Valor Indenização calculado
+        MODIFICADO: Salva avaria incluindo empresa do usuário e Valor Indenização calculado
         
         Args:
             dados_cabecalho: Dados do cabeçalho da NF/NFD
             itens: Lista de itens selecionados
             dados_formulario: Dados do formulário
             user_email: Email do usuário
-            user_empresa: ✅ NOVO - Empresa do usuário (Matriz, Empresax, Thomas)
+            user_empresa: Empresa do usuário (Matriz, Empresax, EmpresaY)
         
         Returns:
             Tuple[bool, str]: (sucesso, mensagem)
@@ -564,7 +564,7 @@ class AvariaService:
             # 1. Gerar ID único da avaria
             avaria_id = self._gerar_id_avaria()
             
-            # 2. NOVO: Preparar dados incluindo empresa
+            # 2. Preparar dados incluindo empresa
             data_to_build_avaria = {
                 'id': avaria_id,
                 'cod_empresa': dados_cabecalho.get('codemp'),
@@ -576,7 +576,7 @@ class AvariaService:
                 'valor_nf': dados_cabecalho.get('valor_nf', '') or dados_cabecalho.get('vlrnota', ''),
                 'data_registro': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'registrado_por': user_email,
-                'empresa': user_empresa,  # NOVO CAMPO
+                'empresa': user_empresa,
                 'status_estoque': dados_formulario.get('status_estoque', 'Pendente'),
                 'status_indenizacao': dados_formulario.get('status_indenizacao', 'Pendente'),
                 
@@ -593,8 +593,8 @@ class AvariaService:
                 'data_coleta': dados_formulario.get('data_coleta', ''),
                 'cod_rastreio_correios': dados_formulario.get('cod_rastreio_correios', ''),
                 'observacao': dados_formulario.get('observacao', ''),
-                'data_protocolo_mkt': dados_formulario.get('data_protocolo_mkt', ''), # NOVO CAMPO
-                'protocolo_insucesso': dados_formulario.get('protocolo_insucesso', ''),   # NOVO                
+                'data_protocolo_mkt': dados_formulario.get('data_protocolo_mkt', ''),
+                'protocolo_insucesso': dados_formulario.get('protocolo_insucesso', ''),
                 
                 # Campos de motivo inicial
                 'cod_motivo_devolucao': dados_formulario.get('cod_motivo_devolucao', ''),
@@ -870,7 +870,7 @@ class AvariaService:
             logger.error(f"Erro ao listar avarias: {e}")
             return []
             
-    # ••• NOVO MÉTODO CRÍTICO PARA APLICAÇÃO DE REGRAS DE EXCLUSÃO •••
+    # Método para APLICAÇÃO DE REGRAS DE EXCLUSÃO •••
     def get_pending_avaria_items(self, user_empresa: str) -> List[Dict]:
         """
         Busca todos os itens de avarias (Avarias + Itens_Avarias)

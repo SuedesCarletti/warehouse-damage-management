@@ -1,7 +1,7 @@
 /**
  * dark-mode-fix.css
  * Sistema completo de cores para suporte a Dark Mode
- * ✅ VERSÃO 2.0 - Correção de cabeçalhos table-warning
+ * VERSÃO 2.0 - Correção de cabeçalhos table-warning
  */
 
 /* ============================================================================
@@ -25,13 +25,13 @@
     --border-color: #dee2e6;
     --border-color-light: #e9ecef;
     
-    /* ✅ Cores para tabelas no modo CLARO */
+    /* Cores para tabelas no modo CLARO */
     --table-bg: #ffffff;
     --table-hover-bg: #f8f9fa;
     --table-text: #212529;
     --table-border: #dee2e6;
     
-    /* ✅ NOVO: Cores para cabeçalhos table-warning */
+    /* Cores para cabeçalhos table-warning */
     --table-warning-bg: #fff3cd;
     --table-warning-text: #856404;
     --table-warning-border: #ffeaa7;
@@ -79,13 +79,13 @@
     --bg-hover: #2a2a2a;
     --bg-light: #2a2a2a;
     
-    /* ✅ Cores para tabelas no modo ESCURO */
+    /* Cores para tabelas no modo ESCURO */
     --table-bg: #1e1e1e;
     --table-hover-bg: #2d2d2d;
     --table-text: #e0e0e0;
     --table-border: #444;
     
-    /* ✅ NOVO: Cores para cabeçalhos table-warning no dark mode */
+    /* Cores para cabeçalhos table-warning no dark mode */
     --table-warning-bg: #b8860b;
     --table-warning-text: #fff;
     --table-warning-border: #daa520;
@@ -206,12 +206,12 @@ thead.table-warning th {
     border-color: var(--table-warning-border) !important;
 }
 
-/* ✅ Garantir que o texto no cabeçalho warning seja sempre legível */
+/* Garantir que o texto no cabeçalho warning seja sempre legível */
 .table-warning thead th {
     font-weight: 600 !important;
 }
 
-/* ✅ Sticky headers mantêm a cor correta */
+/* Sticky headers mantêm a cor correta */
 .table-warning thead.sticky-top th {
     background-color: var(--table-warning-bg) !important;
     color: var(--table-warning-text) !important;

@@ -93,7 +93,7 @@ const ExportExcel = (function() {
             dados.push(registro);
         });
 
-        // 3. NOVO: Coletar totalizadores (se disponível)
+        // 3. Coletar totalizadores (se disponível)
         let totalizadores = {};
         if (typeof calcularTotalizadoresConsultar === 'function') {
             try {
@@ -114,7 +114,7 @@ const ExportExcel = (function() {
         };
     }
     
-    // COLETA DE DADOS - REGISTRAR AVARIAS (CORRIGIDO)
+    // COLETA DE DADOS - REGISTRAR AVARIAS
     
     /**
      * Coleta dados filtrados da tabela de Registrar Avarias (formato agrupado)
@@ -262,7 +262,7 @@ const ExportExcel = (function() {
     // UTILITÁRIOS - COLETA DE FILTROS (MELHORADO)
     
     /**
-     * NOVO: Coleta filtros ativos com nome da coluna
+     * Coleta filtros ativos com nome da coluna
      * Retorna objeto com formato "Nome da Coluna": "valor"
      */
     function coletarFiltrosAtivosMelhorados() {

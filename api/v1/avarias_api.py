@@ -40,7 +40,7 @@ def log_every_request():
     logger.info(
         f"🔍 [avarias_rest_v1] PID:{os.getpid()} | "
         f"{request.method} {request.path} | "
-        f"X-API-Key: {'✅ presente' if request.headers.get('X-API-Key') else '❌ ausente'}"
+        f"X-API-Key: {'presente' if request.headers.get('X-API-Key') else '❌ ausente'}"
     )
 
 # HEALTH CHECK
@@ -332,42 +332,9 @@ def atualizar_avaria(avaria_id):
         return jsonify({'error': 'Erro ao atualizar', 'message': str(e)}), 500
 
 
-# ADMIN - GERAR API KEY (legado)
+# A geração de API keys é feita só pela tela autenticada /wms/api-keys (a rota
+# legada POST /api/v1/admin/api-keys foi removida: não tinha autenticação).
 
-@api_bp.route('/admin/api-keys', methods=['POST'])
-def criar_api_key():
-    """POST /api/v1/admin/api-keys — use /wms/api-keys/api/gerar de preferência"""
-    logger.info(f"[criar_api_key] Iniciando")
-    try:
-        from api.v1.auth_api import gerar_api_key
-        data = request.get_json()
-        
-        if not data or 'cliente' not in data:
-            return jsonify({'error': 'Campo "cliente" obrigatório'}), 400
-        
-        api_key = gerar_api_key(data['cliente'])
-        
-        ws = sheets_service.sheet.worksheet('wms_api_keys')
-        ws.append_row([
-            api_key,
-            data['cliente'],
-            data.get('permissoes', 'read'),
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            data.get('expira_em', ''),
-            'sim'
-        ])
-        
-        return jsonify({
-            'success': True,
-            'api_key': api_key,
-            'cliente': data['cliente'],
-            'message': 'API Key criada com sucesso'
-        }), 201
-        
-    except Exception as e:
-        logger.error(f"[criar_api_key] {e}")
-        return jsonify({'error': 'Erro ao criar API Key', 'message': str(e)}), 500
-        
 @api_bp.after_request
 def no_cache(response):
     """Impede que Railway/CDN faça cache de respostas da API"""

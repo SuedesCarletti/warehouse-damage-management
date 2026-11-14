@@ -1,7 +1,7 @@
 """
 core/models/user.py - VERSÃO ATUALIZADA
 Modelo de dados para Usuário — com suporte à hierarquia de 3 níveis admin
-NOVO: Campo requer_alteracao_senha para forçar troca de senha no próximo login
+Campo requer_alteracao_senha para forçar troca de senha no próximo login
 """
 
 from dataclasses import dataclass, field
@@ -46,7 +46,7 @@ class User:
     empresa: Optional[str] = None
     cargo: Optional[str] = None
 
-    # ─── NOVO: Força alteração de senha no próximo login ───────────────────
+    # ─── Força alteração de senha no próximo login ───────────────────
     requer_alteracao_senha: str = 'nao'  # 'sim' ou 'nao'
     
     # ─── Escopo administrativo ─────────────────────────────────────────────
@@ -85,7 +85,7 @@ class User:
         if self.ativo not in ['sim', 'nao']:
             raise ValueError(f"Campo 'ativo' deve ser 'sim' ou 'nao', recebido: {self.ativo}")
 
-        # NOVO: Normalizar requer_alteracao_senha
+  # Normalizar requer_alteracao_senha
         if self.requer_alteracao_senha not in ['sim', 'nao']:
             self.requer_alteracao_senha = 'nao'
 
@@ -116,7 +116,7 @@ class User:
         }
         return labels.get(self.nivel, self.nivel.replace('_', ' ').title())
 
-    # NOVO: Propriedade para verificar se precisa alterar senha
+  # Propriedade para verificar se precisa alterar senha
     @property
     def precisa_alterar_senha(self) -> bool:
         """Verifica se usuário deve ser forçado a alterar senha no próximo login"""
@@ -284,7 +284,7 @@ class User:
             'empresa': self.empresa,
             'cargo': self.cargo,
             'admin_escopo': self.admin_escopo or '',
-            'requer_alteracao_senha': self.requer_alteracao_senha,  # NOVO
+            'requer_alteracao_senha': self.requer_alteracao_senha,
             'data_cadastro': self.data_cadastro,
             'ultimo_login': self.ultimo_login,
         }
@@ -301,12 +301,12 @@ class User:
             empresa=data.get('empresa'),
             cargo=data.get('cargo'),
             admin_escopo=data.get('admin_escopo') or None,
-            requer_alteracao_senha=data.get('requer_alteracao_senha', 'nao'),  # NOVO
+            requer_alteracao_senha=data.get('requer_alteracao_senha', 'nao'),
             data_cadastro=data.get('data_cadastro'),
             ultimo_login=data.get('ultimo_login'),
         )
 
     def __repr__(self):
         escopo = f" [{self.admin_escopo}]" if self.admin_escopo else ""
-        senha_flag = " " if self.precisa_alterar_senha else ""  # NOVO
+        senha_flag = " " if self.precisa_alterar_senha else ""
         return f"<User {self.email} ({self.nivel}{escopo}){senha_flag}>"

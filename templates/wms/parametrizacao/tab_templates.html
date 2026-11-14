@@ -225,7 +225,7 @@
                         <div class="mb-2">
                             <label class="form-label fw-semibold">Status</label>
                             <select id="tplAtivo" class="form-select">
-                                <option value="sim">✅ Ativo</option>
+                                <option value="sim">Ativo</option>
                                 <option value="nao">❌ Inativo</option>
                             </select>
                         </div>
@@ -505,7 +505,7 @@ async function salvarTemplate() {
     btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Template';
 
     if (res.success) {
-        showParamToast(`✅ ${res.message || 'Template salvo!'}`, 'success');
+        showParamToast(`${res.message || 'Template salvo!'}`, 'success');
         bootstrap.Modal.getInstance(document.getElementById('modalTemplate'))?.hide();
         setTimeout(() => location.reload(), 900);
     } else {
@@ -519,7 +519,7 @@ async function excluirTemplate(id, nome) {
 
     const res = await paramApi(`/wms/parametrizacao/api/templates/${id}`, 'DELETE');
     if (res.success) {
-        showParamToast('✅ Template desativado', 'success');
+        showParamToast('Template desativado', 'success');
         setTimeout(() => location.reload(), 800);
     } else {
         showParamToast(`❌ ${res.error}`, 'danger');

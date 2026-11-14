@@ -735,7 +735,7 @@ if (form) {
                 const modalInstance = bootstrap.Modal.getInstance(modalEl);
                 if (modalInstance) modalInstance.hide();
 
-                showNotification('success', `✅ ${result.message || 'Avaria registrada com sucesso!'}`);
+                showNotification('success', `${result.message || 'Avaria registrada com sucesso!'}`);
                 
                 // Injeção direta — sem reload, sem dependência de cache/worker
                 if (result.rows_html && result.rows_html.trim()) {

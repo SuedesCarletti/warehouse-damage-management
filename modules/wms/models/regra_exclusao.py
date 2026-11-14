@@ -14,7 +14,7 @@ from dataclasses import dataclass
 class RegraExclusao:
     """Representa uma regra de exclusão para avarias pendentes"""
     id: str = ''
-    empresa: str = ''                # ← NOVO: isolamento por empresa
+    empresa: str = ''                # ← isolamento por empresa
     local: str = ''                  # → ItemAvaria.localizacao
     etiqueta: str = ''               # → ItemAvaria.status_etiqueta
     status_indenizacao: str = ''     # → Avaria.status_indenizacao
@@ -81,7 +81,7 @@ class RegraExclusao:
     def to_dict(self) -> dict:
         return {
             'id': self.id,
-            'empresa': self.empresa,           # ← NOVO
+            'empresa': self.empresa,
             'local': self.local,
             'etiqueta': self.etiqueta,
             'status_indenizacao': self.status_indenizacao,
@@ -95,7 +95,7 @@ class RegraExclusao:
     def from_dict(cls, data: dict) -> 'RegraExclusao':
         return cls(
             id=str(data.get('id', '')).strip(),
-            empresa=str(data.get('empresa', '')).strip(),  # ← NOVO
+            empresa=str(data.get('empresa', '')).strip(),
             local=str(data.get('local', '')).strip(),
             etiqueta=str(data.get('etiqueta', '')).strip(),
             status_indenizacao=str(data.get('status_indenizacao', '')).strip(),

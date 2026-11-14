@@ -83,7 +83,7 @@ class StatusService:
     def get_all_status(self, include_inactive: bool = False, status_type=None):
         """
         Retorna todos os status, filtrando opcionalmente por tipo.
-        ⚡ CACHE de 10 min com lock anti-stampede — 0 chamadas à API em regime normal.
+        CACHE de 10 min com lock anti-stampede — 0 chamadas à API em regime normal.
     
         Invalidar cache após escrita: self._status_cache.clear()
         """

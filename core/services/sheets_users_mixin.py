@@ -54,7 +54,7 @@ class SheetsUsersMixin:
     def get_all_users(self) -> list:
         """
         Retorna todos os usuários com CACHE de 15 minutos.
-        ✅ Evita rate limiting da API do Google Sheets.
+        Evita rate limiting da API do Google Sheets.
         """
         # VERIFICAR CACHE PRIMEIRO
         if self._users_cache and self._users_cache_timestamp:
@@ -363,7 +363,7 @@ class SheetsUsersMixin:
             User(nome="Admin Matriz", email="admin@matriz.com", departamento="TI",
                  nivel="admin", ativo="sim", senha="REDACTED_SECRET", empresa="Matriz"),
             User(nome="Gestor HelpDesk", email="gestor@cliente7.example.com", departamento="Suporte",
-                 nivel="admin_depto", ativo="sim", senha="REDACTED_SECRET", empresa="Thomas"),
+                 nivel="admin_depto", ativo="sim", senha="REDACTED_SECRET", empresa="EmpresaY"),
             User(nome="Operador WMS", email="pessoa1@example.com", departamento="Logística",
                  nivel="usuario", ativo="sim", senha="REDACTED_SECRET", empresa="Empresax")
         ]

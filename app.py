@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 # APPLICATION FACTORY
 
+from utils.decorators import api_admin_empresa_required, api_module_required
 def create_app():
     logger.info("=" * 70)
     logger.info("INICIANDO MULTISOLUCOES APPLICATION")
@@ -32,12 +33,10 @@ def create_app():
     app.config['SESSION_PERMANENT'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
     app.config['DEBUG'] = Config.DEBUG
-    # Este host serve a app via nginx em HTTP puro (sem TLS, ver /etc/nginx/sites-enabled),
-    # então o cookie NÃO pode ser Secure: navegadores descartam cookies Secure fora de HTTPS,
-    # o que quebra o login (sessão nunca persiste). Se algum dia houver TLS na frente,
-    # troque para True. Ver commit de176181 (2026-09-24), que ligou isso a Config.DEBUG e
-    # derrubou o login em produção.
-    app.config['SESSION_COOKIE_SECURE'] = False
+    # Cookie Secure só funciona sob HTTPS: navegadores descartam cookies Secure em HTTP
+    # puro e a sessão nunca persiste. Por isso é opt-in: defina SESSION_COOKIE_SECURE=true
+    # quando houver TLS na frente da aplicação.
+    app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'  # defina true quando houver TLS na frente
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['COMPANY_NAME'] = os.environ.get('COMPANY_NAME', 'MultiSoluções')
@@ -116,7 +115,7 @@ def create_app():
         from core.services.email_service import EmailService
         email_service = EmailService(app.config)
         
-        # ── NOVO: Tentar resgatar as configurações SMTP salvas pela UI na aba WMS_Config ──
+        # ── Tentar resgatar as configurações SMTP salvas pela UI na aba WMS_Config ──
         if sheets_service and sheets_service.connected:
             try:
                 ws_config = sheets_service.sheet.worksheet("WMS_Config")
@@ -284,7 +283,7 @@ def create_app():
 
             services_status['etiqueta'] = True
             logger.info("Etiqueta Service inicializado COM SUCESSO")
-            logger.info(f"   Instância criada: {type(etiqueta_service).__name__}")
+            logger.info(f"   Instncia criada: {type(etiqueta_service).__name__}")
             logger.info(f"   app.etiqueta_service definido: {hasattr(app, 'etiqueta_service')}")
 
         except Exception as e:
@@ -576,7 +575,7 @@ def create_app():
 
         # ── Scheduler de alertas (anti-429) ──────────────────────────────────
         # Background thread que pré-calcula o resumo de alertas a cada 4 min.
-        # Elimina o stampede de leituras simultâneas que causava 429 em cascata.
+        # Elimina o stampede de leituras simultneas que causava 429 em cascata.
         try:
             from modules.wms.routes.parametrizacao_routes import init_alertas_scheduler
             init_alertas_scheduler(app)
@@ -623,7 +622,7 @@ def create_app():
             from modules.wms.routes.validacao_estoque_routes import (
                 validacao_estoque_bp, init_validacao_estoque_routes
             )
-            # Reutiliza sankhya_service e cache já instanciados — mesma instância que avarias usa
+            # Reutiliza sankhya_service e cache já instanciados — mesma instncia que avarias usa
             init_validacao_estoque_routes(
                 sankhya_service=sankhya_service,
                 cache_sankhya_service=cache_sankhya_service,
@@ -824,6 +823,7 @@ def create_app():
 
     # ROTA DE ADMINISTRAÇÃO: FORÇAR CARGA RETROATIVA DE ESTOQUE
     @app.route('/api/v1/wms/estoque/retroativo', methods=['POST'])
+    @api_admin_empresa_required
     def api_rodar_retroativo():
         if not hasattr(app, 'historico_estoque_service') or not app.historico_estoque_service:
             return jsonify({'success': False, 'msg': 'Serviço de Histórico Inativo'}), 503
@@ -845,6 +845,7 @@ def create_app():
 
     # ROTA: DIAGNÓSTICO DAS COLUNAS TGFITE NO SANKHYA
     @app.route('/api/v1/wms/estoque/diagnostico', methods=['GET'])
+    @api_admin_empresa_required
     def api_diagnostico_estoque():
         """Valida colunas reais do TGFITE antes de ativar o retroativo."""
         if not hasattr(app, 'historico_estoque_service') or not app.historico_estoque_service:
@@ -854,6 +855,7 @@ def create_app():
 
     # ROTA: CONSULTA DE EVOLUÇÃO DE ESTOQUE POR LOCAL
     @app.route('/api/v1/wms/estoque/evolucao', methods=['GET'])
+    @api_module_required('wms')
     def api_evolucao_estoque():
         """
         Consulta a evolução histórica de estoque por local.

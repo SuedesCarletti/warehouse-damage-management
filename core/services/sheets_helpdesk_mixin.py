@@ -211,7 +211,7 @@ class SheetsHelpdeskMixin:
         return {
             'Matriz': ['helpdesk', 'wms'],
             'Empresax': ['wms'],
-            'Thomas': ['helpdesk']
+            'EmpresaY': ['helpdesk']
         }
 
     def _get_fallback_roles(self) -> dict:

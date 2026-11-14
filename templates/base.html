@@ -776,9 +776,9 @@
             const tela          = grupo.tela_destino  || 'consultar';
             const campo         = grupo.campo_data    || 'data_registro';
             const statusAtivos  = grupo.status_ativos || '';
-            const campoParar    = grupo.campo_parar   || '';  // ✅ NOVO
-            const statusParar   = grupo.status_parar  || '';  // ✅ NOVO
-            const logicaParada  = grupo.logica_parada || 'OU'; // ✅ NOVO
+            const campoParar    = grupo.campo_parar   || '';
+            const statusParar   = grupo.status_parar  || '';
+            const logicaParada  = grupo.logica_parada || 'OU';
             const base          = tela === 'registrar' ? '/wms/registrar' : '/wms/consultar';
             const hoje          = new Date().toISOString().split('T')[0];
             const params        = new URLSearchParams();
@@ -787,7 +787,7 @@
             params.set('campo_data_filtro', campo);
             params.set('alerta_nome',       grupo.nome);
         
-            // ✅ PRIORIDADE: filtro server-side via status_parar (mais preciso que status_ativos)
+            // PRIORIDADE: filtro server-side via status_parar (mais preciso que status_ativos)
             if (statusParar) {
                 params.set('alerta_status_parar',  statusParar);
                 params.set('alerta_logica_parada', logicaParada);

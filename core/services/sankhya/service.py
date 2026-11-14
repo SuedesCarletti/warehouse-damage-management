@@ -82,7 +82,7 @@ class SankhyaService:
     - includePresentationFields="N" (payload menor)
     """
     
-    # CLASS-LEVEL: Token + Session compartilhados entre todas as instâncias
+    # CLASS-LEVEL: Token + Session compartilhados entre todas as instncias
     
     _shared_token = None
     _shared_token_timestamp = None
@@ -117,7 +117,7 @@ class SankhyaService:
     @classmethod
     def _get_session(cls) -> requests.Session:
         """
-        ⚡ v6.0: Retorna session compartilhada com connection pooling.
+        v6.0: Retorna session compartilhada com connection pooling.
         
         ANTES: requests.post() cria nova conexão TCP+SSL a cada call (~6-8s)
         DEPOIS: Session reutiliza conexão existente (~0.1-0.3s)
@@ -144,7 +144,7 @@ class SankhyaService:
     @classmethod
     def warm_up(cls, base_url: str = None, appkey: str = None):
         """
-        ⚡ v6.0: Pré-aquece TUDO no startup da aplicação.
+        v6.0: Pré-aquece TUDO no startup da aplicação.
         
         Faz login + query leve usando a Session compartilhada.
         Resultado: quando o usuário fizer a primeira consulta,
@@ -252,7 +252,7 @@ class SankhyaService:
     
     def _get_valid_token(self) -> Optional[str]:
         """
-        ⚡ Obtém token válido com reuso + session pooling.
+        Obtém token válido com reuso + session pooling.
         
         v6.0: Login usa a session compartilhada (mesma conexão TCP+SSL)
         """
@@ -333,7 +333,7 @@ class SankhyaService:
     
     def post_request(self, url: str, payload: Dict, timeout: int = 30) -> Optional[Dict]:
         """
-        ⚡ v6.0: Usa session compartilhada (connection pooling).
+        v6.0: Usa session compartilhada (connection pooling).
 
         ANTES: requests.post() → nova conexão TCP+SSL cada vez (~6-8s overhead)
         DEPOIS: session.post() → reutiliza conexão existente (~0.1-0.3s overhead)
@@ -380,7 +380,7 @@ class SankhyaService:
                      paginate_all: bool = False,
                      joined_entities: List[Dict] = None) -> Optional[Dict]:
         """
-        ⚡ v6.0: Suporte a JOINs via entity path.
+        v6.0: Suporte a JOINs via entity path.
         
         Args:
             entity: Nome da entidade raiz (ex: 'CabecalhoNota')
@@ -389,7 +389,7 @@ class SankhyaService:
             limit: Máximo de registros
             offset_page: Página do resultado
             paginate_all: Se True, itera todas as páginas
-            joined_entities: ⚡ NOVO! Lista de JOINs:
+            joined_entities: Lista de JOINs:
                 [{"path": "Produto", "fields": "DESCRPROD,CODGRUPOPROD"}]
                 
         Returns:
@@ -599,14 +599,14 @@ class SankhyaService:
 
     @staticmethod
     def parse_valor_sankhya(value, default: float = 0.0) -> float:
-        """Atalho de instância para o parser monetário canônico (ver módulo)."""
+        """Atalho de instncia para o parser monetário canônico (ver módulo)."""
         return parse_valor_sankhya(value, default)
 
     # HELPER: Critério parametrizado (v6.0)
     
     def _make_criteria(self, expression: str, params: list = None) -> Dict:
         """
-        ⚡ v6.0: Cria critério parametrizado (mais seguro e potencialmente mais rápido).
+        v6.0: Cria critério parametrizado (mais seguro e potencialmente mais rápido).
         
         Uso:
             criteria = self._make_criteria(
@@ -762,7 +762,7 @@ class SankhyaService:
 
     def buscar_itens_nota(self, nunota: str) -> Optional[List[Dict]]:
         """
-        ⚡ v6.0: Busca itens + dados do produto em UMA ÚNICA query via JOIN.
+        v6.0: Busca itens + dados do produto em UMA ÚNICA query via JOIN.
         
         ANTES (v5.0): 2 queries — ItemNota + Produto batch (~4-6s)
         DEPOIS (v6.0): 1 query — ItemNota JOIN Produto (~2-3s)
@@ -914,7 +914,7 @@ class SankhyaService:
 
     def buscar_produtos_batch(self, codprods: List[str]) -> Dict[str, Dict]:
         """
-        ⚡ Busca N produtos em UMA query via IN clause.
+        Busca N produtos em UMA query via IN clause.
         
         Mantido como fallback para quando JOIN não funcionar.
         """
@@ -972,7 +972,7 @@ class SankhyaService:
     def buscar_dados_completos_nota(self, numnota: str, codemp: str = None,
                                      nunota: str = None, tipmov: str = None) -> Tuple[Optional[Dict], Optional[List[Dict]]]:
         """
-        ⚡ v6.0: Busca cabeçalho + itens+produtos em MENOS queries.
+        v6.0: Busca cabeçalho + itens+produtos em MENOS queries.
         
         v5.0: 3 queries (cabeçalho + itens + produtos batch)
         v6.0: 2 queries (cabeçalho + itens JOIN produto)
@@ -1028,7 +1028,7 @@ class SankhyaService:
             queries_count = 2 if join_ok else 3
             logger.info(f"[v6.0] Nota completa em {total_time:.1f}s ({queries_count} queries) "
                        f"| Cabeçalho: {cab_time:.1f}s | Itens: {itens_time:.1f}s "
-                       f"| JOIN: {'✅' if join_ok else '❌ (fallback batch)'}")
+                       f"| JOIN: {'' if join_ok else '❌ (fallback batch)'}")
             
             return cabecalho, itens
             

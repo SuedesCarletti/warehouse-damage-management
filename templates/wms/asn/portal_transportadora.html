@@ -705,7 +705,7 @@ async function criarAsn() {
         const data_resp = await res.json();
 
         if (data_resp.success) {
-            showToast(`✅ ${data_resp.message}`);
+            showToast(`${data_resp.message}`);
             if (data_resp.redirect) {
                 setTimeout(() => { window.location.href = data_resp.redirect; }, 1000);
             } else {

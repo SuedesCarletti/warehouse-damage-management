@@ -27,7 +27,7 @@ class ASN:
     # ── Dados da Transportadora ───────────────────────────────────────────
     transportadora: str = ''         # Nome da transportadora
     email_transportadora: str = ''   # Email do usuário que criou o ASN
-    empresa_dest: str = ''           # Empresa destinatária (Matriz, Empresax, Thomas)
+    empresa_dest: str = ''           # Empresa destinatária (Matriz, Empresax, EmpresaY)
 
     # ── Dados da Carga ────────────────────────────────────────────────────
     nota: str = ''                   # NF ou NFD (nota principal)

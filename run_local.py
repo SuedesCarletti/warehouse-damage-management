@@ -130,7 +130,7 @@ def main():
     try:
         from app import app
         port = int(os.environ.get('PORT', 5000))
-        app.run(debug=True, host='0.0.0.0', port=port)
+        app.run(debug=os.environ.get('FLASK_DEBUG') == '1', host=os.environ.get('HOST', '127.0.0.1'), port=port)
     except KeyboardInterrupt:
         print("\nServidor parado pelo usuário")
     except Exception as e:

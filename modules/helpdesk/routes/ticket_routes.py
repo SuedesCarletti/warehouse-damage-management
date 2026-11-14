@@ -28,7 +28,7 @@ def dashboard():
     """Dashboard de tickets"""
     logger.info(f"Dashboard acessado por {session.get('user_email')}")
     
-    # NOVO: Obter empresa do usuário
+  # Obter empresa do usuário
     user_empresa = session.get('user_empresa')
     user_email = session.get('user_email')
     user_level = session.get('user_level')
@@ -72,7 +72,7 @@ def list_tickets():
     logger.info(f"Lista de tickets acessada por {session.get('user_email')}")
     
     user_email = session.get('user_email')
-    user_empresa = session.get('user_empresa')  # NOVO
+    user_empresa = session.get('user_empresa')
     
     # Verificar permissão para ver todos os tickets
     permissions = session.get('permissions', {})
@@ -104,7 +104,7 @@ def list_tickets():
     
     return render_template('helpdesk/tickets.html', tickets=tickets)
 
-# CRIAR NOVO TICKET
+# CRIAR TICKET
 
 @ticket_bp.route('/new', methods=['GET', 'POST'])
 @module_required('helpdesk')
@@ -115,12 +115,12 @@ def new_ticket():
     logger.info(f"Novo ticket acessado por {session.get('user_email')}")
     
     if request.method == 'POST':
-        # NOVO: Incluir empresa do usuário automaticamente
+  # Incluir empresa do usuário automaticamente
         ticket_data = {
             'user_email': session['user_email'],
             'user_name': session['user_name'],
             'department': session['user_department'],
-            'empresa': session['user_empresa'],  # NOVO CAMPO
+            'empresa': session['user_empresa'],
             'category': request.form.get('category'),
             'subject': request.form.get('subject'),
             'description': request.form.get('description'),
@@ -159,7 +159,7 @@ def view_ticket(ticket_number):
         flash('Chamado não encontrado.', 'error')
         return redirect(url_for('tickets.list_tickets'))
     
-    # NOVO: Verificar se o ticket é da mesma empresa
+  # Verificar se o ticket é da mesma empresa
     user_empresa = session.get('user_empresa')
     if ticket.empresa != user_empresa:
         logger.warning(f"Usuário {session.get('user_email')} tentou acessar ticket de outra empresa")

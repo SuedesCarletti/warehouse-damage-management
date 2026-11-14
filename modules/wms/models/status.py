@@ -9,7 +9,7 @@ class Status:
     ativo: str = "sim"
     ordem: int = 0
     descricao: str = ""
-    status_type: str = "geral" # ◡› NOVO CAMPO: estoque, indenizacao, geral
+    status_type: str = "geral" # estoque, indenizacao, geral
     
     @classmethod
     def from_dict(cls, data: dict) -> 'Status':

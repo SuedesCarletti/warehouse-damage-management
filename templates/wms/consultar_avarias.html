@@ -47,14 +47,14 @@
         margin-right: 15px;
     }
 
-    /* ✅ Container com scroll para sticky tfoot funcionar */
+    /* Container com scroll para sticky tfoot funcionar */
     .table-container {
         max-height: 70vh;
         overflow-y: auto;
         position: relative;
     }
 
-    /* ✅ Tfoot sticky - gruda no fundo da área visível */
+    /* Tfoot sticky - gruda no fundo da área visível */
     #tabelaAvarias tfoot {
         position: sticky;
         bottom: 0;
@@ -71,7 +71,7 @@
         border-top: 2px solid #0dcaf0;
     }
 
-    /* ✅ Thead sticky também - gruda no topo ao rolar */
+    /* Thead sticky também - gruda no topo ao rolar */
     #tabelaAvarias thead {
         position: sticky;
         top: 0;
@@ -299,7 +299,7 @@
                 </span>
             </h5>
             
-            <!-- NOVO: Botão de Baixas Múltiplas -->
+            <!-- Botão de Baixas Múltiplas -->
             <button type="button" 
                     class="btn btn-primary" 
                     id="btnBaixasMultiplas"
@@ -315,7 +315,7 @@
             <table class="table table-hover table-striped mb-0" id="tabelaAvarias">
                 <thead>
                     <tr>
-                        <!-- NOVO: Coluna de Checkbox -->
+                        <!-- Coluna de Checkbox -->
                         <th style="width: 50px; min-width: 50px;">
                             <input type="checkbox" 
                                    id="checkboxSelectAll" 
@@ -572,7 +572,7 @@
                             <td class="text-success fw-bold">
                                 {{ avaria.reembolso_pct_str or '0' }}%
                             </td>
-                            <!-- ✅ NOVA CÉLULA: Valor Indenização -->
+                            <!-- NOVA CÉLULA: Valor Indenização -->
                             <td class="text-primary fw-bold">
                                 {{ avaria.valor_indenizacao_formatado }}
                             </td>
@@ -582,7 +582,7 @@
                             <!-- 13. Data Pgto -->
                             <td>{{ format_date_br(avaria.data_pagamento, include_time=False) or '-' }}</td>
                             
-                            <!-- ✅ 14. Volume - ADICIONAR -->
+                            <!-- 14. Volume - ADICIONAR -->
                             <!--<td>{{ avaria.volume or '-' }}</td>-->
 
                             <!-- 16. Data Registro -->
@@ -604,7 +604,7 @@
                         </tr>
                     {% endif %}
                 </tbody>
-                <!-- ✅ TFOOT CORRIGIDO - ALINHADO COM 18 COLUNAS -->
+                <!-- TFOOT CORRIGIDO - ALINHADO COM 18 COLUNAS -->
                 <tfoot>
                     <tr class="table-info fw-bold">
                         <!-- 1. Checkbox -->
@@ -899,10 +899,10 @@
             urlExport: '{{ url_for("wms.exportar_consultar_avarias") }}',
             tabelaId: 'tabelaAvarias',
             columnDefs: COLUMN_DEFS,  // Já definido em consultar-avarias.js
-            totalizadoresCallback: calcularTotalizadoresConsultar  // ✅ NOVO
+            totalizadoresCallback: calcularTotalizadoresConsultar
         });
         
-        console.log('✅ Sistema de exportação configurado para Consultar Avarias');
+        console.log('Sistema de exportação configurado para Consultar Avarias');
     });
     
     /**
@@ -915,7 +915,7 @@
         ExportExcel.exportar(
             // Callback de sucesso
             function(filename) {
-                console.log(`✅ Arquivo exportado com sucesso: ${filename}`);
+                console.log(`Arquivo exportado com sucesso: ${filename}`);
                 
                 // Opcional: Mostrar notificação adicional
                 if (typeof Swal !== 'undefined') {

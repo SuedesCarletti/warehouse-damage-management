@@ -7,7 +7,7 @@ class AdvancedTable {
             return;
         }
         
-        // NOVO: Tentar obter lista de colunas completa do atributo data-advanced-columns (JSON)
+  // Tentar obter lista de colunas completa do atributo data-advanced-columns (JSON)
         const columnsData = this.table.getAttribute('data-advanced-columns');
         let externalColumns = null;
         if (columnsData) {
@@ -331,7 +331,7 @@ class AdvancedTable {
         
         let columnInfo;
         
-        // NOVO: Priorizar lista externa se existir (para incluir colunas ocultas no filtro)
+  // Priorizar lista externa se existir (para incluir colunas ocultas no filtro)
         if (this.options.allColumns && Array.isArray(this.options.allColumns)) {
             // Mapeia nomes fornecidos externamente (assumindo que a ordem corresponde ao índice da célula)
              columnInfo = this.options.allColumns.map((name, i) => ({
@@ -581,7 +581,7 @@ class AdvancedTable {
         this.updateVisibleCount();
     }
     
-    // ==================== REDIMENSIONAMENTO (O NOVO CÓDIGO) ====================
+    // ==================== REDIMENSIONAMENTO ====================
 
     initResize() {
         // Injetar CSS básico
@@ -753,7 +753,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Função global para limpar busca (chamada pelo HTML de exemplo)
 window.clearSearch = function() {
-    const tableInstance = window.advancedTableInstance; // Assumindo que existe uma instância global para a tabela de avarias
+    const tableInstance = window.advancedTableInstance; // Assumindo que existe uma instncia global para a tabela de avarias
     if (tableInstance && tableInstance.clearSearch) {
         tableInstance.clearSearch();
     } else {

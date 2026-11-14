@@ -52,7 +52,7 @@ class ConviteService:
         """
         Garante que a aba existe e retorna o objeto worksheet.
 
-        ✅ FIX loop infinito de 429:
+        FIX loop infinito de 429:
           - Worksheet é cacheado após primeira obtenção bem-sucedida.
             Requests subsequentes não chamam a API.
           - Se worksheet() falhar com 429, retorna None imediatamente

@@ -317,7 +317,7 @@
             document.querySelector('.email-checking').style.display = 'block';
             
             try {
-                const response = await fetch('/auth/api/check-user-modules', {  // ✅ CORRIGIDO
+                const response = await fetch('/auth/api/check-user-modules', {  // CORRIGIDO
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -355,7 +355,7 @@
             
             // 🆕 LÓGICA INTELIGENTE: Só mostrar seletor se tiver MÚLTIPLOS módulos
             if (modules.length === 1) {
-                // ✅ ACESSO ÚNICO - Esconder seletor e só mostrar mensagem informativa
+                // ACESSO ÚNICO - Esconder seletor e só mostrar mensagem informativa
                 container.style.display = 'block';
                 selector.classList.remove('show'); // Oculta os cards
                 
@@ -373,7 +373,7 @@
                 document.getElementById('module_selection').value = modules[0];
                 
             } else if (modules.length > 1) {
-                // ✅ MÚLTIPLOS ACESSOS - Mostrar seletor completo
+                // MÚLTIPLOS ACESSOS - Mostrar seletor completo
                 container.style.display = 'block';
                 selector.classList.add('show'); // Mostra os cards
                 

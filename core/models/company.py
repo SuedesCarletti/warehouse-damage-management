@@ -172,9 +172,9 @@ if __name__ == "__main__":
     
     # Exemplo 5: Criar a partir de dict (linha do Google Sheets)
     data_from_sheets = {
-        'empresa': 'Thomas',
+        'empresa': 'EmpresaY',
         'modulos_permitidos': 'helpdesk',
         'ativo': 'sim'
     }
-    thomas = Company.from_dict(data_from_sheets)
-    print(thomas)  # <Company Thomas (helpdesk)>
+    empresay = Company.from_dict(data_from_sheets)
+    print(empresay)  # <Company EmpresaY (helpdesk)>

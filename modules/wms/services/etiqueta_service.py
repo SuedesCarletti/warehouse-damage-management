@@ -851,7 +851,7 @@ class EtiquetaService:
                         logger.info(f"2ª etiqueta recusa gerada: {p['id']} → local {p['codlocal_item']} (inline)")
 
             logger.info(
-                f"✅ {len(etiquetas_geradas)} etiqueta(s) 00 gravadas em lote para avaria {avaria_id} "
+                f"{len(etiquetas_geradas)} etiqueta(s) 00 gravadas em lote para avaria {avaria_id} "
                 f"({len(linhas_97)} recusa(s) inline)"
             )
 
@@ -1620,7 +1620,7 @@ class EtiquetaService:
             self._invalidar_cache()
 
             logger.info(
-                f'✅ Recusa concluída: {id_etiqueta} → '
+                f'Recusa concluída: {id_etiqueta} → '
                 f'split={eh_parcial} qtd_recusada={quantidade_recusada} '
                 f'etiqueta_97={id_etiqueta_97}'
             )

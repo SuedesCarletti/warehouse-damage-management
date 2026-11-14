@@ -132,7 +132,7 @@ def init_wms_routes(sheets_service, auth_service, app_config, sankhya_avaria_svc
     wms_service = WmsAvariaService(sheets_service)
     printing_service = BrotherPrinterService(sheets_service, wms_service)
     status_service = StatusService(sheets_service)
-    sankhya_avaria_service = sankhya_avaria_svc # ATRIBUIÇÃO DO NOVO SERVIÇO
+    sankhya_avaria_service = sankhya_avaria_svc # ATRIBUIÇÃO DO SERVIÇO
 
     # Parametrização — regras de exclusão de avarias pendentes
     from ..services.parametrizacao_service import ParametrizacaoService
@@ -322,7 +322,7 @@ def registrar_avarias():
         except Exception as e:
             logger.warning(f"Erro ao aplicar regras de parametrização: {e}")
     
-    # ── NOVO: Filtro de alerta — exclui avarias cujo status de parada está ativo ──
+    # ── Filtro de alerta — exclui avarias cujo status de parada está ativo ──
     alerta_status_parar  = request.args.get('alerta_status_parar', '').strip()
     alerta_campo_parar   = request.args.get('alerta_campo_parar',  '').strip()
     alerta_logica_parada = request.args.get('alerta_logica_parada', 'OU').strip().upper()
@@ -364,10 +364,10 @@ def registrar_avarias():
             f"Filtro alerta (registrar): {len(avarias_pendentes)}/{antes} avarias ativas "
             f"(status_parar={alerta_status_parar!r}, logica={alerta_logica_parada})"
         )
-        active_filters['alerta_nome'] = request.args.get('alerta_nome', '')
 
-    # ── NOVO: Ler filtros de data da URL (igual ao consultar_avarias) ──────
+    # ── Ler filtros de data da URL (igual ao consultar_avarias) ──────
     active_filters = {}
+    active_filters['alerta_nome'] = request.args.get('alerta_nome', '')
     data_inicio = request.args.get('data_inicio', '')
     data_fim    = request.args.get('data_fim', '')
     campo_data  = request.args.get('campo_data_filtro', 'data_registro')
@@ -397,7 +397,7 @@ def registrar_avarias():
         status_estoque_list=status_estoque_list,
         status_indenizacao_list=status_indenizacao_list,
         status_color_map=status_color_map,
-        active_filters=active_filters,          # NOVO
+        active_filters=active_filters,
     )
 
 def _render_avaria_fragment(avaria_id: str, empresa: str) -> str | None:
@@ -640,7 +640,7 @@ def api_recusar_item_avaria():
 @set_theme('wms')
 def consultar_avarias():
     """
-    ✅ MODIFICADO: Consulta com filtro automático por empresa.
+    MODIFICADO: Consulta com filtro automático por empresa.
     Removido filtro 'status' geral.
     """
     try:
@@ -671,7 +671,7 @@ def consultar_avarias():
             'campo_data_filtro', 'data_registro'
         ) if (request_filters.get('data_inicio') or request_filters.get('data_fim')) else ''
         
-        # NOVO: SEMPRE adicionar filtro de empresa
+  # SEMPRE adicionar filtro de empresa
         active_filters['empresa'] = user_empresa
         
         # Busca total de avarias (da empresa)
@@ -725,10 +725,10 @@ def consultar_avarias():
         # Verificar disponibilidade do Sankhya
         sankhya_disponivel = get_sankhya_service() is not None
 
-        # NOVO: JSON com todos os 36 nomes de exibição
+  # JSON com todos os 36 nomes de exibição
         full_columns_json = json.dumps(AVARIA_DISPLAY_NAMES)
 
-        # NOVO: CARREGAR MAPA DE CORES DE STATUS PARA O TEMPLATE
+  # CARREGAR MAPA DE CORES DE STATUS PARA O TEMPLATE
         # Nota: 'status_service' é globalmente definido e setado por init_wms_routes
         if status_service:
             status_objects          = status_service.get_all_status(include_inactive=False)
@@ -1147,7 +1147,7 @@ def get_avaria_json(avaria_id):
             avaria_dict = avaria.to_dict()
             avaria_dict['valor_nf_formatado'] = avaria.valor_nf_formatado
 
-            # ADICIONAR NOVO CAMPO FORMATADO
+            # ADICIONAR CAMPO FORMATADO
             avaria_dict['valor_indenizacao_formatado'] = avaria.valor_indenizacao_formatado
 
             return jsonify({
@@ -1177,7 +1177,7 @@ def get_avaria_json(avaria_id):
         # ⇋ ADICIONAR VALOR FORMATADO
         avaria_dict['valor_nf_formatado'] = avaria.valor_nf_formatado
         
-        # ADICIONAR NOVO CAMPO FORMATADO
+        # ADICIONAR CAMPO FORMATADO
         avaria_dict['valor_indenizacao_formatado'] = avaria.valor_indenizacao_formatado 
         
         return jsonify({
@@ -1280,7 +1280,7 @@ def alterar_status_wms():
 def api_editar_avaria(avaria_id):
     """
     API para editar avaria existente
-    ✅ CORRIGIDO: Usa update_avaria() + calcula valor_indenizacao
+    CORRIGIDO: Usa update_avaria() + calcula valor_indenizacao
     """
     try:
         data = request.get_json()
@@ -1297,7 +1297,7 @@ def api_editar_avaria(avaria_id):
         if not avaria:
             return jsonify({'success': False, 'error': f'Avaria {avaria_id} não encontrada'}), 404
         
-        # NOVO: Extrair arrays de itens novos e modificados
+  # Extrair arrays de itens novos e modificados
         itens_novos = data.pop('itens_novos', [])
         itens_modificados = data.pop('itens_modificados', [])
         

@@ -30,7 +30,7 @@
         
         carregarLocaisFinanceiros();
         
-        // NOVO: Garante carga de locais e motivos ao abrir modal de registro
+  // Garante carga de locais e motivos ao abrir modal de registro
         // (necessário em consultar_avarias.html onde tabelaAvariasPendentes não existe)
         const modalRegistrarEl = document.getElementById('modalRegistrarAvaria');
         if (modalRegistrarEl) {
@@ -76,7 +76,7 @@ async function gerarTodasEtiquetasAvaria(avariaId) {
             return;
         }
 
-        showNotification('success', `✅ ${etiquetas.length} etiqueta(s) gerada(s).`);
+        showNotification('success', `${etiquetas.length} etiqueta(s) gerada(s).`);
 
         // Buscar dados da avaria para exibir no modal
         const avariaResp = await fetch(`/wms/api/avaria/${avariaId}`);
@@ -195,7 +195,7 @@ async function gerarEtiquetaIndividual(avariaId, sequencia) {
             return;
         }
 
-        showNotification('success', `✅ Etiqueta gerada. Imprimindo...`);
+        showNotification('success', `Etiqueta gerada. Imprimindo...`);
 
         const avariaResp = await fetch(`/wms/api/avaria/${avariaId}`);
         const avariaHeader = (await avariaResp.json()).avaria;

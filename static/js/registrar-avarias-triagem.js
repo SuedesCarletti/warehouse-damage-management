@@ -73,14 +73,14 @@ async function confirmarTriagem() {
 /**
  * Abre o modal de movimentação
  */
-function abrirModalMovimentacao(idEtiqueta, produto, avariaId, sequencia, quantidade, codprod) {  // NOVO: quantidade, codprod
+function abrirModalMovimentacao(idEtiqueta, produto, avariaId, sequencia, quantidade, codprod) {  // quantidade, codprod
     console.log('Abrindo modal de movimentação:', {
         idEtiqueta,
         produto,
         avariaId,
         sequencia,
-        quantidade,  // NOVO
-        codprod  // NOVO
+        quantidade,
+        codprod
     });
 
     // ARMAZENAR quantidade e codprod (usados na simulação/impressão da etiqueta final)
@@ -89,15 +89,15 @@ function abrirModalMovimentacao(idEtiqueta, produto, avariaId, sequencia, quanti
         produto,
         avariaId,
         sequencia,
-        quantidade: quantidade || 1,  // NOVO: default 1
-        codprod: codprod || ''  // NOVO
+        quantidade: quantidade || 1,  // default 1
+        codprod: codprod || ''
     };
     
     // Preencher informações do produto
     document.getElementById('movProduto').textContent = produto;
     document.getElementById('movEtiqueta').textContent = idEtiqueta;
     
-    // NOVO: Exibir quantidade no modal (opcional, mas recomendado)
+  // Exibir quantidade no modal (opcional, mas recomendado)
     const qtdInfo = document.getElementById('movQuantidade');
     if (qtdInfo) {
         qtdInfo.textContent = quantidade || 1;
@@ -460,7 +460,7 @@ async function executarTransferenciaSimples() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalMovimentacao'));
             modal.hide();
 
-            showNotification('success', `✅ ${data.message} — Imprimindo etiqueta ${data.nova_etiqueta}...`);
+            showNotification('success', `${data.message} — Imprimindo etiqueta ${data.nova_etiqueta}...`);
 
             // Buscar dados da avaria para impressão da etiqueta final
             const avariaResp = await fetch(`/wms/api/avaria/${movimentacaoAtual.avariaId}`);
@@ -596,7 +596,7 @@ async function executarQuebra() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalMovimentacao'));
             modal.hide();
 
-            showNotification('success', `✅ ${data.message} — ${data.novas_etiquetas.length} etiqueta(s) gerada(s). Imprimindo...`);
+            showNotification('success', `${data.message} — ${data.novas_etiquetas.length} etiqueta(s) gerada(s). Imprimindo...`);
 
             // Buscar dados da avaria para impressão das etiquetas finais
             const avariaResp = await fetch(`/wms/api/avaria/${movimentacaoAtual.avariaId}`);
@@ -682,7 +682,7 @@ async function confirmarRecusa() {
         const data = await response.json();
         
         if (data.success) {
-            showNotification('success', `✅ ${data.message}`);
+            showNotification('success', `${data.message}`);
 
             // Upload de fotos da recusa (opcional, não-bloqueante)
             const fotosInput = document.getElementById('recusaFotosInput');
@@ -1002,11 +1002,11 @@ function fecharModalETriar(idEtiqueta, produto, avariaId, sequencia) {
     }, 300);
 }
 
-function fecharModalEMovimentar(idEtiqueta, produto, avariaId, sequencia, quantidade, codprod) {  // NOVO: quantidade, codprod
+function fecharModalEMovimentar(idEtiqueta, produto, avariaId, sequencia, quantidade, codprod) {  // quantidade, codprod
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalBipagem'));
     modal.hide();
     setTimeout(() => {
-        abrirModalMovimentacao(idEtiqueta, produto, avariaId, sequencia, quantidade, codprod);  // NOVO: quantidade, codprod
+        abrirModalMovimentacao(idEtiqueta, produto, avariaId, sequencia, quantidade, codprod);  // quantidade, codprod
     }, 300);
 }
 

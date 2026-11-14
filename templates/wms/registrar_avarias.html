@@ -42,14 +42,14 @@
         padding: 1rem;
         margin-bottom: 1rem;
     }
-    /* ✅ Container com scroll para sticky tfoot funcionar */
+    /* Container com scroll para sticky tfoot funcionar */
     .table-container {
         max-height: 70vh;
         overflow-y: auto;
         position: relative;
     }
 
-    /* ✅ Tfoot sticky - gruda no fundo da área visível */
+    /* Tfoot sticky - gruda no fundo da área visível */
     #tabelaAvariasPendentes tfoot {
         position: sticky;
         bottom: 0;
@@ -66,7 +66,7 @@
         border-top: 2px solid #28a745;
     }
 
-    /* ✅ Thead sticky também - gruda no topo ao rolar */
+    /* Thead sticky também - gruda no topo ao rolar */
     #tabelaAvariasPendentes thead {
         position: sticky;
         top: 0;
@@ -511,7 +511,7 @@
                         </tr>
                         {% endfor %}
                     </tbody>
-                    <!-- ✅ TFOOT STICKY - TOTALIZADORES -->
+                    <!-- TFOOT STICKY - TOTALIZADORES -->
                     <tfoot>
                         <tr class="fw-bold">
                             <!-- 0. Ações -->
@@ -898,7 +898,7 @@
                         <option value="">Selecione o local...</option>
                     </select>
                 </div>
-                <!-- ✅ NOVO: Campo de quantidade -->
+                <!-- Campo de quantidade -->
                 <div class="col-6 col-md-2 mt-2 mt-md-0">
                     <label class="form-label small mb-1">Quantidade:</label>
                     <input type="number" class="form-control form-control-sm input-qtd-quebra"
@@ -957,7 +957,7 @@
                 <div id="fotosPreview" class="row g-2 mt-2"></div>
                 
                 <!-- ================================================ -->
-                <!-- 🔥 NOVO: Link do Drive (após upload)            -->
+                <!-- 🔥 Link do Drive (após upload)            -->
                 <!-- ================================================ -->
                 <div id="driveLink" class="alert alert-success mt-3" style="display: none;">
                     <div class="d-flex align-items-center justify-content-between">
@@ -1058,7 +1058,7 @@
                     Etiqueta Original: <strong id="quebraEtiqueta"></strong>
                 </div>
                 
-                <!-- ✅ NOVO: Mostrar quantidade total -->
+                <!-- Mostrar quantidade total -->
                 <div class="alert alert-primary">
                     <i class="fas fa-box"></i>
                     <strong>Quantidade Total a Dividir:</strong> <span id="quebraQuantidadeTotal" class="badge bg-primary">0</span>
@@ -1200,7 +1200,7 @@ function calcularTotalizadoresRegistrar() {
                         columnFilterValuesPending[parseInt(col)] = valor.toLowerCase();
                     }
                     temFiltro = true;
-                    console.log('[FiltrosPending] ✅ Restaurado col', col, '=', valor);
+                    console.log('[FiltrosPending] Restaurado col', col, '=', valor);
                 } else {
                     console.warn('[FiltrosPending] ⚠️ Input não encontrado para data-column=' + col);
                 }
@@ -1244,7 +1244,7 @@ function calcularTotalizadoresRegistrar() {
     // Expor função de save para uso explícito se necessário
     window._salvarFiltrosPendingDireto = salvar;
 
-    console.log('[FiltrosPending] ✅ Cache direto de filtros inicializado.');
+    console.log('[FiltrosPending] Cache direto de filtros inicializado.');
 })();
 </script>
 
@@ -1284,7 +1284,7 @@ function calcularTotalizadoresRegistrar() {
             totalizadoresCallback: obterTotalizadoresRegistrar
         });
         
-        console.log('✅ Sistema de exportação configurado para Registrar Avarias');
+        console.log('Sistema de exportação configurado para Registrar Avarias');
     });
     
     /**
@@ -1327,7 +1327,7 @@ function calcularTotalizadoresRegistrar() {
         ExportExcel.exportar(
             // Callback de sucesso
             function(filename) {
-                console.log(`✅ Arquivo exportado com sucesso: ${filename}`);
+                console.log(`Arquivo exportado com sucesso: ${filename}`);
                 
                 // Opcional: Mostrar notificação adicional
                 if (typeof Swal !== 'undefined') {

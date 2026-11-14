@@ -4,9 +4,9 @@ Service para cache de dados do Sankhya que mudam raramente
 Otimiza performance evitando consultas repetidas ao ERP
 
 VERSÃO 4.0 - NOVOS RECURSOS:
-- ✅ Cache de Motivos de Devolução (AD_CADMOTDEV)
-- ✅ Correção na visualização de locais na triagem (número completo)
-- ✅ Mantém todas as funcionalidades anteriores
+- Cache de Motivos de Devolução (AD_CADMOTDEV)
+- Correção na visualização de locais na triagem (número completo)
+- Mantém todas as funcionalidades anteriores
 
 Dados cacheados:
 - TGFLOC (Locais Financeiros) - TTL: 24 horas
@@ -31,7 +31,7 @@ class CacheSankhyaService:
         Inicializa service de cache
         
         Args:
-            sankhya_service: Instância do SankhyaService
+            sankhya_service: Instncia do SankhyaService
         """
         self.sankhya = sankhya_service
         
@@ -239,7 +239,7 @@ class CacheSankhyaService:
     def listar_locais_para_selecao(self, apenas_estoque: bool = False) -> List[Dict]:
         """
         Lista locais formatados para uso em select/dropdown
-        ✅ CORREÇÃO v4.0: Retorna número completo (ex: '407 - Estoque Disponível')
+        CORREÇÃO v4.0: Retorna número completo (ex: '407 - Estoque Disponível')
         
         Args:
             apenas_estoque: DEPRECATED - mantido para compatibilidade

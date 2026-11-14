@@ -150,7 +150,7 @@ def _validate_api_key(api_key: str):
                     "email_transportadora": email_raw,
                 }
                 logger.info(
-                    f"✅ [asn_api] API Key válida — transportadora={transportadora}, empresa={empresa}"
+                    f"[asn_api] API Key válida — transportadora={transportadora}, empresa={empresa}"
                 )
                 return True, key_info
 
@@ -432,7 +432,7 @@ def criar_asn():
 
         if success and asn:
             logger.info(
-                f"✅ [asn_api] ASN criado via API: {asn.id} "
+                f"[asn_api] ASN criado via API: {asn.id} "
                 f"(transportadora={key_info['transportadora']})"
             )
             return jsonify({
@@ -530,7 +530,7 @@ def cancelar_asn(asn_id):
 
         if success:
             logger.info(
-                f"✅ [asn_api] ASN {asn_id} cancelado via API "
+                f"[asn_api] ASN {asn_id} cancelado via API "
                 f"(transportadora={key_info['transportadora']})"
             )
             return jsonify({"success": True, "message": msg}), 200

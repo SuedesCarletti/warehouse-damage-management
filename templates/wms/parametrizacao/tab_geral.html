@@ -191,7 +191,7 @@ document.getElementById('formConfigGeral').addEventListener('submit', async func
     btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Todas as Configurações';
 
     if (res.success) {
-        showParamToast(`✅ ${res.message || 'Configurações salvas!'}`, 'success');
+        showParamToast(`${res.message || 'Configurações salvas!'}`, 'success');
     } else {
         showParamToast(`❌ ${res.error || 'Erro ao salvar'}`, 'danger');
     }

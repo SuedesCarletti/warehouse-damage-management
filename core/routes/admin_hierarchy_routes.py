@@ -425,7 +425,7 @@ def global_departamentos(empresa):
         empresa=empresa,
         departamentos=deptos,
         users_by_depto=by_depto,
-        todos_users=todos_users,   # ← NOVO
+        todos_users=todos_users,
         cargos=cargos,
         back_url=url_for('admin_global.global_empresas'),
     )
@@ -679,7 +679,7 @@ def empresa_departamentos():
         empresa=empresa,
         departamentos=deptos,
         users_by_depto=by_depto,
-        todos_users=todos_users,   # ← NOVO
+        todos_users=todos_users,
         cargos=cargos,
     )
 

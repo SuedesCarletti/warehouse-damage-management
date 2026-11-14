@@ -411,5 +411,5 @@ window.WMS = window.WMS || {};
 window.WMS.Totalizadores = Totalizadores;
 
 if (typeof WMSLog !== 'undefined') {
-    WMSLog.info('✅ totalizadores.js carregado');
+    WMSLog.info('totalizadores.js carregado');
 }

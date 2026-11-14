@@ -120,7 +120,7 @@ const BaixaMultipla = (function() {
             row.dataset.valorNfd || _getTextByColumn(row, 'valor_nfd') || '0'
         );
 
-        // NOVO: captura data_pagamento do atributo adicionado no template
+  // captura data_pagamento do atributo adicionado no template
         const dataPagamento = row.dataset.dataPagamento || '';
 
         return {
@@ -129,7 +129,7 @@ const BaixaMultipla = (function() {
             cod_empresa: codEmpresa,
             valor_nf: valorNf,
             valor_nfd: valorNfd,
-            data_pagamento: dataPagamento  // ← NOVO
+            data_pagamento: dataPagamento
         };
     }
 
@@ -511,7 +511,7 @@ const BaixaMultipla = (function() {
         });
 
         if (typeof WMSLog !== 'undefined') {
-            WMSLog.info('✅ BaixaMultipla inicializado');
+            WMSLog.info('BaixaMultipla inicializado');
         }
     }
 
@@ -539,5 +539,5 @@ window.WMS = window.WMS || {};
 window.WMS.BaixaMultipla = BaixaMultipla;
 
 if (typeof WMSLog !== 'undefined') {
-    WMSLog.info('✅ baixa-multipla.js carregado');
+    WMSLog.info('baixa-multipla.js carregado');
 }

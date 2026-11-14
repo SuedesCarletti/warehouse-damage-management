@@ -709,7 +709,7 @@ async function salvarEdicaoAvaria() {
     addIfChanged('editObservacao', 'observacao', avariaAtual?.observacao);
     addIfChanged('editDataProtocoloMkt', 'data_protocolo_mkt', avariaAtual?.data_protocolo_mkt);
     
-    // NOVO: Adicionar arrays de itens
+  // Adicionar arrays de itens
     const dadosItens = prepararDadosParaSalvarEdicao(); // Função do split-item-edicao.js
     dadosEdicao.itens_novos = dadosItens.itens_novos || [];
     dadosEdicao.itens_modificados = dadosItens.itens_modificados || [];

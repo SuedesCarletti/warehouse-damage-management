@@ -112,7 +112,7 @@ function showNotification(type, message) {
 
 /**
  * Formata dados da avaria para impressão
- * NOVO: Retorna texto completo formatado para cada linha
+ * Retorna texto completo formatado para cada linha
  *
  * REVISÃO v3.1: Ajustado layout das etiquetas Inicial e Final conforme especificação.
  */
@@ -419,7 +419,7 @@ function showPrintQuantityModal(tipo, avariaId, avaria) {
     // Habilitar/desabilitar input manual
     toggleManualInput();
     
-    // Preview dinâmico da etiqueta
+    // Preview dinmico da etiqueta
     let previewEl = document.getElementById('labelPreviewArea');
     if (!previewEl) {
         const modalBody = document.querySelector('#printQuantityModal .modal-body');
@@ -634,7 +634,7 @@ async function printMultipleLabels(tipo, avariaId, avaria, quantity) {
     }
 
     if (errorCount === 0) {
-        showNotification('success', `✅ ${successCount} etiqueta(s) impressa(s) com sucesso!`);
+        showNotification('success', `${successCount} etiqueta(s) impressa(s) com sucesso!`);
         // Reload controlado pelo countdown em confirmPrint — não recarregar aqui.
     } else if (successCount > 0) {
         showNotification('warning', `⚠️ Impressão parcial: ${successCount} sucesso, ${errorCount} erro(s).`);

@@ -2229,7 +2229,7 @@ async function carregarFinanceiro() {
       setupPlotlyClick('fin-chart-status', { label: 'ind' });
     } else { empty_chart('fin-chart-status'); }
 
-    // NOVO: Gráfico de Fluxo de Caixa com agregação
+  // Gráfico de Fluxo de Caixa com agregação
     const fluxoData = d.grafico_fluxo_detalhado || [];
     window.currentFluxoData = fluxoData; // Armazena globalmente para os botões
     updateFluxoChart('month'); // Carga inicial com visão mensal
@@ -2388,7 +2388,7 @@ async function carregarGraficoEvolucao(silencioso = false) {
   }
 }
 
-// ── NOVO: Lógica completa para o gráfico de Fluxo de Caixa ────────────────
+// ── Lógica completa para o gráfico de Fluxo de Caixa ────────────────
 function updateFluxoChart(period) {
   document.querySelectorAll('#fluxo-controls button').forEach(b => b.classList.remove('active'));
   document.querySelector(`#fluxo-controls button[data-period="${period}"]`).classList.add('active');

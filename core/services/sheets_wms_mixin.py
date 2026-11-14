@@ -72,7 +72,7 @@ class SheetsWmsMixin:
 
     def get_wms_avarias_cached(self) -> list:
         """
-        ⚡ Cache com mutex anti-stampede e invalidação cross-worker.
+        Cache com mutex anti-stampede e invalidação cross-worker.
 
         Ordem de verificação:
           1. Cache existe + TTL válido + não houve bust cross-worker → retorna cache (fast path)
@@ -128,7 +128,7 @@ class SheetsWmsMixin:
 
     def get_wms_itens_cached(self) -> list:
         """
-        ⚡ Cache com mutex anti-stampede e invalidação cross-worker.
+        Cache com mutex anti-stampede e invalidação cross-worker.
         Mesma lógica de get_wms_avarias_cached() para Itens_Avarias.
         """
         # Fast path: cache quente E sem bust cross-worker
@@ -174,7 +174,7 @@ class SheetsWmsMixin:
 
     def get_wms_validacoes_cached(self) -> list:
         """
-        ⚡ Cache com mutex anti-stampede para WMS_ValidacoesEstoque.
+        Cache com mutex anti-stampede para WMS_ValidacoesEstoque.
         """
         if getattr(self, '_wms_validacoes_cache', None) is not None \
            and getattr(self, '_wms_validacoes_cache_timestamp', None) \

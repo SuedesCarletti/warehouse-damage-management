@@ -662,7 +662,7 @@ class AsnService:
                 if ja_existe not in avaria_ids:
                     avaria_ids.append(ja_existe)
                 logger.info(
-                    f"✅ Nota {tipo_nota}:{numnota} já cadastrada no WMS "
+                    f"Nota {tipo_nota}:{numnota} já cadastrada no WMS "
                     f"(avaria {ja_existe}) — reaproveitando em vez de duplicar."
                 )
                 continue
@@ -1669,10 +1669,10 @@ class AsnService:
 </head>
 <body>
 <div class="container">
-  <div class="header"><h1>✅ Entrega Recebida</h1><p>{asn.id}</p></div>
+  <div class="header"><h1>Entrega Recebida</h1><p>{asn.id}</p></div>
   <div class="content">
     <div class="success-box">
-      <div class="check">✅</div>
+      <div class="check"></div>
       <strong>Sua entrega foi recebida com sucesso!</strong>
     </div>
     <div class="detail-row"><span>Agendamento</span><strong>{asn.id}</strong></div>
@@ -1687,7 +1687,7 @@ class AsnService:
 </html>'''
             self.email.send_email(
                 to_addresses=[asn.email_transportadora],
-                subject=f'✅ Entrega recebida — {asn.id} ({asn.tipo_nota} {asn.nota})',
+                subject=f'Entrega recebida — {asn.id} ({asn.tipo_nota} {asn.nota})',
                 html_body=html,
             )
         except Exception as e:

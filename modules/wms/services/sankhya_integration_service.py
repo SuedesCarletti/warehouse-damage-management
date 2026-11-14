@@ -84,7 +84,7 @@ class WmsSankhyaIntegrationService:
         try:
             logger.info(f"Buscando nota completa: CODEMP {codemp}, NUMNOTA {numnota}")
             
-            # Buscar cabeçalho (USANDO O NOVO NOME DO MÉTODO)
+            # Buscar cabeçalho (usando o nome atual do método)
             cabecalho = self.get_cabecalho_nota(codemp, numnota)
             if not cabecalho:
                 logger.warning(f" Cabeçalho da nota {numnota} (empresa {codemp}) não encontrado")
@@ -93,7 +93,7 @@ class WmsSankhyaIntegrationService:
             # Obter NUNOTA do objeto CabecalhoNota
             nunota = cabecalho.nunota
             
-            # Buscar itens (USANDO O NOVO NOME DO MÉTODO)
+            # Buscar itens (usando o nome atual do método)
             itens = self.get_itens_nota(nunota)
             
             # Calcular valor total dos itens

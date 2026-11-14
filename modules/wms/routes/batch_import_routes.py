@@ -49,7 +49,7 @@ def limpar_nan_para_json(obj):
 
 @batch_import_bp.route('/import', methods=['GET'])
 @module_required('wms') # CRÍTICO: Define contexto de módulo
-@screen_required('wms', 'batch_import') # NOVO: Proteção granular
+@screen_required('wms', 'batch_import')  # Proteção granular
 @set_theme('wms') # CRÍTICO: Força o tema WMS para renderização correta da sidebar
 @login_required
 def pagina_importacao():

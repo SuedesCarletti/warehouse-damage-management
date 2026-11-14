@@ -30,12 +30,12 @@ v2 — DOIS BREAKERS INDEPENDENTES:
   qualquer dado — comportamento incorreto e desnecessário.
 
 Cobertura automática (zero mudanças nesses arquivos):
-  ✅ config_service._read_all()          → ws.get_all_values()
-  ✅ config_service._ensure_sheet()      → self.sheets.sheet.worksheet()
-  ✅ wms_service.get_all_avarias()       → ws.get_all_records()
-  ✅ google_sheets_service.get_all_records()
-  ✅ rename_departamento(), delete_cargo(), etc.
-  ✅ Qualquer chamada futura de qualquer serviço
+  config_service._read_all()          → ws.get_all_values()
+  config_service._ensure_sheet()      → self.sheets.sheet.worksheet()
+  wms_service.get_all_avarias()       → ws.get_all_records()
+  google_sheets_service.get_all_records()
+  rename_departamento(), delete_cargo(), etc.
+  Qualquer chamada futura de qualquer serviço
 """
 
 import time

@@ -34,8 +34,8 @@ const CacheEstado = (function() {
         REGISTRAR_BUSCA: CONFIG.PREFIX + 'registrar_busca',
         REGISTRAR_SCROLL: CONFIG.PREFIX + 'registrar_scroll',
         REGISTRAR_NOTA: CONFIG.PREFIX + 'registrar_nota',
-        REGISTRAR_COLUNAS: CONFIG.PREFIX + 'registrar_colunas',      // NOVO
-        REGISTRAR_ORDENACAO: CONFIG.PREFIX + 'registrar_ordenacao',  // NOVO
+        REGISTRAR_COLUNAS: CONFIG.PREFIX + 'registrar_colunas',
+        REGISTRAR_ORDENACAO: CONFIG.PREFIX + 'registrar_ordenacao',
         
         // Consultar Avarias
         CONSULTAR_FILTROS: CONFIG.PREFIX + 'consultar_filtros',
@@ -164,17 +164,17 @@ const CacheEstado = (function() {
             }
         });
     
-        // NOVO: Persistir array de colunas ativas na busca global
+  // Persistir array de colunas ativas na busca global
         if (typeof selectedGlobalFilterColumns !== 'undefined') {
             filtros._selectedGlobalFilterColumns = [...selectedGlobalFilterColumns];
         }
-        // NOVO: Persistir estado dos checkboxes de coluna
+  // Persistir estado dos checkboxes de coluna
         if (typeof columnFilterValuesPending !== 'undefined') {
             filtros._columnFilterValuesPending = Object.assign({}, columnFilterValuesPending);
         }
         salvar(KEYS.REGISTRAR_FILTROS, filtros);
         
-        // NOVO: Ordenação ativa
+  // Ordenação ativa
         const sortedTh = document.querySelector('#tabelaAvariasPendentes th.sorted');
         if (sortedTh) {
             const colIdx = sortedTh.dataset.column;
@@ -329,7 +329,7 @@ const CacheEstado = (function() {
                 }
             });
     
-            // NOVO: Restaurar colunas selecionadas para busca global
+  // Restaurar colunas selecionadas para busca global
             if (filtros._selectedGlobalFilterColumns && typeof selectedGlobalFilterColumns !== 'undefined') {
                 selectedGlobalFilterColumns.length = 0;
                 filtros._selectedGlobalFilterColumns.forEach(v => selectedGlobalFilterColumns.push(v));
@@ -343,7 +343,7 @@ const CacheEstado = (function() {
                 }
             }
     
-            // NOVO: Restaurar estado do columnFilterValuesPending
+  // Restaurar estado do columnFilterValuesPending
             if (filtros._columnFilterValuesPending && typeof columnFilterValuesPending !== 'undefined') {
                 Object.assign(columnFilterValuesPending, filtros._columnFilterValuesPending);
             }
@@ -351,7 +351,7 @@ const CacheEstado = (function() {
             restaurou = true;
         }
     
-        // NOVO: Restaurar ordenação
+  // Restaurar ordenação
         const ordenacao = recuperar(KEYS.REGISTRAR_ORDENACAO);
         if (ordenacao && ordenacao.coluna) {
             if (typeof sortTablePending === 'function') {
@@ -527,5 +527,5 @@ window.WMS = window.WMS || {};
 window.WMS.CacheEstado = CacheEstado;
 
 if (typeof WMSLog !== 'undefined') {
-    WMSLog.info('✅ cache-estado.js carregado');
+    WMSLog.info('cache-estado.js carregado');
 }

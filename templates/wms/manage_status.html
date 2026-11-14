@@ -267,7 +267,7 @@ function saveNewOrder() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast('✅ Ordem atualizada com sucesso!', 'success');
+            showToast('Ordem atualizada com sucesso!', 'success');
         } else {
             showToast('❌ Erro: ' + data.error, 'danger');
         }
@@ -281,7 +281,7 @@ function saveNewOrder() {
 // ==================== ADICIONAR STATUS ====================
 function addStatus() {
     const name = document.getElementById('addStatusName').value.trim();
-    const statusType = document.getElementById('addStatusType').value; // ◠› NOVO: Obter tipo
+    const statusType = document.getElementById('addStatusType').value; // ◠› Obter tipo
     const cor = document.getElementById('addStatusCor').value;
     const ordem = document.getElementById('addStatusOrdem').value;
     const descricao = document.getElementById('addStatusDescricao').value.trim();
@@ -308,7 +308,7 @@ function addStatus() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast('✅ Status adicionado com sucesso!', 'success');
+            showToast('Status adicionado com sucesso!', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
             showToast('❌ Erro: ' + data.error, 'danger');
@@ -359,7 +359,7 @@ function updateStatus() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast('✅ Status atualizado com sucesso!', 'success');
+            showToast('Status atualizado com sucesso!', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
             showToast('❌ Erro: ' + data.error, 'danger');
@@ -381,7 +381,7 @@ function quickUpdateColor(statusName, newColor) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast('✅ Cor atualizada!', 'success');
+            showToast('Cor atualizada!', 'success');
             // Atualizar badge visualmente
             const badge = document.querySelector(`tr[data-status-name="${statusName}"] .badge`);
             if (badge) badge.style.backgroundColor = newColor;
@@ -410,7 +410,7 @@ function toggleStatusActive(statusName, newStatus) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast(`✅ Status ${action === 'ativar' ? 'ativado' : 'desativado'} com sucesso!`, 'success');
+            showToast(`Status ${action === 'ativar' ? 'ativado' : 'desativado'} com sucesso!`, 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
             showToast('❌ Erro: ' + data.error, 'danger');

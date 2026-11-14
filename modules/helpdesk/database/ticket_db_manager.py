@@ -1,6 +1,6 @@
 """
 database/ticket_db_manager.py
-✅ VERSÃO COM FILTRO POR EMPRESA
+VERSÃO COM FILTRO POR EMPRESA
 """
 
 import sqlite3
@@ -19,7 +19,7 @@ class DatabaseManager:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.init_database()
-        self._add_empresa_column_if_missing()  # NOVO: Adiciona coluna empresa se não existir
+        self._add_empresa_column_if_missing()  # Adiciona coluna empresa se não existir
     
     @contextmanager
     def get_connection(self):
@@ -83,7 +83,7 @@ class DatabaseManager:
             logger.info("Banco de dados inicializado")
     
     def _add_empresa_column_if_missing(self):
-        """NOVO: Adiciona coluna empresa se não existir (migração segura)"""
+        """Adiciona coluna empresa se não existir (migração segura)"""
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -135,7 +135,7 @@ class DatabaseManager:
                 ticket.third_party_email,
                 ticket.resolution_token,
                 ticket.created_by,
-                ticket.empresa  # NOVO CAMPO
+                ticket.empresa
             ))
             
             return cursor.lastrowid
@@ -180,7 +180,7 @@ class DatabaseManager:
         if filters:
             conditions = []
             
-            # NOVO: Filtro por empresa
+  # Filtro por empresa
             if 'empresa' in filters and filters['empresa']:
                 conditions.append('empresa = ?')
                 params.append(filters['empresa'])
@@ -295,7 +295,7 @@ class DatabaseManager:
         if filters:
             conditions = []
             
-            # NOVO: Filtro por empresa
+  # Filtro por empresa
             if 'empresa' in filters and filters['empresa']:
                 conditions.append('empresa = ?')
                 params.append(filters['empresa'])

@@ -327,4 +327,4 @@ window.WMSLog = WMSLog;
 window.WMS.log = WMSLog;
 
 // INIT LOG
-WMSLog.info('✅ avarias-common.js carregado');
+WMSLog.info('avarias-common.js carregado');

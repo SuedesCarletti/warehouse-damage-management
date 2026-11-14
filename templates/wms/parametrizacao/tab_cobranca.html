@@ -49,7 +49,7 @@
                         {% else %}<span class="badge bg-secondary">Inativa</span>{% endif %}
                     </td>
                     <td>
-                        {# ✅ FIX: dados em data-* para evitar quebra de HTML com aspas no JSON #}
+                        {# FIX: dados em data-* para evitar quebra de HTML com aspas no JSON #}
                         <button class="btn btn-outline-primary btn-sm me-1 btn-editar-etapa"
                                 data-id="{{ e.id }}"
                                 data-nome="{{ e.nome_etapa }}"
@@ -164,7 +164,7 @@ let modalCobranca = null;
 document.addEventListener('DOMContentLoaded', () => {
     modalCobranca = new bootstrap.Modal(document.getElementById('modalCobranca'));
 
-    // ✅ FIX: Event delegation para botões de editar (evita problemas com JSON em onclick)
+    // FIX: Event delegation para botões de editar (evita problemas com JSON em onclick)
     document.addEventListener('click', function (e) {
         const btn = e.target.closest('.btn-editar-etapa');
         if (!btn) return;

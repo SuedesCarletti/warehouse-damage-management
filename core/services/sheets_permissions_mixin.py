@@ -169,7 +169,7 @@ class SheetsPermissionsMixin:
         self.company_permissions = {
             'Matriz': ['helpdesk', 'wms'],
             'Empresax': ['wms'],
-            'Thomas': ['helpdesk']
+            'EmpresaY': ['helpdesk']
         }
 
         self.role_permissions = {
@@ -923,7 +923,7 @@ class SheetsPermissionsMixin:
           - get_telas_modulo()   → lê TelasModulos
           - get_departamentos()  → lê Departamentos + Cargos
     
-        ⚡ ANTI-STAMPEDE: lock garante que apenas 1 thread faz a chamada.
+        ANTI-STAMPEDE: lock garante que apenas 1 thread faz a chamada.
            Threads concorrentes aguardam e reutilizam o cache populado.
     
         Returns:
@@ -1081,7 +1081,7 @@ class SheetsPermissionsMixin:
             self._cache_timestamp = time.time()
 
             logger.info(
-                f"⚡ [Batch] Permissões: {len(self.company_permissions)} empresas, "
+                f"[Batch] Permissões: {len(self.company_permissions)} empresas, "
                 f"{len(self.role_permissions)} níveis"
             )
         except Exception as e:

@@ -249,7 +249,7 @@ function renderizarTabelaItensEdicao() {
                 </span>
             </td>
 
-            <!-- ✅ NOVO: Valor Item -->
+            <!-- Valor Item -->
             <td class="text-end fw-semibold text-success">
                 ${typeof formatCurrency === 'function'
                     ? formatCurrency(item.valor_item || 0)
@@ -315,7 +315,7 @@ async function editarItemAvariaModal(index) {
         return;
     }
 
-    // Criar modal dinâmico
+    // Criar modal dinmico
     const modalHtml = `
         <div class="modal fade" id="modalEditarItemRapido" tabindex="-1">
             <div class="modal-dialog modal-sm">

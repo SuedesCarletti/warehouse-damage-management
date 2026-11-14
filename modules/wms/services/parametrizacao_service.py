@@ -142,7 +142,7 @@ class ParametrizacaoService:
         try:
             rule = RegraExclusao(
                 id=str(uuid.uuid4())[:8],
-                empresa=str(rule_data.get('empresa', '')).strip(),    # ← NOVO
+                empresa=str(rule_data.get('empresa', '')).strip(),
                 local=str(rule_data.get('local', '')).strip(),
                 etiqueta=str(rule_data.get('etiqueta', '')).strip(),
                 status_indenizacao=str(rule_data.get('status_indenizacao', '')).strip(),
@@ -152,8 +152,9 @@ class ParametrizacaoService:
                 criado_em=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             )
             
+            ws = self.sheets.sheet.worksheet(self.SHEET_NAME)
             ws.append_row([
-                rule.id, rule.empresa, rule.local, rule.etiqueta, rule.status_indenizacao,  # ← empresa inserida
+                rule.id, rule.empresa, rule.local, rule.etiqueta, rule.status_indenizacao,
                 rule.status_estoque, rule.ativo, rule.criado_por, rule.criado_em
             ])
 
@@ -266,7 +267,7 @@ class ParametrizacaoService:
     def get_unique_locals(self) -> list:
         """
         Valores únicos de 'localizacao' existentes em Itens_Avarias.
-        ⚡ Usa get_wms_itens_cached() em vez de get_all_records() direto.
+        Usa get_wms_itens_cached() em vez de get_all_records() direto.
         """
         if not self.sheets or not self.sheets.connected:
             return []
@@ -286,7 +287,7 @@ class ParametrizacaoService:
     def get_unique_transportadoras(self) -> list:
         """
         Valores únicos de 'transportadora' existentes em Itens_Avarias.
-        ⚡ Usa get_wms_itens_cached() em vez de get_all_records() direto.
+        Usa get_wms_itens_cached() em vez de get_all_records() direto.
         """
         if not self.sheets or not self.sheets.connected:
             return []

@@ -342,7 +342,7 @@ class GoogleSheetsService(
             ws.update('A2:B4', [
                 ["Matriz", "helpdesk,wms"],
                 ["Empresax", "wms"],
-                ["Thomas", "helpdesk"]
+                ["EmpresaY", "helpdesk"]
             ])
             logger.info("Aba 'Empresas' criada")
 
@@ -420,7 +420,7 @@ class GoogleSheetsService(
         """
         Retorna todos os registros de uma aba como lista de dicionários.
 
-        ⚡ Circuit Breaker: se o Sheets estiver com 3+ falhas consecutivas,
+        Circuit Breaker: se o Sheets estiver com 3+ falhas consecutivas,
         o circuito abre e retorna [] imediatamente sem chamar a API.
         O circuito tenta se recuperar automaticamente após 60s.
 
@@ -493,7 +493,7 @@ class GoogleSheetsService(
 
     def batch_append_rows(self, sheet_name: str, rows_data: list) -> Tuple[bool, str]:
         """
-        ⚡ Adiciona múltiplas linhas em UMA ÚNICA chamada API.
+        Adiciona múltiplas linhas em UMA ÚNICA chamada API.
         ANTES: N itens = N chamadas (N × 2-3s). DEPOIS: 1 chamada (2-3s total).
         """
         if not self.connected:
@@ -514,7 +514,7 @@ class GoogleSheetsService(
 
     def batch_update_cells(self, sheet_name: str, updates: list) -> tuple:
         """
-        ⚡ Atualiza múltiplas células em UMA ÚNICA chamada API.
+        Atualiza múltiplas células em UMA ÚNICA chamada API.
         ANTES: N campos = N chamadas. DEPOIS: 1 chamada batch.
 
         Args:

@@ -206,7 +206,7 @@ def _background_alertas_worker(app):
     Aguarda 120s após startup, depois recalcula a cada 4 minutos.
     4 min < TTL de 5 min → cache SEMPRE quente em regime normal.
 
-    ⚡ NOVO: também pre-aquece _detalhes_cache para evitar o primeiro
+    também pre-aquece _detalhes_cache para evitar o primeiro
     acesso pós-login lendo WMS_Param_Alertas diretamente.
     """
     logger.info("[AlertasScheduler] Worker iniciado. Primeiro ciclo em 120s.")
@@ -226,7 +226,7 @@ def _background_alertas_worker(app):
                     payload_resumo = _calcular_resumo_empresa(empresa, app)
                     _resumo_cache[empresa] = {'ts': _time.time(), 'payload': payload_resumo}
 
-                    # ── Detalhes (NOVO) ────────────────────────────────────
+                    # ── Detalhes ────────────────────────────────────
                     # Pre-aquece _detalhes_cache para que o primeiro acesso
                     # pós-login encontre cache quente e não leia a API.
                     try:
@@ -316,7 +316,7 @@ def init_alertas_scheduler(app):
     """
     Inicia o background thread de pré-cálculo de alertas.
     Chamado UMA VEZ no app.py após init_parametrizacao_routes().
-    Flag global evita múltiplas instâncias (hot reload, gunicorn workers).
+    Flag global evita múltiplas instncias (hot reload, gunicorn workers).
     """
     global _scheduler_started
     with _scheduler_lock:
@@ -340,7 +340,7 @@ def _get_alertas_config_cached(empresa: str) -> list:
     ANTI-STAMPEDE: lock garante que apenas 1 thread lê WMS_Param_Alertas
     quando o cache expira. Demais threads aguardam e reutilizam o resultado.
 
-    ANTES: sem lock → múltiplas threads simultâneas no primeiro login
+    ANTES: sem lock → múltiplas threads simultneas no primeiro login
            disparavam get_all_values() ao mesmo tempo → 429 em cascata.
     """
     agora = _time.time()
@@ -433,7 +433,7 @@ def tab_alertas():
     # Status reais do sistema para o campo "status_parar"
     # Organizados por status_type para facilitar a seleção na UI
     status_estoque = [
-        'Em Trânsito', 'Aguard. Chegar CD', 'Aguardando Triagem', 'Em Triagem',
+        'Em Trnsito', 'Aguard. Chegar CD', 'Aguardando Triagem', 'Em Triagem',
         'Em Processo de Indenização', 'Divergência de Estoque', 'Disponível',
         'Avaria Produto', 'Avaria Embalagem', 'Não Funciona', 'Defeito de Fábrica',
         'Em Processo Jurídico', 'Aguardando Armazenagem', 'Entregue Ag. Triagem',
@@ -742,7 +742,7 @@ def tab_dashboard():
     indenizacao_options_str = ','.join(status_indenizacao_opts)
     estoque_options_str = ','.join(status_estoque_opts)
 
-    # Monta etapas atuais do funil (dinâmicas: até 15 etapas)
+    # Monta etapas atuais do funil (dinmicas: até 15 etapas)
     funil_etapas_atual = []
     for i in range(1, 16):
         label  = configs.get(f'dash_funil_etapa{i}_label',  '').strip()
@@ -792,7 +792,7 @@ def tab_dashboard():
                 ('dashboard_exibir_card_asn',        'Exibir card "ASNs Agendados"?',      'select:sim,nao', 'sim'),
             ],
         },
-        # ── NOVO: Configurações dos painéis analíticos ───────────────────────────
+        # ── Configurações dos painéis analíticos ───────────────────────────
         {
             'id':     'dash_analitico_indenizacao',
             'titulo': 'Painéis Analíticos — Status de Indenização',
@@ -861,7 +861,7 @@ def tab_dashboard():
             'icone':  'fas fa-boxes',
             'campos': [
                 ('dash_op_status_pendente',   'Status = Pendente',               f'multiselect:{estoque_options_str}', 'Pendente,Aguardando Recebimento'),
-                ('dash_op_status_nao_chegou', 'Status = Não chegou/Em trânsito', f'multiselect:{estoque_options_str}', 'Em Trânsito,Aguardando Chegada'),
+                ('dash_op_status_nao_chegou', 'Status = Não chegou/Em trnsito', f'multiselect:{estoque_options_str}', 'Em Trnsito,Aguardando Chegada'),
                 ('dash_op_status_triagem',    'Status = Em Triagem',             f'multiselect:{estoque_options_str}', 'Em Triagem,Aguardando Triagem'),
                 ('dash_op_status_etiquetado', 'Status = Etiquetado',             f'multiselect:{estoque_options_str}', 'Etiquetado,Aguardando Destino'),
                 ('dash_op_status_finalizado', 'Status = Finalizado',             f'multiselect:{estoque_options_str}', 'Finalizado,Baixado,Finalizada'),
@@ -1304,7 +1304,7 @@ def api_resumo_alertas():
 
     ─ Cache frio (primeiros 120s após startup):
         Lock anti-stampede garante que somente 1 das N requisições
-        simultâneas calcula; as demais aguardam e servem do mesmo
+        simultneas calcula; as demais aguardam e servem do mesmo
         resultado. Sem burst para o Sheets.
 
     ─ Falha no Sheets (429 ou outro erro):
@@ -1319,7 +1319,7 @@ def api_resumo_alertas():
     # Registra empresa como ativa para o scheduler pré-aquecer nos próximos ciclos
     _empresas_ativas.add(empresa)
 
-    # ── Cache quente: resposta instantânea (~0ms) ──────────────────────
+    # ── Cache quente: resposta instantnea (~0ms) ──────────────────────
     agora  = _time.time()
     cached = _resumo_cache.get(cache_key)
     if cached and (agora - cached['ts']) < _RESUMO_CACHE_TTL:
@@ -1454,7 +1454,7 @@ def tab_templates():
     """
     Gerencia templates de e-mail reutilizáveis.
     Usados pelo funil de cobrança e outras notificações WMS.
-    Suporte a variáveis dinâmicas {{chave}} substituídas no momento do envio.
+    Suporte a variáveis dinmicas {{chave}} substituídas no momento do envio.
     Editor visual Quill.js + modo HTML direto + preview em iframe.
     Armazenados em WMS_EmailTemplates no Google Sheets.
     """
@@ -1528,7 +1528,7 @@ def api_delete_template(template_id):
 @module_required('wms')
 def api_testar_email():
     """
-    Testa conexão SMTP com os parâmetros enviados no corpo da requisição.
+    Testa conexão SMTP com os parmetros enviados no corpo da requisição.
     Usado pelo botão "Testar Conexão SMTP" na Tab Geral.
     Não envia e-mail — apenas faz handshake SMTP e retorna resultado.
 

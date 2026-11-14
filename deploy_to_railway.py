@@ -260,7 +260,7 @@ def show_next_steps():
         "    • Deploy: Ativando aplicação",
         "",
         "4️⃣  Verifique se passou no healthcheck:",
-        "    • Procure por: 'Healthcheck passed' ✅",
+        "    • Procure por: 'Healthcheck passed' ",
         "    • Status deve ficar: HEALTHY 🟢",
         "",
         "5️⃣  Teste a aplicação:",
@@ -274,7 +274,7 @@ def show_next_steps():
         "    • Redeploy se necessário",
         "",
         "7⃣  Monitore logs:",
-        "    • Procure por: '✅ SISTEMA INICIADO COM SUCESSO'",
+        "    • Procure por: 'SISTEMA INICIADO COM SUCESSO'",
         "    • Verifique avisos e erros",
         ""
     ]

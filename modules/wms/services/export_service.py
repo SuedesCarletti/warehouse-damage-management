@@ -413,7 +413,7 @@ class ExportService:
     
     def _adicionar_info_filtros(self, ws, filtros_ativos: Dict[str, str], start_row: int):
         """
-        ✅ MELHORADO: Adiciona informações sobre filtros aplicados
+        MELHORADO: Adiciona informações sobre filtros aplicados
         Agora mostra "Campo: Valor" em vez de "Filtro: valor"
         """
         if not filtros_ativos:

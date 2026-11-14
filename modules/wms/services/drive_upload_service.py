@@ -98,7 +98,7 @@ class DriveUploadService:
             logger.error(f"Erro ao validar pasta raiz: {e}")
             return False
     
-    # NOVO MÉTODO: Buscar ou criar pasta NFD/NF
+    # Buscar ou criar pasta NFD/NF
     def _obter_pasta_nota(self, nfd: Optional[str], nf: str) -> Tuple[bool, str, str]:
         """
         Busca ou cria pasta da nota fiscal (NFD ou NF)
@@ -169,7 +169,7 @@ class DriveUploadService:
             logger.error(traceback.format_exc())
             return False, "", str(e)
     
-    # NOVO MÉTODO: Buscar ou criar pasta da etiqueta (dentro da NFD)
+    # Buscar ou criar pasta da etiqueta (dentro da NFD)
     def _obter_pasta_etiqueta(self, id_etiqueta: str, 
                               pasta_nota_id: str) -> Tuple[bool, str, str]:
         """
@@ -235,7 +235,7 @@ class DriveUploadService:
             logger.error(traceback.format_exc())
             return False, "", str(e)
     
-    # MÉTODO MODIFICADO: Upload com estrutura hierárquica
+    # Upload com estrutura hierárquica
     def upload_fotos_produto(self, id_etiqueta: str, 
                             filepaths: List[str],
                             nfd: Optional[str] = None,
@@ -317,7 +317,7 @@ class DriveUploadService:
             logger.error(traceback.format_exc())
             return False, "", str(e), []
     
-    # NOVO MÉTODO: Listar fotos de uma pasta (etiqueta)
+    # Listar fotos de uma pasta (etiqueta)
     def listar_fotos_etiqueta(self, pasta_id_drive: str) -> Tuple[bool, List[Dict[str, str]], str]:
         """
         Lista todas as fotos dentro de uma pasta específica do Google Drive
@@ -377,7 +377,7 @@ class DriveUploadService:
             logger.error(traceback.format_exc())
             return False, [], f"Erro ao listar fotos: {str(e)}"
     
-    # MÉTODO AUXILIAR: Extrair folder_id de link
+    # Extrair folder_id de link
     @staticmethod
     def extract_folder_id_from_link(link: str) -> Optional[str]:
         """Extrai folder_id de um link do Drive"""

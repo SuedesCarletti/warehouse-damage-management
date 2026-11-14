@@ -128,7 +128,7 @@ async function confirmarQuebra() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalMovimentacao'));
             modal.hide();
 
-            showNotification('success', `✅ ${data.message} — ${data.novas_etiquetas.length} etiqueta(s) gerada(s). Imprimindo...`);
+            showNotification('success', `${data.message} — ${data.novas_etiquetas.length} etiqueta(s) gerada(s). Imprimindo...`);
 
             const avariaResp = await fetch(`/wms/api/avaria/${quebraAtual.avariaId}`);
             const avariaHeader = (await avariaResp.json()).avaria;
@@ -220,7 +220,7 @@ function adicionarFotos(idEtiqueta, avariaId, sequencia) {
         preview.innerHTML = '';
     }
     
-    // NOVO: Verificar se já existem fotos e exibir link do Drive
+  // Verificar se já existem fotos e exibir link do Drive
     verificarFotosExistentes(idEtiqueta);
     
     // Ir para aba de upload (não galeria)
@@ -361,7 +361,7 @@ async function handleFileUpload() {
         const data = await response.json();
         
         if (data.success) {
-            // NOVO: Mostrar link do Drive
+  // Mostrar link do Drive
             const driveLink = document.getElementById('driveLink');
             const btnAbrirDrive = document.getElementById('btnAbrirDrive');
             const totalFotos = document.getElementById('totalFotos');
@@ -417,7 +417,7 @@ async function handleManualLinkUpdate() {
         const data = await response.json();
 
         if (data.success) {
-            showNotification('success', '✅ Link atualizado com sucesso!');
+            showNotification('success', 'Link atualizado com sucesso!');
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalFotos'));
             modal.hide();
             _reloadComCache(1000);

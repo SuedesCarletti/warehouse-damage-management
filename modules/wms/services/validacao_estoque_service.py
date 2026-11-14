@@ -183,7 +183,7 @@ class ValidacaoEstoqueService:
             )
             id_val = registro['id_validacao']
             logger.info(
-                f'✅ Pendência registrada: {id_val} '
+                f'Pendência registrada: {id_val} '
                 f'({codprod} | {codlocal_origem}→{codlocal_destino})'
             )
             return id_val
@@ -523,7 +523,7 @@ class ValidacaoEstoqueService:
                     msg_resumo = (
                         f'Origem e destino são o mesmo local ({codlocal_dest_reg}) — validado '
                         f'pelo saldo atual: {qtd_dest_depois:.2f} disponível '
-                        f'(esperado ≥ {quantidade:.2f}) ✅'
+                        f'(esperado ≥ {quantidade:.2f}) '
                     )
                 else:
                     resultado  = 'Inconsistente'
@@ -537,7 +537,7 @@ class ValidacaoEstoqueService:
                 tudo_ok    = True
                 msg_resumo = (
                     f'Saldo do local destino {codlocal_dest_reg} aumentou {delta_destino:.2f} '
-                    f'(esperado ≥ {quantidade:.2f}) ✅'
+                    f'(esperado ≥ {quantidade:.2f}) '
                 )
             else:
                 resultado  = 'Inconsistente'
@@ -603,7 +603,7 @@ class ValidacaoEstoqueService:
 
             registro.update(atualizacoes)
             logger.info(
-                f'✅ Validação {registro["id_validacao"]} salva: {status_validacao}'
+                f'Validação {registro["id_validacao"]} salva: {status_validacao}'
             )
             return registro
 
@@ -1865,7 +1865,7 @@ class ValidacaoEstoqueService:
                 ws.batch_update(batch_cells)
 
             logger.info(
-                f'✅ Lote {id_lote} validado: {status_lote} '
+                f'Lote {id_lote} validado: {status_lote} '
                 f'({len(resultados)} itens, {len(erros)} erro(s), {len(numnotas)} NF(s))'
             )
 
@@ -2646,7 +2646,7 @@ class ValidacaoEstoqueService:
             if batch_upd or avaria_ids_para_atualizar:
                 self.sheets.invalidate_wms_cache()
                 logger.info(
-                    f'✅ localizacao={codlocal} atualizada em {len(batch_upd)} item(ns) de Itens_Avarias'
+                    f'localizacao={codlocal} atualizada em {len(batch_upd)} item(ns) de Itens_Avarias'
                 )
 
         except Exception as e:

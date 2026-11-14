@@ -96,7 +96,7 @@
                 <select name="{{ chave }}" class="form-select">
                     {% for op in opcoes %}
                         <option value="{{ op }}" {{ 'selected' if valor_atual == op else '' }}>
-                            {% if op == 'sim' %}✅ Sim
+                            {% if op == 'sim' %}Sim
                             {% elif op == 'nao' %}❌ Não
                             {% else %}{{ op }}{% endif %}
                         </option>
@@ -281,7 +281,7 @@ document.getElementById('formConfigDashboard').addEventListener('submit', async 
     btn.innerHTML = '<i class="fas fa-save me-1"></i>Salvar Configurações do Dashboard';
 
     if (res.success) {
-        showParamToast('✅ Configurações do Dashboard salvas!');
+        showParamToast('Configurações do Dashboard salvas!');
     } else {
         showParamToast(res.error || 'Erro ao salvar', 'danger');
     }

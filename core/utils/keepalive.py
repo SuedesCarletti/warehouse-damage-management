@@ -124,7 +124,7 @@ def _run_keepalive_cycle(app, sheets_service, sankhya_service):
         logger.warning(f"[KeepAlive] Erro batch refresh (não-fatal): {e}")
 
     # 2. Warmup do cache WMS (avarias + itens)
-    #    NOVO: evita o burst de 429 no retorno pós-idle.
+  # evita o burst de 429 no retorno pós-idle.
     #    Lógica: se o cache WMS estiver a < 90s de expirar (ou já expirado),
     #    faz o refresh agora, de forma controlada, sem concorrência de usuários.
     try:
@@ -224,7 +224,7 @@ def start_keepalive(app, sheets_service, sankhya_service=None):
         _keepalive_started = True
         
         logger.info(
-            f"⚡ [KeepAlive] Scheduler iniciado! "
+            f"[KeepAlive] Scheduler iniciado! "
             f"Intervalo: {INTERVAL_SECONDS // 60}min | "
             f"Delay inicial: {INITIAL_DELAY_SECONDS}s"
         )

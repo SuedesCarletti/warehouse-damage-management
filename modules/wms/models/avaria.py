@@ -24,13 +24,13 @@ class Avaria:
     
     # Campos financeiros e devolução
     motivo_devolucao: str = ""
-    cod_motivo_devolucao: str = ""        # NOVO CAMPO
-    motivo_inicial: str = ""              # NOVO CAMPO
-    cod_motivo_inicial: str = ""          # NOVO CAMPO          
-    data_protocolo_mkt: str = ""        # NOVO CAMPO
+    cod_motivo_devolucao: str = ""
+    motivo_inicial: str = ""
+    cod_motivo_inicial: str = ""
+    data_protocolo_mkt: str = ""
     indenizacao: str = "" # Status/Tipo: Sim/Não/Pendente
     
-    valor_indenizacao: Optional[str] = None # NOVO CAMPO
+    valor_indenizacao: Optional[str] = None
     
     prazo_pagamento: str = ""
     data_pagamento: str = ""
@@ -39,7 +39,7 @@ class Avaria:
     # Campos logísticos (Registro)
     data_coleta: str = ""
     cod_rastreio_correios: str = ""
-    protocolo_insucesso: str = ""   # NOVO CAMPO    
+    protocolo_insucesso: str = ""
     
     observacao: str = ""
     data_registro: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -49,7 +49,7 @@ class Avaria:
     status_indenizacao: str = "Pendente"
     
     registrado_por: str = ""
-    empresa: str = ""  # Empresa do usuário (Matriz, Empresax, Thomas)
+    empresa: str = ""  # Empresa do usuário (Matriz, Empresax, EmpresaY)
     codparc: str = ""  # Código do parceiro (CODPARC do Sankhya)
     
     etiqueta_inicial_impressa: str = 'nao'
@@ -67,7 +67,7 @@ class Avaria:
     def __post_init__(self):
         """
         Valida e ajusta dados após inicialização
-        ✅ CORRIGIDO: Trata corretamente valores float/int vindos de Excel/CSV
+        CORRIGIDO: Trata corretamente valores float/int vindos de Excel/CSV
         """
         # Função auxiliar para converter valores com segurança
         def safe_string_convert(valor) -> str:
@@ -117,14 +117,14 @@ class Avaria:
         self.cod_motivo_devolucao = safe_string_convert(self.cod_motivo_devolucao)
         self.motivo_inicial = safe_string_convert(self.motivo_inicial)
         self.cod_motivo_inicial = safe_string_convert(self.cod_motivo_inicial)        
-        # NOVO CAMPO: Normalizar
+        # Normalizar
         self.data_protocolo_mkt = safe_string_convert(self.data_protocolo_mkt)
         
         # Campos de indenização
         self.indenizacao = Avaria._normalizar_indenizacao(
             safe_string_convert(self.indenizacao)
         )
-        self.valor_indenizacao = safe_string_convert(self.valor_indenizacao) # NOVO CAMPO
+        self.valor_indenizacao = safe_string_convert(self.valor_indenizacao)
         self.prazo_pagamento = safe_string_convert(self.prazo_pagamento)
         self.data_pagamento = safe_string_convert(self.data_pagamento)
         self.data_entrega = safe_string_convert(self.data_entrega)
@@ -132,7 +132,7 @@ class Avaria:
         # Campos logísticos
         self.data_coleta = safe_string_convert(self.data_coleta)
         self.cod_rastreio_correios = safe_string_convert(self.cod_rastreio_correios)
-        self.protocolo_insucesso = safe_string_convert(self.protocolo_insucesso)   # NOVO        
+        self.protocolo_insucesso = safe_string_convert(self.protocolo_insucesso)
         
         # Outros campos
         self.observacao = safe_string_convert(self.observacao)
@@ -302,13 +302,13 @@ class Avaria:
     def from_dict(cls, data: dict) -> 'Avaria':
         """
         Cria avaria a partir de dicionário
-        ✅ CORRIGIDO: Trata valores float/int do pandas/Excel corretamente
+        CORRIGIDO: Trata valores float/int do pandas/Excel corretamente
         """
         
         def safe_str(key, default=''):
             """
             Extrai valor do dicionário e converte para string com segurança
-            ✅ CORRIGIDO: Trata float/int/NaN corretamente
+            CORRIGIDO: Trata float/int/NaN corretamente
             """
             val = data.get(key)
             
@@ -351,12 +351,12 @@ class Avaria:
             'nfp': safe_str('nfp', ''),
             'valor_nfp': safe_str('valor_nfp', ''),
             'motivo_devolucao': safe_str('motivo_devolucao', ''),
-            'cod_motivo_devolucao': safe_str('cod_motivo_devolucao', ''),  # NOVO
-            'motivo_inicial': safe_str('motivo_inicial', ''),              # NOVO
-            'cod_motivo_inicial': safe_str('cod_motivo_inicial', ''),      # NOVO            
-            'data_protocolo_mkt': safe_str('data_protocolo_mkt', ''), # NOVO CAMPO
+            'cod_motivo_devolucao': safe_str('cod_motivo_devolucao', ''),
+            'motivo_inicial': safe_str('motivo_inicial', ''),
+            'cod_motivo_inicial': safe_str('cod_motivo_inicial', ''),
+            'data_protocolo_mkt': safe_str('data_protocolo_mkt', ''),
             'indenizacao': safe_str('indenizacao', ''),
-            'valor_indenizacao': safe_str('valor_indenizacao', ''), # NOVO CAMPO
+            'valor_indenizacao': safe_str('valor_indenizacao', ''),
             'prazo_pagamento': safe_str('prazo_pagamento', ''),
             'data_pagamento': safe_str('data_pagamento', ''),
             'data_entrega': safe_str('data_entrega', ''), 
@@ -378,7 +378,7 @@ class Avaria:
             'finalizado_por': safe_str('finalizado_por', ''),
             'data_alteracao': safe_str('data_alteracao', ''),
             'alterado_por': safe_str('alterado_por', ''),
-            'protocolo_insucesso': safe_str('protocolo_insucesso', ''),   # NOVO            
+            'protocolo_insucesso': safe_str('protocolo_insucesso', ''),
         }
         
         # Converter reembolso_pct para float

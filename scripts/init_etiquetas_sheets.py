@@ -193,7 +193,7 @@ def main():
     logger.info("="*70)
     
     for nome, sucesso in resultados:
-        status = "✅ OK" if sucesso else "❌ ERRO"
+        status = "OK" if sucesso else "❌ ERRO"
         logger.info(f"{status} - {nome}")
     
     sucesso_geral = all(r[1] for r in resultados)

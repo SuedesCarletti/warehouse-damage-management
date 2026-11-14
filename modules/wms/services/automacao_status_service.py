@@ -129,12 +129,12 @@ class AutomacaoStatusService:
         ('item_localizado',        'Item Localizado (Triagem)',          '📦'),
         ('item_transferido',       'Item Transferido Entre Locais',      '↔️'),
         ('triagem_iniciada',       'Triagem Iniciada',                   '🔍'),
-        ('triagem_finalizada',     'Triagem Finalizada',                 '✅'),
+        ('triagem_finalizada',     'Triagem Finalizada',                 ''),
         ('pi_aberta',              'PI de Indenização Aberta',           '📄'),
         ('reversa_solicitada',     'Reversa Solicitada',                 '↩️'),
         ('processo_judicial',      'Enviado para Ajuizamento',           '⚖️'),
         ('item_recusado',          'Item Recusado (Descarte)',           '🚫'),
-        ('validacao_estoque_aprovada', 'Validação de Estoque Aprovada',  '✅'),
+        ('validacao_estoque_aprovada', 'Validação de Estoque Aprovada',  ''),
     ]
     TARGET_TYPES_ESPECIAIS = ['finalizacao']  
 

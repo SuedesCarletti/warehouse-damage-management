@@ -1,6 +1,6 @@
 """
 core/services/auth_service.py - VERSÃO ATUALIZADA
-✅ NOVO: Validação de senha forte e gerenciamento de alteração forçada
+Validação de senha forte e gerenciamento de alteração forçada
 """
 
 import logging
@@ -22,7 +22,7 @@ class AuthService:
         self.serializer = URLSafeTimedSerializer(self.config.get('SECRET_KEY'))
     
     # ================================================================== #
-    # NOVO: VALIDAÇÃO DE SENHA FORTE
+  # VALIDAÇÃO DE SENHA FORTE
     # ================================================================== #
     
     def validate_password_strength(self, password: str) -> Tuple[bool, str]:
@@ -131,7 +131,7 @@ class AuthService:
 
             logger.info(f"Login bem-sucedido: {email} ({user.nivel}) - Módulos: {user.permissions.get('modules')}")
 
-            # NOVO: Adicionar flag se precisa alterar senha
+  # Adicionar flag se precisa alterar senha
             if user.precisa_alterar_senha:
                 logger.info(f"Usuário {email} precisa alterar senha no próximo login.")
 
@@ -144,7 +144,7 @@ class AuthService:
             return False, None, "Ocorreu um erro interno ao tentar autenticar. Tente novamente.", 'error'
     
     # ================================================================== #
-    # NOVO: ALTERAÇÃO FORÇADA DE SENHA
+  # ALTERAÇÃO FORÇADA DE SENHA
     # ================================================================== #
     
     def change_password_forced(self, email, current_password, new_password):
@@ -194,7 +194,7 @@ class AuthService:
             return False, f"Erro interno: {str(e)}"
     
     # ================================================================== #
-    # NOVO: MARCAR USUÁRIO PARA ALTERAR SENHA
+  # MARCAR USUÁRIO PARA ALTERAR SENHA
     # ================================================================== #
     
     def mark_user_for_password_change(self, email: str, reason: str = "admin") -> Tuple[bool, str]:
@@ -288,7 +288,7 @@ class AuthService:
             # Atualizar senha
             update_data = {'senha': hashed_password}
             
-            # NOVO: Marcar para alteração se solicitado
+  # Marcar para alteração se solicitado
             if mark_for_change:
                 update_data['requer_alteracao_senha'] = 'sim'
                 logger.info(f"Reset de senha para {email} - marcado para alteração no próximo login")
